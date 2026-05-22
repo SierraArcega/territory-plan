@@ -21,12 +21,19 @@ vi.mock("@/features/shared/lib/filters", () => ({
   DISTRICT_FIELD_MAP: {},
 }));
 
-// ?stats=1 reads through the readonly pool now (one grouped query per table
-// instead of N×4 Prisma aggregates). Tests inject row arrays per call.
+// ?stats=1 reads through the readonly pool (opps + contacts) and the regular
+// pool (news — not whitelisted on the readonly role). Tests inject row arrays.
 const mockReadonlyQuery = vi.fn();
 vi.mock("@/lib/db-readonly", () => ({
   readonlyPool: {
     query: (...args: unknown[]) => mockReadonlyQuery(...args),
+  },
+}));
+
+const mockPoolQuery = vi.fn();
+vi.mock("@/lib/db", () => ({
+  default: {
+    query: (...args: unknown[]) => mockPoolQuery(...args),
   },
 }));
 
@@ -210,10 +217,9 @@ describe("Territory Plans API", () => {
         })
         .mockResolvedValueOnce({
           rows: [{ leaid: "0601234", count: "8" }],
-        })
-        .mockResolvedValueOnce({
-          rows: [],
         });
+      // news query uses the regular pool (not whitelisted on readonly role)
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] });
 
       const response = await listPlans(makeListReq("?stats=1"));
       const data = await response.json();
@@ -261,12 +267,12 @@ describe("Territory Plans API", () => {
       ];
 
       mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
-      // opps query
+      // opps query (readonly pool)
       mockReadonlyQuery.mockResolvedValueOnce({ rows: [] });
-      // contacts query
+      // contacts query (readonly pool)
       mockReadonlyQuery.mockResolvedValueOnce({ rows: [] });
-      // news query — 3 recent articles for this district
-      mockReadonlyQuery.mockResolvedValueOnce({
+      // news query — 3 recent articles for this district (regular pool)
+      mockPoolQuery.mockResolvedValueOnce({
         rows: [{ leaid: "1234567", count: "3" }],
       });
 

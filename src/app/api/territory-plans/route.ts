@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { readonlyPool } from "@/lib/db-readonly";
+import pool from "@/lib/db";
 import { getUser } from "@/lib/supabase/server";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 export const dynamic = "force-dynamic";
@@ -120,7 +121,7 @@ async function computeAllPlanStats(
     [leaids],
   );
 
-  const newsRowsP = readonlyPool.query<{ leaid: string; count: string }>(
+  const newsRowsP = pool.query<{ leaid: string; count: string }>(
     `SELECT nad.leaid, COUNT(DISTINCT na.id) AS count
      FROM news_article_districts nad
      JOIN news_articles na ON na.id = nad.article_id
