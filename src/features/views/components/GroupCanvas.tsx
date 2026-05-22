@@ -65,7 +65,7 @@ export default function GroupCanvas({
 }: GroupCanvasProps) {
   // Plans / lists share the same TanStack cache as the sidebar, so this is
   // effectively a free lookup once the sidebar has fetched.
-  const plansQ = usePlansWithStats(false);
+  const plansQ = usePlansWithStats(false, false);
   const plan = useMemo(() => {
     if (kind !== "plan") return null;
     return plansQ.data?.find((p) => p.id === groupId) ?? null;
