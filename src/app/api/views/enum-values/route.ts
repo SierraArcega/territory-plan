@@ -13,6 +13,7 @@ const VALID_SOURCES = [
   "personas",
   "seniorities",
   "feed_sources",
+  "contract_types",
 ] as const;
 type EnumSourceId = (typeof VALID_SOURCES)[number];
 
@@ -72,6 +73,18 @@ export async function GET(req: NextRequest) {
       );
       return NextResponse.json({
         values: result.rows.map((r) => ({ value: r.stage, label: r.stage })),
+      });
+    }
+
+    case "contract_types": {
+      const result = await readonlyPool.query<{ contract_type: string }>(
+        `SELECT DISTINCT contract_type FROM opportunities WHERE contract_type IS NOT NULL ORDER BY contract_type`,
+      );
+      return NextResponse.json({
+        values: result.rows.map((r) => ({
+          value: r.contract_type,
+          label: r.contract_type,
+        })),
       });
     }
 

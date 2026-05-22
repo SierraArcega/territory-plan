@@ -234,3 +234,28 @@ describe("GET /api/views/enum-values?source=feed_sources", () => {
     expect(sql).toMatch(/feed_source/i);
   });
 });
+
+// ============================================================
+// ?source=contract_types
+// ============================================================
+describe("GET /api/views/enum-values?source=contract_types", () => {
+  it("runs DISTINCT query on opportunities.contract_type", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockQuery.mockResolvedValue({
+      rows: [{ contract_type: "Hybrid Staffing" }, { contract_type: "Tier 1" }],
+    });
+
+    const res = await GET(makeRequest("/api/views/enum-values?source=contract_types"));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.values).toEqual([
+      { value: "Hybrid Staffing", label: "Hybrid Staffing" },
+      { value: "Tier 1", label: "Tier 1" },
+    ]);
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toMatch(/opportunities/i);
+    expect(sql).toMatch(/contract_type/i);
+    expect(sql).toMatch(/distinct/i);
+  });
+});

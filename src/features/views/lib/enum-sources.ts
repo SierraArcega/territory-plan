@@ -4,7 +4,8 @@ export type EnumSourceId =
   | "stages"
   | "personas"
   | "seniorities"
-  | "feed_sources";
+  | "feed_sources"
+  | "contract_types";
 
 export const STATIC_ENUM_SOURCES: Record<EnumSourceId, boolean> = {
   states: false,        // dynamic — fetched from /api/views/enum-values
@@ -13,4 +14,5 @@ export const STATIC_ENUM_SOURCES: Record<EnumSourceId, boolean> = {
   personas: false,
   seniorities: false,
   feed_sources: false,
+  contract_types: false,
 };

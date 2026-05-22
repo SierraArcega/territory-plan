@@ -240,6 +240,20 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       type: "text",
       ops: ["is", "is any of"],
     },
+    {
+      id: "contract_type",
+      label: "Contract type",
+      column: "contract_type",
+      type: "text",
+      ops: ["is", "is not", "is any of", "is not any of"],
+    },
+    {
+      id: "sales_rep",
+      label: "Owner",
+      column: "sales_rep_id",
+      type: "text",
+      ops: ["is", "is any of"],
+    },
   ],
   vacancies: [
     {

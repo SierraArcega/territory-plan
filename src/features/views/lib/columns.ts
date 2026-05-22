@@ -171,8 +171,11 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
       sortable: true,  filterFieldId: "school_yr",     filterWidget: { kind: "multiselect", values: ["2024-25","2025-26","2026-27"] },
       align: "left",   format: "text",  defaultVisible: false, defaultOrder: 4 },
     { id: "owner",      header: "Owner",       kind: "raw", accessor: "ownerName",
-      sortable: false, filterFieldId: null,            filterWidget: { kind: "multiselect", enumSource: "users" },
+      sortable: false, filterFieldId: "sales_rep",     filterWidget: { kind: "multiselect", enumSource: "users" },
       align: "left",   format: "avatar",defaultVisible: true,  defaultOrder: 5 },
+    { id: "contract_type", header: "Contract type", kind: "raw", accessor: "contractType",
+      sortable: true,  filterFieldId: "contract_type", filterWidget: { kind: "multiselect", enumSource: "contract_types" },
+      align: "left",   format: "pill",  defaultVisible: false, defaultOrder: 6 },
   ],
   vacancies: [
     { id: "status",            header: "Status",     kind: "raw", accessor: "status",
