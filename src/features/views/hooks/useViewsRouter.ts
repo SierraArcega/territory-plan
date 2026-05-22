@@ -3,38 +3,29 @@
 /**
  * URL parsing + navigation helper for the My Views feature.
  *
- * Reads the App Router pathname + searchParams to derive the active group,
- * view, and detail-panel state, and exposes mutators that round-trip through
- * router.push() so the URL is always the source of truth.
+ * Reads the App Router pathname + searchParams to derive the active group and
+ * view, and exposes mutators that round-trip through router.push() so the URL
+ * is always the source of truth.
  *
  * URL shapes (see spec §"URL Structure"):
  *
- *   /views                                         → portfolio, My plans tab (default)
- *   /views?bucket=team                             → portfolio, Team plans tab
- *   /views?bucket=archived                         → portfolio, Archived plans tab
- *   /views/plans/[planId]                          → plan, default view (page redirects)
- *   /views/plans/[planId]/[viewId]                 → plan, specific view
- *   /views/plans/[planId]/[viewId]?detail=kind:id  → plan view + detail panel
- *   /views/lists/[listId]                          → list, default view (page redirects)
- *   /views/lists/[listId]/[viewId]                 → list, specific view
- *   /views/lists/[listId]/[viewId]?detail=kind:id  → list view + detail panel
+ *   /views                            → portfolio, My plans tab (default)
+ *   /views?bucket=team                → portfolio, Team plans tab
+ *   /views?bucket=archived            → portfolio, Archived plans tab
+ *   /views/plans/[planId]             → plan, default view (page redirects)
+ *   /views/plans/[planId]/[viewId]    → plan, specific view
+ *   /views/lists/[listId]             → list, default view (page redirects)
+ *   /views/lists/[listId]/[viewId]    → list, specific view
  *
  * Notes:
  *   - Unknown viewIds are treated as null so the consumer can decide whether
  *     to redirect to the default view.
- *   - Detail panel reads ?detail=[kind]:[id]; malformed values yield null so
- *     the caller can render the view body without a panel.
  *   - All navigation methods use router.push() (not replace) so back/forward
- *     work for view-switching and detail-panel toggles.
+ *     work for view-switching.
  */
 import { useCallback, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import {
-  isDetailKind,
-  isViewId,
-  type DetailKind,
-  type ViewId,
-} from "../lib/view-types";
+import { isViewId, type ViewId } from "../lib/view-types";
 
 export type GroupKind = "plan" | "list";
 
@@ -45,11 +36,6 @@ const PORTFOLIO_BUCKETS: PortfolioBucket[] = ["mine", "team", "archived"];
 
 function isPortfolioBucket(v: string | null): v is PortfolioBucket {
   return v !== null && (PORTFOLIO_BUCKETS as string[]).includes(v);
-}
-
-export interface DetailState {
-  kind: DetailKind;
-  id: string;
 }
 
 export interface ViewsRouter {
@@ -64,8 +50,6 @@ export interface ViewsRouter {
    * for that case is expected to redirect to the default view).
    */
   viewId: ViewId | null;
-  /** Detail-panel state parsed from ?detail=[kind]:[id], or null. */
-  detail: DetailState | null;
   /**
    * Active portfolio tab. Reads `?bucket=mine|team|archived`; defaults to
    * "mine" when absent or invalid so a bare `/views` URL lands on the user's
@@ -76,10 +60,6 @@ export interface ViewsRouter {
   goToGroup: (kind: GroupKind, id: string, viewId?: ViewId) => void;
   /** Navigate to the portfolio; optionally selecting a specific tab. */
   goToPortfolio: (bucket?: PortfolioBucket) => void;
-  /** Open the detail panel on the current view, preserving everything else. */
-  openDetail: (kind: DetailKind, id: string) => void;
-  /** Close the detail panel by removing the ?detail param. */
-  closeDetail: () => void;
 }
 
 /**
@@ -115,23 +95,6 @@ function parsePath(pathname: string): {
   return { groupKind, groupId, viewId };
 }
 
-/**
- * Parses a ?detail=kind:id query param. Returns null when missing or malformed
- * — callers can treat null as "panel closed".
- */
-function parseDetailParam(raw: string | null): DetailState | null {
-  if (!raw) return null;
-  const idx = raw.indexOf(":");
-  if (idx <= 0 || idx === raw.length - 1) return null;
-  const kind = raw.slice(0, idx);
-  const id = raw.slice(idx + 1);
-  if (!isDetailKind(kind)) return null;
-  // Tight id length cap to avoid pathological URL lengths from a malformed
-  // server response or copy-paste accident.
-  if (id.length === 0 || id.length > 200) return null;
-  return { kind, id };
-}
-
 /** Build /views/<plural-kind>/<id>[/<viewId>] from primitives. */
 export function buildGroupPath(
   kind: GroupKind,
@@ -157,9 +120,6 @@ export function useViewsRouter(): ViewsRouter {
   // whole object into selectors.
   const parsed = useMemo(() => parsePath(pathname), [pathname]);
 
-  const detailRaw = searchParams?.get("detail") ?? null;
-  const detail = useMemo(() => parseDetailParam(detailRaw), [detailRaw]);
-
   const bucketRaw = searchParams?.get("bucket") ?? null;
   const bucket: PortfolioBucket = isPortfolioBucket(bucketRaw) ? bucketRaw : "mine";
 
@@ -180,37 +140,16 @@ export function useViewsRouter(): ViewsRouter {
     [router],
   );
 
-  const openDetail = useCallback(
-    (kind: DetailKind, id: string) => {
-      // Build a fresh URLSearchParams from the current one so we don't drop
-      // sibling params (e.g. archived).
-      const next = new URLSearchParams(searchParams?.toString() ?? "");
-      next.set("detail", `${kind}:${id}`);
-      router.push(`${pathname}?${next.toString()}`);
-    },
-    [router, pathname, searchParams],
-  );
-
-  const closeDetail = useCallback(() => {
-    const next = new URLSearchParams(searchParams?.toString() ?? "");
-    next.delete("detail");
-    const qs = next.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  }, [router, pathname, searchParams]);
-
   return {
     isPortfolio,
     groupKind: parsed.groupKind,
     groupId: parsed.groupId,
     viewId: parsed.viewId,
-    detail,
     bucket,
     goToGroup,
     goToPortfolio,
-    openDetail,
-    closeDetail,
   };
 }
 
 /** Exported for unit tests — parses without React hooks. */
-export const __test = { parsePath, parseDetailParam, buildGroupPath };
+export const __test = { parsePath, buildGroupPath };

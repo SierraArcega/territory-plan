@@ -14,7 +14,6 @@ import {
   useHidePlan,
   useUnhidePlan,
   useListPreview,
-  useEntity,
 } from "../queries";
 
 const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
@@ -230,27 +229,5 @@ describe("useListPreview", () => {
     rerender({ s: { ...spec } });
     await new Promise((r) => setTimeout(r, 30));
     expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("useEntity", () => {
-  it.each([
-    ["district", "1234567", "/api/districts/1234567"],
-    ["contact", "42", "/api/contacts/42"],
-    ["opp", "opp-1", "/api/opportunities/opp-1"],
-    ["vacancy", "v-9", "/api/vacancies/v-9"],
-    ["news", "n-3", "/api/news/n-3"],
-    ["rfp", "r-2", "/api/rfps/r-2"],
-  ] as const)("routes %s detail to %s", async (kind, id, expectedUrl) => {
-    fetchMock.mockResolvedValueOnce(mockJsonResponse({ id }));
-    renderHook(() => useEntity(kind, id), { wrapper: makeWrapper() });
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock.mock.calls[0][0]).toBe(expectedUrl);
-  });
-
-  it("does not fetch when either kind or id is null", async () => {
-    renderHook(() => useEntity(null, "x"), { wrapper: makeWrapper() });
-    await new Promise((r) => setTimeout(r, 10));
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

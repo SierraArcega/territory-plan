@@ -30,35 +30,21 @@ export type ViewId =
   | "opps"
   | "signals";
 
-/** Discriminated identifier for the entity kind a detail panel may show. */
-export type DetailKind =
-  | "district"
-  | "contact"
-  | "opp"
-  | "vacancy"
-  | "news"
-  | "rfp";
-
-/** A view's rendering metadata — label + icon + the detail kind row clicks open. */
+/** A view's rendering metadata — label + icon. */
 export interface ViewSpec {
   id: ViewId;
   label: string;
   icon: LucideIcon;
-  /** Entity kind whose detail panel opens when a row in this view is clicked. */
-  detailKind: DetailKind;
 }
 
 /** Frozen registry — order here drives the order in the view-tabs strip. */
 export const VIEW_SPECS: readonly ViewSpec[] = [
-  { id: "map", label: "Map", icon: MapIcon, detailKind: "district" },
-  { id: "table", label: "Table", icon: TableIcon, detailKind: "district" },
-  { id: "kanban", label: "Kanban", icon: KanbanIcon, detailKind: "district" },
-  { id: "contacts", label: "Contacts", icon: ContactsIcon, detailKind: "contact" },
-  { id: "opps", label: "Opps", icon: OppsIcon, detailKind: "opp" },
-  // `detailKind` is a harmless placeholder — Signals leaf rows declare their
-  // own `data-row-kind` (vacancy/news/rfp), so GroupCanvas's click delegation
-  // routes per row regardless of this value.
-  { id: "signals", label: "Signals", icon: SignalsIcon, detailKind: "district" },
+  { id: "map", label: "Map", icon: MapIcon },
+  { id: "table", label: "Table", icon: TableIcon },
+  { id: "kanban", label: "Kanban", icon: KanbanIcon },
+  { id: "contacts", label: "Contacts", icon: ContactsIcon },
+  { id: "opps", label: "Opps", icon: OppsIcon },
+  { id: "signals", label: "Signals", icon: SignalsIcon },
 ] as const;
 
 /** All valid view IDs, useful for URL validation. */
@@ -88,18 +74,4 @@ export function lookupViewSpec(id: ViewId): ViewSpec {
     throw new Error(`Unknown view id: ${id}`);
   }
   return found;
-}
-
-/** All valid detail kinds — used by URL parser when reading `?detail=kind:id`. */
-export const DETAIL_KINDS: readonly DetailKind[] = [
-  "district",
-  "contact",
-  "opp",
-  "vacancy",
-  "news",
-  "rfp",
-] as const;
-
-export function isDetailKind(value: string): value is DetailKind {
-  return (DETAIL_KINDS as readonly string[]).includes(value);
 }

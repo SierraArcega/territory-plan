@@ -89,42 +89,6 @@ describe("parsePath (pure)", () => {
   });
 });
 
-describe("parseDetailParam (pure)", () => {
-  const { parseDetailParam } = __test;
-
-  it("returns null for missing/empty", () => {
-    expect(parseDetailParam(null)).toBe(null);
-    expect(parseDetailParam("")).toBe(null);
-  });
-
-  it("parses well-formed kind:id", () => {
-    expect(parseDetailParam("district:1234567")).toEqual({
-      kind: "district",
-      id: "1234567",
-    });
-    expect(parseDetailParam("opp:abc-123")).toEqual({
-      kind: "opp",
-      id: "abc-123",
-    });
-  });
-
-  it("returns null for malformed strings (no colon)", () => {
-    expect(parseDetailParam("districtX1234567")).toBe(null);
-  });
-
-  it("returns null when kind is unknown", () => {
-    expect(parseDetailParam("garbage:abc")).toBe(null);
-  });
-
-  it("returns null when id is empty", () => {
-    expect(parseDetailParam("district:")).toBe(null);
-  });
-
-  it("returns null when only colon present", () => {
-    expect(parseDetailParam(":abc")).toBe(null);
-  });
-});
-
 describe("buildGroupPath (pure)", () => {
   const { buildGroupPath } = __test;
 
@@ -160,7 +124,6 @@ describe("useViewsRouter (hook)", () => {
     expect(result.current.groupKind).toBe(null);
     expect(result.current.groupId).toBe(null);
     expect(result.current.viewId).toBe(null);
-    expect(result.current.detail).toBe(null);
     expect(result.current.bucket).toBe("mine");
   });
 
@@ -204,16 +167,6 @@ describe("useViewsRouter (hook)", () => {
     expect(result.current.viewId).toBe("table");
   });
 
-  it("plan view with detail panel", () => {
-    mockState.pathname = "/views/plans/plan-abc/map";
-    mockState.searchParams = new URLSearchParams("detail=district:1234567");
-    const { result } = renderHook(() => useViewsRouter());
-    expect(result.current.detail).toEqual({
-      kind: "district",
-      id: "1234567",
-    });
-  });
-
   it("list default view: /views/lists/list-xyz", () => {
     mockState.pathname = "/views/lists/list-xyz";
     const { result } = renderHook(() => useViewsRouter());
@@ -221,13 +174,11 @@ describe("useViewsRouter (hook)", () => {
     expect(result.current.groupId).toBe("list-xyz");
   });
 
-  it("list view with detail panel", () => {
+  it("list specific view: /views/lists/list-xyz/contacts", () => {
     mockState.pathname = "/views/lists/list-xyz/contacts";
-    mockState.searchParams = new URLSearchParams("detail=contact:42");
     const { result } = renderHook(() => useViewsRouter());
     expect(result.current.groupKind).toBe("list");
     expect(result.current.viewId).toBe("contacts");
-    expect(result.current.detail).toEqual({ kind: "contact", id: "42" });
   });
 
   it("goToGroup pushes the right path", () => {
@@ -259,36 +210,5 @@ describe("useViewsRouter (hook)", () => {
     const { result } = renderHook(() => useViewsRouter());
     act(() => result.current.goToPortfolio("archived"));
     expect(mockState.push).toHaveBeenCalledWith("/views?bucket=archived");
-  });
-
-  it("openDetail preserves existing query params", () => {
-    mockState.pathname = "/views/plans/plan-abc/map";
-    mockState.searchParams = new URLSearchParams("foo=bar");
-    const { result } = renderHook(() => useViewsRouter());
-    act(() => result.current.openDetail("district", "1234567"));
-    expect(mockState.push).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/views\/plans\/plan-abc\/map\?/),
-    );
-    const calledWith = mockState.push.mock.calls[0][0] as string;
-    expect(calledWith).toContain("foo=bar");
-    expect(calledWith).toContain("detail=district%3A1234567");
-  });
-
-  it("closeDetail removes only the detail param", () => {
-    mockState.pathname = "/views/plans/plan-abc/map";
-    mockState.searchParams = new URLSearchParams("foo=bar&detail=district:1");
-    const { result } = renderHook(() => useViewsRouter());
-    act(() => result.current.closeDetail());
-    expect(mockState.push).toHaveBeenCalledWith(
-      "/views/plans/plan-abc/map?foo=bar",
-    );
-  });
-
-  it("closeDetail drops the query string entirely when nothing else remains", () => {
-    mockState.pathname = "/views/plans/plan-abc/map";
-    mockState.searchParams = new URLSearchParams("detail=district:1");
-    const { result } = renderHook(() => useViewsRouter());
-    act(() => result.current.closeDetail());
-    expect(mockState.push).toHaveBeenCalledWith("/views/plans/plan-abc/map");
   });
 });

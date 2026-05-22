@@ -29,7 +29,6 @@ import type {
   ScopeRefKind,
 } from "@/lib/saved-views/filter-tree";
 import type { ViewLayouts } from "@/lib/saved-views/grid-layout-schema";
-import type { DetailKind } from "./view-types";
 
 // ── Plan + List response shapes ────────────────────────────────────────────
 
@@ -389,57 +388,6 @@ export function useListPreview(
     enabled: !!debouncedSerialized && (options?.enabled ?? true),
     staleTime: 60 * 1000,
     ...options?.queryOptions,
-  });
-}
-
-// ── Entity detail fetcher ───────────────────────────────────────────────────
-
-/**
- * Routing helper — picks the right detail endpoint for the given kind. The
- * endpoints all live under /api but have different path shapes (districts
- * key on leaid, others on id, vacancies/news/rfps under their own paths).
- *
- * Phase A landed the new opportunities/news/rfps endpoints; districts and
- * contacts predate this feature.
- */
-function entityUrl(kind: DetailKind, id: string): string {
-  switch (kind) {
-    case "district":
-      return `${API_BASE}/districts/${encodeURIComponent(id)}`;
-    case "contact":
-      return `${API_BASE}/contacts/${encodeURIComponent(id)}`;
-    case "opp":
-      return `${API_BASE}/opportunities/${encodeURIComponent(id)}`;
-    case "vacancy":
-      return `${API_BASE}/vacancies/${encodeURIComponent(id)}`;
-    case "news":
-      return `${API_BASE}/news/${encodeURIComponent(id)}`;
-    case "rfp":
-      return `${API_BASE}/rfps/${encodeURIComponent(id)}`;
-    default: {
-      // Exhaustiveness guard.
-      const _exhaustive: never = kind;
-      throw new Error(`Unknown detail kind: ${String(_exhaustive)}`);
-    }
-  }
-}
-
-/**
- * Generic detail fetcher used by the detail-panel kind dispatchers (Phase D).
- *
- * Typed as `unknown` because each entity kind returns a different shape; the
- * detail-content components own the runtime shape narrowing.
- */
-export function useEntity(kind: DetailKind | null, id: string | null) {
-  const enabled = kind != null && id != null;
-  return useQuery<unknown, Error>({
-    queryKey: ["views", "entity", kind, id] as const,
-    queryFn: () => {
-      if (!kind || !id) throw new Error("Missing kind/id");
-      return fetchJson(entityUrl(kind, id));
-    },
-    enabled,
-    staleTime: 60 * 1000,
   });
 }
 

@@ -9,16 +9,13 @@
 export type {
   ViewId,
   ViewSpec,
-  DetailKind,
 } from "./lib/view-types";
 export {
   VIEW_SPECS,
   VIEW_IDS,
   VIEW_ICON,
   DEFAULT_VIEW_ID,
-  DETAIL_KINDS,
   isViewId,
-  isDetailKind,
   lookupViewSpec,
 } from "./lib/view-types";
 

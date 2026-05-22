@@ -3,9 +3,7 @@ import {
   VIEW_SPECS,
   VIEW_IDS,
   VIEW_ICON,
-  DETAIL_KINDS,
   isViewId,
-  isDetailKind,
   lookupViewSpec,
 } from "../view-types";
 
@@ -31,8 +29,6 @@ describe("view-types registry", () => {
     const signals = VIEW_SPECS.find((v) => v.id === "signals");
     expect(signals).toBeTruthy();
     expect(signals?.label).toBe("Signals");
-    // detailKind is a harmless placeholder — leaf rows route per data-row-kind.
-    expect(signals?.detailKind).toBe("district");
   });
 
   it("VIEW_SPECS length matches VIEW_IDS", () => {
@@ -57,39 +53,11 @@ describe("view-types registry", () => {
     }
   });
 
-  it("DETAIL_KINDS covers map/table/kanban via 'district'", () => {
-    expect(VIEW_SPECS.find((v) => v.id === "map")?.detailKind).toBe("district");
-    expect(VIEW_SPECS.find((v) => v.id === "table")?.detailKind).toBe("district");
-    expect(VIEW_SPECS.find((v) => v.id === "kanban")?.detailKind).toBe("district");
-  });
-
-  it("each entity view maps to its own detail kind", () => {
-    expect(VIEW_SPECS.find((v) => v.id === "contacts")?.detailKind).toBe("contact");
-    expect(VIEW_SPECS.find((v) => v.id === "opps")?.detailKind).toBe("opp");
-  });
-
   it("isViewId narrows correctly", () => {
     expect(isViewId("map")).toBe(true);
     expect(isViewId("table")).toBe(true);
     expect(isViewId("garbage")).toBe(false);
     expect(isViewId("")).toBe(false);
-  });
-
-  it("isDetailKind narrows correctly", () => {
-    expect(isDetailKind("district")).toBe(true);
-    expect(isDetailKind("opp")).toBe(true);
-    expect(isDetailKind("garbage")).toBe(false);
-  });
-
-  it("DETAIL_KINDS has all 6 entity types", () => {
-    expect(DETAIL_KINDS).toEqual([
-      "district",
-      "contact",
-      "opp",
-      "vacancy",
-      "news",
-      "rfp",
-    ]);
   });
 
   it("lookupViewSpec throws on unknown id", () => {

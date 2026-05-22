@@ -15,12 +15,9 @@ vi.mock("../../hooks/useViewsRouter", () => ({
     groupKind: null,
     groupId: null,
     viewId: null,
-    detail: null,
     bucket: routerState.bucket,
     goToGroup: vi.fn(),
     goToPortfolio,
-    openDetail: vi.fn(),
-    closeDetail: vi.fn(),
   }),
 }));
 
