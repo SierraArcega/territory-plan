@@ -263,6 +263,7 @@ export default function GridView(props: GridViewProps) {
               districtName={typeof row.name === "string" ? row.name : leaid}
               latest={typeof row.notesLatest === "string" ? row.notesLatest : null}
               count={typeof row.notesCount === "number" ? row.notesCount : 0}
+              latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
             />
           );
         }

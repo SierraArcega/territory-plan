@@ -365,6 +365,7 @@ export async function GET(req: NextRequest) {
             plan_notes: e?.notes ?? null,
             notes_latest: notesSummary.get(leaid)?.latest ?? null,
             notes_count: notesSummary.get(leaid)?.count ?? 0,
+            notes_latest_type: notesSummary.get(leaid)?.latestType ?? null,
             // Single string the grid can dispatch on:
             //   rank → "#1", "#2", …
             //   win_back → "Win Back"

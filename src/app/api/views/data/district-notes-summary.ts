@@ -9,18 +9,20 @@ export interface NoteSummaryRow {
   district_leaid: string;
   count: number;
   latest_text: string | null;
+  latest_type: string | null;
 }
 
 export interface NoteSummary {
   latest: string | null;
   count: number;
+  latestType: string | null;
 }
 
 /** Pure: rows -> Map. Exported for unit testing without a DB. */
 export function summarizeNoteRows(rows: NoteSummaryRow[]): Map<string, NoteSummary> {
   const m = new Map<string, NoteSummary>();
   for (const r of rows) {
-    m.set(r.district_leaid, { latest: r.latest_text, count: Number(r.count) });
+    m.set(r.district_leaid, { latest: r.latest_text, count: Number(r.count), latestType: r.latest_type });
   }
   return m;
 }
@@ -37,7 +39,8 @@ export async function fetchDistrictNotesSummary(
     const rows = await prisma.$queryRaw<NoteSummaryRow[]>`
       SELECT district_leaid,
              COUNT(*)::int AS count,
-             (ARRAY_AGG(body_text ORDER BY created_at DESC))[1] AS latest_text
+             (ARRAY_AGG(body_text ORDER BY created_at DESC))[1] AS latest_text,
+             (ARRAY_AGG(note_type ORDER BY created_at DESC))[1] AS latest_type
       FROM district_notes
       WHERE district_leaid = ANY(${leaids})
       GROUP BY district_leaid

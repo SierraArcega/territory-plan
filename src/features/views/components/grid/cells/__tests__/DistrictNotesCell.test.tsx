@@ -28,18 +28,18 @@ beforeEach(() => {
 
 describe("DistrictNotesCell", () => {
   it("shows '+ Add note' when empty", () => {
-    wrap(<DistrictNotesCell leaid="3601234" districtName="Lincoln" latest={null} count={0} />);
+    wrap(<DistrictNotesCell leaid="3601234" districtName="Lincoln" latest={null} count={0} latestType={null} />);
     expect(screen.getByText(/add note/i)).toBeInTheDocument();
   });
 
   it("shows snippet + count badge when notes exist", () => {
-    wrap(<DistrictNotesCell leaid="3601234" districtName="Lincoln" latest="Sent renewal proposal" count={3} />);
+    wrap(<DistrictNotesCell leaid="3601234" districtName="Lincoln" latest="Sent renewal proposal" count={3} latestType="risk_flag" />);
     expect(screen.getByText(/Sent renewal proposal/)).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("3").className).toContain("#FFE0DC");
   });
 
   it("opens the popover on click", () => {
-    wrap(<DistrictNotesCell leaid="3601234" districtName="Lincoln" latest="hi" count={1} />);
+    wrap(<DistrictNotesCell leaid="3601234" districtName="Lincoln" latest="hi" count={1} latestType={null} />);
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /notes/i }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();

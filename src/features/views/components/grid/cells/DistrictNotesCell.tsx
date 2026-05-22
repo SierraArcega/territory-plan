@@ -1,15 +1,17 @@
 "use client";
 import { useState } from "react";
 import { NotesPopover } from "../../notes/NotesPopover";
+import { noteTypeMeta } from "../../../lib/note-types";
 
 interface Props {
   leaid: string;
   districtName: string;
   latest: string | null;
   count: number;
+  latestType: string | null;
 }
 
-export function DistrictNotesCell({ leaid, districtName, latest, count }: Props) {
+export function DistrictNotesCell({ leaid, districtName, latest, count, latestType }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -23,7 +25,7 @@ export function DistrictNotesCell({ leaid, districtName, latest, count }: Props)
         {latest ? (
           <>
             <span className="text-sm text-[#544A78] truncate whitespace-nowrap">{latest}</span>
-            <span className="flex-shrink-0 bg-[#EFEBF7] text-[#6F4C8C] text-[11px] font-bold px-[7px] rounded-full">{count}</span>
+            <span className={`flex-shrink-0 text-[11px] font-bold px-[7px] rounded-full ${latestType ? noteTypeMeta(latestType).pill : "bg-[#EFEBF7] text-[#6F4C8C]"}`}>{count}</span>
           </>
         ) : (
           <span className="text-sm text-[#A69DC0] whitespace-nowrap">+ Add note</span>
