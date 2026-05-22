@@ -36,6 +36,17 @@ describe("RowActionsMenu", () => {
     await waitFor(() => expect(screen.queryByRole("menuitem")).not.toBeInTheDocument());
   });
 
+  it("opens the activity modal with the district preselected", async () => {
+    render(<RowActionsMenu {...props} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /log activity/i }));
+    // ActivityFormModal renders; the title encodes the district.
+    expect(await screen.findByText(/log activity · tedesco usd/i)).toBeInTheDocument();
+    // Switching to "Specific district" scope reveals the preloaded district option.
+    fireEvent.click(screen.getByRole("radio", { name: /specific district/i }));
+    expect(screen.getByRole("option", { name: /tedesco usd/i })).toBeInTheDocument();
+  });
+
   it("removes the district after a two-step confirm and invalidates the grid", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve(new Response(JSON.stringify({ success: true }), {
