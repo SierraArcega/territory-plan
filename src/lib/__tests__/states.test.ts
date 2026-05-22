@@ -123,7 +123,7 @@ describe("abbrevToFips", () => {
   it("returns null for unknown abbreviations", () => {
     expect(abbrevToFips("ZZ")).toBeNull();
     expect(abbrevToFips("")).toBeNull();
-    // @ts-expect-error testing runtime behavior with non-string input
+    // Signature accepts string | null | undefined; verify the nullish path.
     expect(abbrevToFips(undefined)).toBeNull();
   });
 });

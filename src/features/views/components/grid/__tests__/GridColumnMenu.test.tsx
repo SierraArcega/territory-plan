@@ -18,6 +18,15 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.click(gear);
 }
 
+// The first two districts columns by default order. Derived (not hardcoded)
+// so these reorder tests stay correct when columns are inserted/reordered in
+// SOURCE_COLUMNS — which is exactly what previously broke them.
+const ORDERED_DISTRICT_COLS = [...SOURCE_COLUMNS.districts].sort(
+  (a, b) => a.defaultOrder - b.defaultOrder,
+);
+const FIRST_COL = ORDERED_DISTRICT_COLS[0]; // default order 0
+const SECOND_COL = ORDERED_DISTRICT_COLS[1]; // default order 1
+
 describe("GridColumnMenu", () => {
   describe("rendering", () => {
     it("gear button renders closed by default", () => {
@@ -203,16 +212,18 @@ describe("GridColumnMenu", () => {
       );
       await openMenu(user);
 
-      // "State" is at defaultOrder=1; clicking ↑ should swap it with "District" (defaultOrder=0)
-      await user.click(screen.getByRole("button", { name: "Move State up" }));
+      // Clicking ↑ on the 2nd column swaps it with the 1st (the column above).
+      await user.click(
+        screen.getByRole("button", { name: `Move ${SECOND_COL.header} up` }),
+      );
 
       expect(onChange).toHaveBeenCalledTimes(1);
       const next: GridViewLayout = onChange.mock.calls[0][0];
-      const stateEntry = next.columns.find((c) => c.id === "state");
-      const nameEntry = next.columns.find((c) => c.id === "name");
-      // After swap, "state" should have order 0 and "name" should have order 1
-      expect(stateEntry?.order).toBe(0);
-      expect(nameEntry?.order).toBe(1);
+      const secondEntry = next.columns.find((c) => c.id === SECOND_COL.id);
+      const firstEntry = next.columns.find((c) => c.id === FIRST_COL.id);
+      // After the swap, the 2nd column takes order 0 and the 1st takes order 1.
+      expect(secondEntry?.order).toBe(0);
+      expect(firstEntry?.order).toBe(1);
     });
 
     it("clicking ↓ on a column swaps its order with the column below", async () => {
@@ -228,15 +239,17 @@ describe("GridColumnMenu", () => {
       );
       await openMenu(user);
 
-      // "District" is at defaultOrder=0; clicking ↓ should swap with "State" (defaultOrder=1)
-      await user.click(screen.getByRole("button", { name: "Move District down" }));
+      // Clicking ↓ on the 1st column swaps it with the 2nd (the column below).
+      await user.click(
+        screen.getByRole("button", { name: `Move ${FIRST_COL.header} down` }),
+      );
 
       expect(onChange).toHaveBeenCalledTimes(1);
       const next: GridViewLayout = onChange.mock.calls[0][0];
-      const nameEntry = next.columns.find((c) => c.id === "name");
-      const stateEntry = next.columns.find((c) => c.id === "state");
-      expect(nameEntry?.order).toBe(1);
-      expect(stateEntry?.order).toBe(0);
+      const firstEntry = next.columns.find((c) => c.id === FIRST_COL.id);
+      const secondEntry = next.columns.find((c) => c.id === SECOND_COL.id);
+      expect(firstEntry?.order).toBe(1);
+      expect(secondEntry?.order).toBe(0);
     });
   });
 
@@ -440,22 +453,22 @@ describe("GridColumnMenu", () => {
   describe("reorderColumns (pure helper)", () => {
     it("moves a column from index 1 to index 0", () => {
       const layout = emptyLayout();
-      // "state" is defaultOrder=1, "name" is defaultOrder=0
-      const next = reorderColumns("districts", layout, "state", "name");
-      const stateEntry = next.columns.find((c) => c.id === "state");
-      const nameEntry = next.columns.find((c) => c.id === "name");
-      expect(stateEntry?.order).toBe(0);
-      expect(nameEntry?.order).toBe(1);
+      // drag the 2nd column (order 1) onto the 1st (order 0)
+      const next = reorderColumns("districts", layout, SECOND_COL.id, FIRST_COL.id);
+      const secondEntry = next.columns.find((c) => c.id === SECOND_COL.id);
+      const firstEntry = next.columns.find((c) => c.id === FIRST_COL.id);
+      expect(secondEntry?.order).toBe(0);
+      expect(firstEntry?.order).toBe(1);
     });
 
     it("moves a column from index 0 to index 1", () => {
       const layout = emptyLayout();
-      // drag "name" (order=0) onto "state" (order=1)
-      const next = reorderColumns("districts", layout, "name", "state");
-      const nameEntry = next.columns.find((c) => c.id === "name");
-      const stateEntry = next.columns.find((c) => c.id === "state");
-      expect(nameEntry?.order).toBe(1);
-      expect(stateEntry?.order).toBe(0);
+      // drag the 1st column (order 0) onto the 2nd (order 1)
+      const next = reorderColumns("districts", layout, FIRST_COL.id, SECOND_COL.id);
+      const firstEntry = next.columns.find((c) => c.id === FIRST_COL.id);
+      const secondEntry = next.columns.find((c) => c.id === SECOND_COL.id);
+      expect(firstEntry?.order).toBe(1);
+      expect(secondEntry?.order).toBe(0);
     });
 
     it("is a no-op when activeId === overId", () => {

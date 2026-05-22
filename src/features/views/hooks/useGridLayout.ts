@@ -33,13 +33,20 @@ import type {
 /** The set of view-type keys that can appear in a ViewLayouts blob. */
 export type ViewTypeKey = NonNullable<keyof NonNullable<ViewLayouts>>;
 
+/**
+ * The subset of view types whose persisted layout is a grid (columns + sort +
+ * filters). Excludes "kanban", whose layout shape has no `columns`. useGridLayout
+ * only manages grid views, so its `viewType` is constrained to these keys.
+ */
+export type GridViewTypeKey = Exclude<ViewTypeKey, "kanban">;
+
 export interface UseGridLayoutArgs {
   /** Whether the parent record is a territory plan or a saved list. */
   parentKind: "plan" | "list";
   /** The id of the parent plan or list. */
   parentId: string;
   /** Which view slot in the viewLayouts blob this instance manages. */
-  viewType: ViewTypeKey;
+  viewType: GridViewTypeKey;
   /** The SavedListSource that drives column/field definitions. */
   source: SavedListSource;
   /**

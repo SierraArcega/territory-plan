@@ -17,7 +17,7 @@ import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/l
 import { useViewsData } from "@/features/views/hooks/useViewsData";
 import {
   useGridLayout,
-  type ViewTypeKey,
+  type GridViewTypeKey,
 } from "@/features/views/hooks/useGridLayout";
 import { GridHeaderCell } from "./GridHeaderCell";
 import { GridFilterChips } from "./GridFilterChips";
@@ -138,7 +138,7 @@ interface GridViewProps {
   /** Id of the plan or list that owns the persisted layout. */
   parentId?: string;
   /** Which slot in the viewLayouts blob this view occupies. */
-  viewType?: ViewTypeKey;
+  viewType?: GridViewTypeKey;
   /** The full viewLayouts blob from the parent record (passed to useGridLayout). */
   savedLayouts?: ViewLayouts;
 
