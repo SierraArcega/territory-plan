@@ -29,6 +29,7 @@ interface PlanStats {
   contactsCount: number;
   oppsCount: number;
   closedWonMinCommit: number;
+  recentNewsCount: number;
 }
 
 interface PlanForStats {
@@ -75,6 +76,7 @@ async function computeAllPlanStats(
         contactsCount: 0,
         oppsCount: 0,
         closedWonMinCommit: 0,
+        recentNewsCount: 0,
       });
     }
     return result;
@@ -118,7 +120,17 @@ async function computeAllPlanStats(
     [leaids],
   );
 
-  const [oppsRows, contactsRows] = await Promise.all([oppsRowsP, contactsRowsP]);
+  const newsRowsP = readonlyPool.query<{ leaid: string; count: string }>(
+    `SELECT nad.leaid, COUNT(DISTINCT na.id) AS count
+     FROM news_article_districts nad
+     JOIN news_articles na ON na.id = nad.article_id
+     WHERE nad.leaid = ANY($1::text[])
+       AND na.published_at >= NOW() - INTERVAL '30 days'
+     GROUP BY nad.leaid`,
+    [leaids],
+  );
+
+  const [oppsRows, contactsRows, newsRows] = await Promise.all([oppsRowsP, contactsRowsP, newsRowsP]);
 
   // (leaid, school_yr) → opps aggregates. School year matters because two
   // plans can share a district but care about different fiscal years.
@@ -145,6 +157,11 @@ async function computeAllPlanStats(
     contactsByLeaid.set(r.leaid, Number(r.count));
   }
 
+  const newsByLeaid = new Map<string, number>();
+  for (const r of newsRows.rows) {
+    newsByLeaid.set(r.leaid, Number(r.count));
+  }
+
   for (const plan of plans) {
     if (plan.districts.length === 0) {
       result.set(plan.id, {
@@ -153,6 +170,7 @@ async function computeAllPlanStats(
         contactsCount: 0,
         oppsCount: 0,
         closedWonMinCommit: 0,
+        recentNewsCount: 0,
       });
       continue;
     }
@@ -162,6 +180,7 @@ async function computeAllPlanStats(
     let bookings = 0;
     let contactsCount = 0;
     let closedWonMinCommit = 0;
+    let recentNewsCount = 0;
     for (const d of plan.districts) {
       const o = oppsByKey.get(`${d.districtLeaid}|${schoolYr}`);
       if (o) {
@@ -171,6 +190,7 @@ async function computeAllPlanStats(
         closedWonMinCommit += o.closedWonMinCommit;
       }
       contactsCount += contactsByLeaid.get(d.districtLeaid) ?? 0;
+      recentNewsCount += newsByLeaid.get(d.districtLeaid) ?? 0;
     }
     const progress =
       plan.targetsTotal > 0
@@ -182,6 +202,7 @@ async function computeAllPlanStats(
       contactsCount,
       oppsCount,
       closedWonMinCommit,
+      recentNewsCount,
     });
   }
 
@@ -374,6 +395,7 @@ export async function GET(request: NextRequest) {
               contactsCount: stats.contactsCount,
               oppsCount: stats.oppsCount,
               closedWonMinCommit: stats.closedWonMinCommit,
+              recentNewsCount: stats.recentNewsCount,
             }
           : {}),
       };
