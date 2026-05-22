@@ -1,11 +1,15 @@
 "use client";
+import { useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { Bold, Italic, List, ListOrdered, Link2 } from "lucide-react";
 import { noteExtensions } from "./tiptap-extensions";
+import { NoteTypePicker } from "./NoteTypePicker";
+import { DEFAULT_NOTE_TYPE } from "../../lib/note-types";
 
 export interface NoteDraft {
   bodyJson: unknown;
   bodyText: string;
+  noteType: string;
 }
 
 interface Props {
@@ -39,6 +43,7 @@ function ToolbarButton({
 }
 
 export function NoteComposer({ onSubmit, pending, initialContent, submitLabel = "Add note" }: Props) {
+  const [noteType, setNoteType] = useState<string>(DEFAULT_NOTE_TYPE);
   const editor = useEditor({
     extensions: noteExtensions,
     content: initialContent ?? "",
@@ -54,8 +59,9 @@ export function NoteComposer({ onSubmit, pending, initialContent, submitLabel = 
 
   function submit() {
     if (!editor || editor.isEmpty) return;
-    onSubmit({ bodyJson: editor.getJSON(), bodyText: editor.getText().trim() });
+    onSubmit({ bodyJson: editor.getJSON(), bodyText: editor.getText().trim(), noteType });
     editor.commands.clearContent();
+    setNoteType(DEFAULT_NOTE_TYPE);
   }
 
   function setLink() {
@@ -66,6 +72,9 @@ export function NoteComposer({ onSubmit, pending, initialContent, submitLabel = 
 
   return (
     <div className="rounded-[10px] border border-[#D4CFE2] bg-white overflow-hidden focus-within:border-[#403770]">
+      <div className="flex items-center gap-2 px-2 pt-2">
+        <NoteTypePicker value={noteType} onChange={setNoteType} />
+      </div>
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-[#E2DEEC] bg-[#FBFAFE]">
         <ToolbarButton editor={editor} label="Bold" active={!!editor?.isActive("bold")}
           onClick={() => editor?.chain().focus().toggleBold().run()}><Bold className="w-3.5 h-3.5" /></ToolbarButton>

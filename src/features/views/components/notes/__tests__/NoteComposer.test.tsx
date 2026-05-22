@@ -46,6 +46,7 @@ describe("NoteComposer", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       bodyJson: expect.objectContaining({ type: "doc" }),
       bodyText: "called the front office",
+      noteType: "general_update",
     });
   });
 });
