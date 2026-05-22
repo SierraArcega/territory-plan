@@ -33,9 +33,10 @@ import {
   LoadingState,
   ErrorState,
   EmptyState,
-  ShowMoreButton,
   ViewScroll,
 } from "../views/_shared";
+import GridPager from "./GridPager";
+import { GRID_PAGE_SIZE } from "./grid-pagination";
 
 function FilteredEmptyState({ onClear }: { onClear: () => void }) {
   return (
@@ -148,8 +149,6 @@ interface GridViewProps {
   onLayoutChange?: (next: GridViewLayout) => void;
 }
 
-const PAGE_SIZE = 50;
-
 export default function GridView(props: GridViewProps) {
   const {
     source,
@@ -193,12 +192,39 @@ export default function GridView(props: GridViewProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
-  const limit = page * PAGE_SIZE;
+
   // When the grid lives inside a plan, forward the planId so virtual fields
   // like `has_target` can compile their EXISTS subquery on the backend.
   const planId = parentKind === "plan" ? parentId ?? null : null;
   const showRowActions = parentKind === "plan" && source === "districts" && planId != null;
-  const q = useViewsData({ source, leaids, listId, planId, layout, limit, offset: 0 });
+
+  // Reset to the first page whenever the query that defines the result set
+  // changes (scope, filters, sort, or grouping). Done during render — React's
+  // "adjust state when a prop changes" pattern — so this same render already
+  // fetches page 1 instead of briefly requesting a now-invalid offset (e.g.
+  // page 12 of a result that just shrank to 30 rows).
+  const querySig = [
+    source,
+    leaids ? leaids.slice().sort().join(",") : "",
+    listId ?? "",
+    planId ?? "",
+    JSON.stringify(layout.filters),
+    JSON.stringify(layout.sort),
+    layout.groupBy?.id ?? "",
+  ].join("|");
+  const [prevQuerySig, setPrevQuerySig] = useState(querySig);
+  let effectivePage = page;
+  if (prevQuerySig !== querySig) {
+    setPrevQuerySig(querySig);
+    setPage(1);
+    effectivePage = 1;
+  }
+
+  // One fixed-size window per fetch (offset paging), so we never exceed the
+  // backend's 200-row LIMIT cap and every page is reachable.
+  const limit = GRID_PAGE_SIZE;
+  const offset = (effectivePage - 1) * GRID_PAGE_SIZE;
+  const q = useViewsData({ source, leaids, listId, planId, layout, limit, offset });
 
   function handleSortChange(columnId: string, dir: "asc" | "desc" | null, shift: boolean) {
     const existing = layout.sort.findIndex((s) => s.id === columnId);
@@ -352,7 +378,6 @@ export default function GridView(props: GridViewProps) {
   }
 
   const total = q.data?.total ?? 0;
-  const remaining = Math.max(0, total - rows.length);
 
   // data-row-kind for the existing detail-panel routing in GroupCanvas.
   const rowKind =
@@ -668,10 +693,13 @@ export default function GridView(props: GridViewProps) {
           </tbody>
         </table>
       </div>
-      {remaining > 0 && (
-        <div className="shrink-0">
-          <ShowMoreButton onClick={() => setPage((p) => p + 1)} remaining={remaining} />
-        </div>
+      {total > GRID_PAGE_SIZE && (
+        <GridPager
+          total={total}
+          page={effectivePage}
+          pageSize={GRID_PAGE_SIZE}
+          onPageChange={setPage}
+        />
       )}
     </div>
   );
