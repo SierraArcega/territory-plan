@@ -124,12 +124,14 @@ async function computeAllPlanStats(
   // Group by plan_id (via territory_plan_districts) so articles that span
   // multiple districts in the same plan are counted once, not once per district.
   const planIds = plans.map((p) => p.id);
+  // confidence filter mirrors NEWS_CONFIDENCE_LEVELS in src/lib/signals/sql.ts
   const newsRowsP = pool.query<{ plan_id: string; count: string }>(
     `SELECT tpd.plan_id, COUNT(DISTINCT na.id) AS count
      FROM territory_plan_districts tpd
      JOIN news_article_districts nad ON nad.leaid = tpd.district_leaid
      JOIN news_articles na ON na.id = nad.article_id
      WHERE tpd.plan_id = ANY($1::text[])
+       AND nad.confidence IN ('high','llm','source')
        AND na.published_at >= NOW() - INTERVAL '30 days'
      GROUP BY tpd.plan_id`,
     [planIds],
