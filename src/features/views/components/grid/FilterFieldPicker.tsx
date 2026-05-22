@@ -5,6 +5,8 @@ interface FilterFieldPickerProps {
   source: SavedListSource;
   /** Field ids already used in the current filter — disabled in the picker */
   usedFieldIds: string[];
+  /** Field ids to hide entirely from the picker (e.g. kanban hides stage/school_yr) */
+  excludeFieldIds?: string[];
   onPick: (column: ColumnDef) => void;
   onClose: () => void;
 }
@@ -12,11 +14,14 @@ interface FilterFieldPickerProps {
 export function FilterFieldPicker({
   source,
   usedFieldIds,
+  excludeFieldIds = [],
   onPick,
   onClose,
 }: FilterFieldPickerProps) {
   const candidates = SOURCE_COLUMNS[source].filter(
-    (c) => c.filterWidget !== null,
+    (c) =>
+      c.filterWidget !== null &&
+      !excludeFieldIds.includes(c.filterFieldId ?? c.id),
   );
 
   return (

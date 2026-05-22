@@ -21,6 +21,8 @@ interface GridFilterChipsProps {
   source: SavedListSource;
   layout: GridViewLayout;
   onChange: (next: GridViewLayout) => void;
+  /** Field ids to hide from the filter picker and chip strip */
+  excludeFieldIds?: string[];
 }
 
 interface EditState {
@@ -190,18 +192,25 @@ export function GridFilterChips({
   source,
   layout,
   onChange,
+  excludeFieldIds = [],
 }: GridFilterChipsProps) {
   const [edit, setEdit] = useState<EditState | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Build chip array from layout.filters.children
-  const chips = layout.filters.children.map((child, i) => {
-    const fid = chipFieldId(child);
-    const col = fid
-      ? SOURCE_COLUMNS[source].find((c) => (c.filterFieldId ?? c.id) === fid)
-      : null;
-    return { index: i, node: child, column: col ?? null };
-  });
+  const chips = layout.filters.children
+    .map((child, i) => ({ index: i, node: child }))
+    .filter(({ node }) => {
+      const fid = chipFieldId(node);
+      return fid === null || !excludeFieldIds.includes(fid);
+    })
+    .map(({ index, node }) => {
+      const fid = chipFieldId(node);
+      const col = fid
+        ? SOURCE_COLUMNS[source].find((c) => (c.filterFieldId ?? c.id) === fid)
+        : null;
+      return { index, node, column: col ?? null };
+    });
 
   const usedFieldIds = chips
     .map((c) => chipFieldId(c.node))
@@ -411,6 +420,7 @@ export function GridFilterChips({
           <FilterFieldPicker
             source={source}
             usedFieldIds={usedFieldIds}
+            excludeFieldIds={excludeFieldIds}
             onPick={(col) => setEdit({ mode: "widget", column: col })}
             onClose={() => setEdit(null)}
           />

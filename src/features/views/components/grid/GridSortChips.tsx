@@ -11,6 +11,8 @@ interface GridSortChipsProps {
   source: SavedListSource;
   layout: GridViewLayout;
   onChange: (next: GridViewLayout) => void;
+  /** Field ids to hide from the sort picker and chip strip */
+  excludeFieldIds?: string[];
 }
 
 const SUPERSCRIPT_DIGITS = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
@@ -26,6 +28,7 @@ export function GridSortChips({
   source,
   layout,
   onChange,
+  excludeFieldIds = [],
 }: GridSortChipsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -59,40 +62,43 @@ export function GridSortChips({
 
   return (
     <div ref={wrapRef} className="relative inline-flex items-center gap-2">
-      {layout.sort.map((entry, i) => {
-        const col = SOURCE_COLUMNS[source].find((c) => c.id === entry.id);
-        const label = col?.header ?? entry.id;
-        const Icon = entry.dir === "desc" ? ArrowDown : ArrowUp;
-        return (
-          <div
-            key={`${entry.id}-${i}`}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]"
-          >
-            <button
-              type="button"
-              onClick={() => flipDirection(i)}
-              className="inline-flex items-center gap-1 rounded-full focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#403770]/40"
-              aria-label={`Toggle ${label} direction`}
+      {layout.sort
+        .map((entry, i) => ({ entry, i }))
+        .filter(({ entry }) => !excludeFieldIds.includes(entry.id))
+        .map(({ entry, i }) => {
+          const col = SOURCE_COLUMNS[source].find((c) => c.id === entry.id);
+          const label = col?.header ?? entry.id;
+          const Icon = entry.dir === "desc" ? ArrowDown : ArrowUp;
+          return (
+            <div
+              key={`${entry.id}-${i}`}
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]"
             >
-              <Icon className="h-3 w-3" />
-              <span className="whitespace-nowrap font-medium">{label}</span>
-              {showStackIndex && (
-                <span className="whitespace-nowrap text-[10px] text-[#8A80A8]">
-                  {toSuperscript(i + 1)}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              aria-label={`Remove sort ${label}`}
-              onClick={() => removeAt(i)}
-              className="ml-1 text-[#8A80A8] hover:text-[#403770]"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        );
-      })}
+              <button
+                type="button"
+                onClick={() => flipDirection(i)}
+                className="inline-flex items-center gap-1 rounded-full focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#403770]/40"
+                aria-label={`Toggle ${label} direction`}
+              >
+                <Icon className="h-3 w-3" />
+                <span className="whitespace-nowrap font-medium">{label}</span>
+                {showStackIndex && (
+                  <span className="whitespace-nowrap text-[10px] text-[#8A80A8]">
+                    {toSuperscript(i + 1)}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove sort ${label}`}
+                onClick={() => removeAt(i)}
+                className="ml-1 text-[#8A80A8] hover:text-[#403770]"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })}
 
       <button
         type="button"
@@ -121,6 +127,7 @@ export function GridSortChips({
         <SortFieldPicker
           source={source}
           usedFieldIds={usedFieldIds}
+          excludeFieldIds={excludeFieldIds}
           onPick={addSort}
           onClose={() => setPickerOpen(false)}
         />

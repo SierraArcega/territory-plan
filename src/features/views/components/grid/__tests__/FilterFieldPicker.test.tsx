@@ -142,4 +142,19 @@ describe("FilterFieldPicker", () => {
     // Should NOT show the empty state for districts (it has filterable columns)
     expect(screen.queryByText("No filterable columns")).toBeNull();
   });
+
+  it("hides excluded field ids from the picker", () => {
+    render(
+      <FilterFieldPicker
+        source="opps"
+        usedFieldIds={[]}
+        excludeFieldIds={["stage", "school_yr"]}
+        onPick={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.queryByText("Stage")).toBeNull();
+    expect(screen.queryByText("School year")).toBeNull();
+    expect(screen.getByText("Bookings")).toBeInTheDocument();
+  });
 });

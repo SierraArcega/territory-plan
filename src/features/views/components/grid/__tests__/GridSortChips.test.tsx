@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GridSortChips } from "../GridSortChips";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
@@ -182,5 +182,13 @@ describe("GridSortChips", () => {
 
     const panel = screen.getByText("Add sort");
     expect(container.contains(panel)).toBe(false);
+  });
+
+  it("omits excluded fields from the sort picker", () => {
+    const layout = { columns: [], sort: [], filters: { kind: "and" as const, children: [] }, groupBy: null };
+    render(<GridSortChips source="opps" layout={layout} excludeFieldIds={["stage", "school_yr"]} onChange={() => {}} />);
+    fireEvent.click(screen.getByText("Sort"));
+    expect(screen.queryByText("Stage")).toBeNull();
+    expect(screen.queryByText("School year")).toBeNull();
   });
 });

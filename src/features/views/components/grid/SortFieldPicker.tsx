@@ -5,6 +5,8 @@ interface SortFieldPickerProps {
   source: SavedListSource;
   /** Field ids already in the sort stack — disabled in the picker. */
   usedFieldIds: string[];
+  /** Field ids to hide entirely from the picker (e.g. kanban hides stage/school_yr) */
+  excludeFieldIds?: string[];
   onPick: (column: ColumnDef) => void;
   onClose: () => void;
 }
@@ -12,9 +14,12 @@ interface SortFieldPickerProps {
 export function SortFieldPicker({
   source,
   usedFieldIds,
+  excludeFieldIds = [],
   onPick,
 }: SortFieldPickerProps) {
-  const candidates = SOURCE_COLUMNS[source].filter((c) => c.sortable);
+  const candidates = SOURCE_COLUMNS[source].filter(
+    (c) => c.sortable && !excludeFieldIds.includes(c.id),
+  );
 
   return (
     <div
