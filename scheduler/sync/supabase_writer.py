@@ -9,6 +9,28 @@ from psycopg2.extras import execute_values
 
 logger = logging.getLogger(__name__)
 
+
+def _log_offending_record(table, cols, record, exc):
+    """Dump a record column-by-column after it violated a DB constraint.
+
+    Added 2026-05-21 to pinpoint intermittent
+    'value too long for type character varying(7)' failures in the sync. The
+    bare psycopg2 message names neither the column nor the value, so we log
+    each field with its string length (an over-length value is then obvious)
+    and the row's id. Callers re-raise — this only adds visibility.
+    """
+    logger.error(
+        "DB constraint violation writing %s (id=%r): %s [%s]",
+        table, record.get("id"), exc, type(exc).__name__,
+    )
+    for c in cols:
+        v = record.get(c)
+        if isinstance(v, str):
+            logger.error("    %s = %r (len=%d)", c, v, len(v))
+        else:
+            logger.error("    %s = %r", c, v)
+
+
 STAGE_WEIGHTS = {
     "0": Decimal("0.05"),
     "1": Decimal("0.10"),
@@ -86,7 +108,14 @@ def upsert_opportunities(conn, records):
     with conn.cursor() as cur:
         for record in records:
             values = [record.get(c) for c in cols]
-            cur.execute(sql, values)
+            try:
+                cur.execute(sql, values)
+            except psycopg2.DataError as e:
+                # DIAGNOSTIC (2026-05-21): a value overflowed a column (e.g.
+                # district_lea_id VARCHAR(7)). Dump the row so the offending
+                # field + opp are unambiguous, then re-raise unchanged.
+                _log_offending_record("opportunities", cols, record, e)
+                raise
             row = cur.fetchone()
             if row and row[1] is not None:
                 matched_ids.append(row[0])
@@ -167,7 +196,12 @@ def upsert_unmatched(conn, records):
     with conn.cursor() as cur:
         for record in records:
             values = [record.get(c) for c in cols]
-            cur.execute(sql, values)
+            try:
+                cur.execute(sql, values)
+            except psycopg2.DataError as e:
+                # DIAGNOSTIC (2026-05-21): see _log_offending_record.
+                _log_offending_record("unmatched_opportunities", cols, record, e)
+                raise
 
     conn.commit()
     logger.info(f"Upserted {len(records)} unmatched opportunities")

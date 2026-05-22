@@ -135,7 +135,7 @@ export default function PlanFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -143,9 +143,9 @@ export default function PlanFormModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="relative bg-white rounded-t-xl sm:rounded-xl shadow-2xl w-full sm:max-w-md sm:mx-4 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-[#E2DEEC] flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#403770]">{title}</h2>
           <button
             onClick={onClose}
@@ -159,7 +159,7 @@ export default function PlanFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+          <div className="px-6 py-4 space-y-4 max-h-[75dvh] sm:max-h-[60vh] overflow-y-auto">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
                 {error}

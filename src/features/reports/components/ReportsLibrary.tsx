@@ -53,7 +53,7 @@ export function ReportsLibrary({ initialTab, onTabChange, onOpenReport, onNewRep
   const rows = data[tab];
 
   return (
-    <div className="h-full overflow-y-auto bg-[#FFFCFA]">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-[#FFFCFA]">
       <div className="mx-auto max-w-[1080px] px-7 py-7 pb-10">
         <WelcomeStrip
           onNewReport={() => onNewReport()}

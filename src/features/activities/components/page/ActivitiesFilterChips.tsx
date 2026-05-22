@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { ChevronDown, ChevronRight, Plus, RotateCcw, Search, Square, SquareCheck, X } from "lucide-react";
+import { CollapseButton } from "./CollapseButton";
 import {
   ACTIVITY_CATEGORIES,
   ACTIVITY_TYPE_LABELS,
@@ -54,6 +55,7 @@ interface GroupChipSpec {
 interface ActivitiesFilterChipsProps {
   /** Opens the ⌘K CommandBar overlay. */
   onOpenCommandBar?: () => void;
+  onCollapse?: () => void;
 }
 
 /**
@@ -62,7 +64,7 @@ interface ActivitiesFilterChipsProps {
  * clicking × clears every value in the section. The popover's open + expanded
  * state is lifted here so chip clicks can drive it.
  */
-export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFilterChipsProps) {
+export default function ActivitiesFilterChips({ onOpenCommandBar, onCollapse }: ActivitiesFilterChipsProps) {
   const filters = useActivitiesChrome((s) => s.filters);
   const patchFilters = useActivitiesChrome((s) => s.patchFilters);
   const resetFilters = useActivitiesChrome((s) => s.resetFilters);
@@ -345,7 +347,7 @@ export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFi
         setExpanded={setExpanded}
       />
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-1.5">
         {hasAnyChip && (
           <button
             type="button"
@@ -361,6 +363,7 @@ export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFi
             Reset filters
           </button>
         )}
+        {onCollapse && <CollapseButton onClick={onCollapse} label="Collapse filters" />}
       </div>
     </div>
   );

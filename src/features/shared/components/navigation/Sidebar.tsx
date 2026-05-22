@@ -332,6 +332,7 @@ export default function Sidebar({
     >
       {/* Main navigation tabs */}
       <nav className="py-2 flex-shrink-0">
+
         {MAIN_TABS.map(renderTab)}
       </nav>
 

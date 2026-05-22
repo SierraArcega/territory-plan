@@ -1002,6 +1002,7 @@ export interface CalendarConnection {
   id: string;
   googleAccountEmail: string;
   companyDomain: string;
+  companyDomains: string[];
   syncEnabled: boolean;
   lastSyncAt: string | null;
   status: "connected" | "disconnected" | "error";

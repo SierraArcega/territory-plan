@@ -53,7 +53,7 @@ export default function DistrictDetailPanel() {
             />
           </svg>
         </button>
-        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
           {backLabel}
         </span>
       </div>

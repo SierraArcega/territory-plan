@@ -65,9 +65,9 @@ export default function ComposeSlackPanel({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90dvh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
@@ -88,8 +88,8 @@ export default function ComposeSlackPanel({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSend}>
-          <div className="px-6 py-4 space-y-4">
+        <form onSubmit={handleSend} className="flex-1 overflow-y-auto flex flex-col">
+          <div className="px-4 sm:px-6 py-4 space-y-4 flex-1">
             {/* Context */}
             {contactName && (
               <p className="text-xs text-gray-500">
@@ -135,7 +135,7 @@ export default function ComposeSlackPanel({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Write your message..."
-                rows={6}
+                rows={4}
                 disabled={sendSlack.isPending}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent disabled:opacity-50 disabled:bg-gray-50 resize-none"
               />
@@ -149,7 +149,7 @@ export default function ComposeSlackPanel({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}

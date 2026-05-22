@@ -33,7 +33,7 @@ export default function HomeTabBar({
   badgeCounts,
 }: HomeTabBarProps) {
   return (
-    <div className="flex items-center gap-6 px-8 pt-5">
+    <div className="flex items-center gap-6 px-4 sm:px-8 pt-5 overflow-x-auto">
       {TABS.map((tab) => {
         const isActive = activeTab === tab.id;
         const Icon = tab.icon;
@@ -50,7 +50,7 @@ export default function HomeTabBar({
             `}
           >
             <Icon className="w-3.5 h-3.5" />
-            <span>{tab.label}</span>
+            <span className="whitespace-nowrap">{tab.label}</span>
             {count > 0 && (
               <span
                 className={`text-[11px] font-semibold px-1.5 min-w-[20px] text-center rounded-full ${

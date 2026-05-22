@@ -360,3 +360,39 @@ def test_process_opp_hits_manual_resolution_overrides_compute_leaid():
     assert len(matched) == 1
     assert matched[0]["district_lea_id"] == "9999999"
     assert unmatched == []  # heal collapses the unmatched classification
+
+
+def test_process_opp_hits_flags_over_length_manual_resolution(caplog):
+    """DIAGNOSTIC (2026-05-21): an admin manual resolution longer than 7 chars
+    overflows opportunities.district_lea_id VARCHAR(7) on the next sync. The
+    sync must log a clear, attributable error (opp id + value + length) so the
+    offending resolution is findable in the Railway logs."""
+    import logging
+    from run_sync import _process_opp_hits
+    from datetime import datetime, timezone
+
+    opp_hits = [
+        {"_source": {
+            "id": 17592305692725,
+            "name": "Some Organization",
+            "accounts": [{"id": "ACC", "name": "Some Organization"}],
+            "stage": "1 - Discovery", "school_yr": "2025-26", "state": "CA",
+            "invoices": [], "credit_memos": [], "sales_rep": {},
+        }}
+    ]
+    mapping = {}  # natural resolver fails → opp would be unmatched
+    # A 12-digit school-level NCES id pasted where a 7-digit district LEAID belongs.
+    manual_resolutions = {"17592305692725": "063441000123"}
+    now = datetime(2026, 5, 21, tzinfo=timezone.utc)
+
+    with caplog.at_level(logging.ERROR):
+        matched, unmatched, healed = _process_opp_hits(
+            opp_hits, {}, mapping, manual_resolutions, now
+        )
+
+    assert healed == 1
+    # We don't silently drop it — the value is still applied so the failure (and
+    # this log line) point at the same record; the log makes the cause obvious.
+    assert matched[0]["district_lea_id"] == "063441000123"
+    msgs = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert any("over-length leaid" in m and "17592305692725" in m for m in msgs)

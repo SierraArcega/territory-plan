@@ -38,6 +38,7 @@ function makeStatus(
     id: "conn-1",
     googleAccountEmail: "rep@fullmindlearning.com",
     companyDomain: "fullmindlearning.com",
+    companyDomains: ["fullmindlearning.com"],
     syncEnabled: true,
     lastSyncAt: null,
     status: "connected",

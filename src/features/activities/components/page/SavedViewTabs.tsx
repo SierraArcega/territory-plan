@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
+import { CollapseButton } from "./CollapseButton";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 import {
   useSavedViews,
@@ -14,7 +15,7 @@ import { cn } from "@/features/shared/lib/cn";
  * button; "Save view" is right-aligned. The row is empty until the user
  * saves their first view.
  */
-export default function SavedViewTabs(_: { currentUserId: string | null }) {
+export default function SavedViewTabs({ onCollapse }: { currentUserId: string | null; onCollapse?: () => void }) {
   const { views, save, remove } = useSavedViews();
   const setFilters = useActivitiesChrome((s) => s.setFilters);
   const filters = useActivitiesChrome((s) => s.filters);
@@ -90,14 +91,17 @@ export default function SavedViewTabs(_: { currentUserId: string | null }) {
           </button>
         </span>
       ) : (
-        <button
-          type="button"
-          onClick={() => setNaming(true)}
-          className="fm-focus-ring ml-1 mb-1 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] rounded-md [transition-duration:120ms] transition-colors"
-        >
-          <Plus className="w-3 h-3" />
-          Save view
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setNaming(true)}
+            className="fm-focus-ring ml-1 mb-1 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] rounded-md [transition-duration:120ms] transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Save view
+          </button>
+          {onCollapse && <CollapseButton onClick={onCollapse} label="Collapse views" className="ml-1 mb-1" />}
+        </>
       )}
     </div>
   );

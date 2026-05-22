@@ -409,7 +409,7 @@ export default function ScheduleView({
                         <button
                           type="button"
                           onClick={() => onActivityClick(act.id)}
-                          className="w-full grid grid-cols-[110px_1fr_auto] gap-4 items-start px-5 py-3.5 text-left border-b border-[#F7F5FA] hover:bg-[#FBF9FC] transition-colors duration-120 last:border-b-0 focus:outline-none focus-visible:bg-[#FBF9FC]"
+                          className="w-full grid grid-cols-[72px_1fr_auto] sm:grid-cols-[110px_1fr_auto] gap-2 sm:gap-4 items-start px-4 sm:px-5 py-3.5 text-left border-b border-[#F7F5FA] hover:bg-[#FBF9FC] transition-colors duration-120 last:border-b-0 focus:outline-none focus-visible:bg-[#FBF9FC]"
                         >
                           <div className="tabular-nums pt-0.5 text-[#403770]">
                             <div className="text-[13px] font-semibold">

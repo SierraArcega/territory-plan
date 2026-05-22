@@ -322,7 +322,7 @@ export default function ContactsActionBar({
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#EFEDF5]">
+      <div className="flex flex-wrap items-center justify-between gap-y-2 px-4 py-2.5 border-b border-[#EFEDF5]">
         <div className="flex items-center gap-2">
           {/* Find Contacts */}
           <div className="relative" ref={popoverRef}>

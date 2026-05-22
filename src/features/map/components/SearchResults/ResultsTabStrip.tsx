@@ -72,10 +72,10 @@ export default function ResultsTabStrip({ counts, onCollapse }: ResultsTabStripP
         })}
       </div>
 
-      {/* Collapse button */}
+      {/* Collapse button — desktop only; mobile uses tap-map-to-dismiss */}
       <button
         onClick={onCollapse}
-        className="shrink-0 w-8 h-8 flex items-center justify-center text-[#A69DC0] hover:text-[#6E6390] hover:bg-[#F7F5FA] rounded-lg transition-colors mr-1"
+        className="shrink-0 w-8 h-8 hidden sm:flex items-center justify-center text-[#A69DC0] hover:text-[#6E6390] hover:bg-[#F7F5FA] rounded-lg transition-colors mr-1"
         aria-label="Collapse panel"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

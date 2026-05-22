@@ -235,7 +235,7 @@ function SummaryCards({
   ];
 
   return (
-    <div className="grid gap-3 grid-cols-5">
+    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
       {cards.map((card) => {
         const isActive = activeCard === card.key;
         return (

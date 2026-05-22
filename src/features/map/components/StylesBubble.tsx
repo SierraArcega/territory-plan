@@ -652,7 +652,7 @@ export default function StylesBubble() {
     >
       {/* Expanded popover */}
       {expanded && (
-        <div className="absolute bottom-full left-0 mb-2 w-[360px] max-h-[60vh] overflow-y-auto bg-white rounded-xl shadow-xl border border-gray-200/60 p-4">
+        <div className="absolute bottom-full left-0 mb-2 w-[min(360px,calc(100vw-2rem))] max-h-[60vh] overflow-y-auto bg-white rounded-xl shadow-xl border border-gray-200/60 p-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-[#403770]">

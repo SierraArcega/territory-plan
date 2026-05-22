@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, Download } from "lucide-react";
+import { Code2, Download, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { ResultsTable } from "../ResultsTable";
 import { SqlPreviewModal } from "../SqlPreviewModal";
@@ -25,6 +25,8 @@ interface Props {
   onUpdateSavedReport: () => void;
   onEditDetails: (title: string, description: string) => void;
   onDelete: () => void;
+  /** Mobile only — expand chat panel (switches to single-panel chat view). */
+  onExpandChat?: () => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export function ResultsPane({
   onUpdateSavedReport,
   onEditDetails,
   onDelete,
+  onExpandChat,
 }: Props) {
   const [sqlOpen, setSqlOpen] = useState(false);
   const isFromSavedReport = sessionMode !== "fresh";
@@ -51,7 +54,7 @@ export function ResultsPane({
 
   if (!version) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-[#FFFCFA] px-6">
+      <div className="flex flex-1 flex-col items-center justify-center bg-[#FFFCFA] px-6">
         {loadError ? (
           <div className="max-w-[420px] rounded-xl border border-[#f58d85] bg-[#fef1f0] px-6 py-8 text-center">
             <div className="text-[13px] font-semibold text-[#c25a52]">
@@ -63,9 +66,19 @@ export function ResultsPane({
           <div className="max-w-[420px] rounded-xl border border-dashed border-[#D4CFE2] bg-white px-6 py-8 text-center">
             <div className="text-[13px] font-semibold text-[#403770]">No result yet</div>
             <div className="mt-1 text-[12px] leading-relaxed text-[#8A80A8]">
-              Submit a question on the left and Claude&apos;s first result lands here. Each
-              refinement becomes a new version you can flip between.
+              Ask a question in the chat to get started. Each refinement becomes a new version you
+              can flip between.
             </div>
+            {onExpandChat && (
+              <button
+                type="button"
+                onClick={onExpandChat}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#403770] px-4 py-2 text-[12.5px] font-medium text-white transition-colors hover:bg-[#322a5a]"
+              >
+                <MessageCircle size={13} />
+                <span className="whitespace-nowrap">Open chat</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -102,6 +115,16 @@ export function ResultsPane({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {onExpandChat && (
+            <button
+              type="button"
+              onClick={onExpandChat}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#D4CFE2] bg-white px-2.5 py-1.5 text-xs font-medium text-[#403770] transition-colors hover:bg-[#F7F5FA] sm:hidden"
+            >
+              <MessageCircle size={13} />
+              <span className="whitespace-nowrap">Chat</span>
+            </button>
+          )}
           <HeaderButton onClick={() => setSqlOpen(true)} icon={<Code2 size={13} />}>
             View SQL
           </HeaderButton>
@@ -171,7 +194,7 @@ function HeaderButton({
       className="inline-flex items-center gap-1.5 rounded-lg border border-[#D4CFE2] bg-white px-2.5 py-1.5 text-xs font-medium text-[#403770] transition-colors hover:bg-[#F7F5FA] disabled:cursor-not-allowed disabled:text-[#A69DC0]"
     >
       {icon}
-      <span className="whitespace-nowrap">{children}</span>
+      <span className="hidden whitespace-nowrap sm:inline">{children}</span>
     </button>
   );
 }

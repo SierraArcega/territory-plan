@@ -23,26 +23,34 @@ export interface LeaderboardResponse {
     revenue: number;
     revenueCurrentFY: number;
     revenuePriorFY: number;
+    revenueNextFY: number;
     unassignedRevenue: number;
     unassignedRevenueCurrentFY: number;
     unassignedRevenuePriorFY: number;
+    unassignedRevenueNextFY: number;
 
     priorYearRevenue: number;
     minPurchasesCurrentFY: number;
     minPurchasesPriorFY: number;
+    minPurchasesNextFY: number;
     unassignedPriorYearRevenue: number;
     unassignedMinPurchasesCurrentFY: number;
     unassignedMinPurchasesPriorFY: number;
+    unassignedMinPurchasesNextFY: number;
 
     pipelineCurrentFY: number;
     pipelineNextFY: number;
+    pipelinePriorFY: number;
     unassignedPipelineCurrentFY: number;
     unassignedPipelineNextFY: number;
+    unassignedPipelinePriorFY: number;
 
     targetedCurrentFY: number;
     targetedNextFY: number;
+    targetedPriorFY: number;
     unassignedTargetedCurrentFY: number;
     unassignedTargetedNextFY: number;
+    unassignedTargetedPriorFY: number;
   };
 }
 

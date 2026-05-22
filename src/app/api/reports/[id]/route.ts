@@ -87,5 +87,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteArgs): Promise<
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   await prisma.savedReport.delete({ where: { id: existing.id } });
+  // Clean up any draft for this saved report (idempotent — swallow P2025).
+  await prisma.reportDraft
+    .delete({ where: { userId_reportId: { userId: user.id, reportId: existing.id } } })
+    .catch(() => {});
   return NextResponse.json({ ok: true });
 }

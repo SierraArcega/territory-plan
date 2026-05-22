@@ -7,23 +7,31 @@ export interface LeaderboardTeamTotals {
   revenue: number;
   revenueCurrentFY: number;
   revenuePriorFY: number;
+  revenueNextFY: number;
   unassignedRevenue: number;
   unassignedRevenueCurrentFY: number;
   unassignedRevenuePriorFY: number;
+  unassignedRevenueNextFY: number;
   priorYearRevenue: number;
   minPurchasesCurrentFY: number;
   minPurchasesPriorFY: number;
+  minPurchasesNextFY: number;
   unassignedPriorYearRevenue: number;
   unassignedMinPurchasesCurrentFY: number;
   unassignedMinPurchasesPriorFY: number;
+  unassignedMinPurchasesNextFY: number;
   pipelineCurrentFY: number;
   pipelineNextFY: number;
+  pipelinePriorFY: number;
   unassignedPipelineCurrentFY: number;
   unassignedPipelineNextFY: number;
+  unassignedPipelinePriorFY: number;
   targetedCurrentFY: number;
   targetedNextFY: number;
+  targetedPriorFY: number;
   unassignedTargetedCurrentFY: number;
   unassignedTargetedNextFY: number;
+  unassignedTargetedPriorFY: number;
 }
 
 export interface LeaderboardPayload {
@@ -64,13 +72,16 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
       pipeline: cur?.openPipeline ?? 0,
       pipelineCurrentFY: cur?.openPipeline ?? 0,
       pipelineNextFY: next?.openPipeline ?? 0,
+      pipelinePriorFY: prior?.openPipeline ?? 0,
       take: cur?.totalTake ?? 0,
       revenue: cur?.totalRevenue ?? 0,
       revenueCurrentFY: cur?.totalRevenue ?? 0,
       revenuePriorFY: prior?.totalRevenue ?? 0,
+      revenueNextFY: next?.totalRevenue ?? 0,
       priorYearRevenue: prior?.minPurchaseBookings ?? 0,
       minPurchasesCurrentFY: cur?.minPurchaseBookings ?? 0,
       minPurchasesPriorFY: prior?.minPurchaseBookings ?? 0,
+      minPurchasesNextFY: next?.minPurchaseBookings ?? 0,
     };
   });
 
@@ -89,7 +100,13 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   for (const p of profiles) emailByUserId.set(p.id, p.email);
   const rosterEmails = [...emailByUserId.values()];
 
-  const [targetedCurrentFYDistricts, targetedNextFYDistricts, pipelineRows, unmatchedByRep] = await Promise.all([
+  const [
+    targetedCurrentFYDistricts,
+    targetedNextFYDistricts,
+    targetedPriorFYDistricts,
+    pipelineRows,
+    unmatchedByRep,
+  ] = await Promise.all([
     prisma.territoryPlanDistrict.findMany({
       where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
       select: {
@@ -106,6 +123,14 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
         plan: { select: { ownerId: true, userId: true } },
       },
     }),
+    prisma.territoryPlanDistrict.findMany({
+      where: { plan: { ...ownerFilter, fiscalYear: currentFYInt - 1 } },
+      select: {
+        districtLeaid: true,
+        renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
+        plan: { select: { ownerId: true, userId: true } },
+      },
+    }),
     rosterEmails.length === 0
       ? Promise.resolve([])
       : prisma.$queryRaw<{ sales_rep_email: string; district_lea_id: string; school_yr: string; pipeline: number }[]>`
@@ -113,7 +138,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
                  SUM(open_pipeline)::float AS pipeline
           FROM district_opportunity_actuals
           WHERE sales_rep_email = ANY(${rosterEmails})
-            AND school_yr IN (${defaultSchoolYr}, ${nextFYSchoolYr})
+            AND school_yr IN (${priorSchoolYr}, ${defaultSchoolYr}, ${nextFYSchoolYr})
             AND district_lea_id != '_NOMAP'
           GROUP BY sales_rep_email, district_lea_id, school_yr
           HAVING SUM(open_pipeline) > 0
@@ -146,15 +171,18 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
 
   const targetedCurrentFYByUser = sumTargetsWithPipelineDeduction(targetedCurrentFYDistricts, defaultSchoolYr);
   const targetedNextFYByUser = sumTargetsWithPipelineDeduction(targetedNextFYDistricts, nextFYSchoolYr);
+  const targetedPriorFYByUser = sumTargetsWithPipelineDeduction(targetedPriorFYDistricts, priorSchoolYr);
 
   const entries: LeaderboardEntry[] = rosterProfiles.map((profile) => {
     const a = actualsMap.get(profile.id) ?? {
-      userId: profile.id, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0,
-      revenue: 0, revenueCurrentFY: 0, revenuePriorFY: 0,
-      priorYearRevenue: 0, minPurchasesCurrentFY: 0, minPurchasesPriorFY: 0,
+      userId: profile.id, take: 0,
+      pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, pipelinePriorFY: 0,
+      revenue: 0, revenueCurrentFY: 0, revenuePriorFY: 0, revenueNextFY: 0,
+      priorYearRevenue: 0, minPurchasesCurrentFY: 0, minPurchasesPriorFY: 0, minPurchasesNextFY: 0,
     };
     const targetedCurrentFY = targetedCurrentFYByUser.get(profile.id) ?? 0;
     const targetedNextFY = targetedNextFYByUser.get(profile.id) ?? 0;
+    const targetedPriorFY = targetedPriorFYByUser.get(profile.id) ?? 0;
     const unmatched = unmatchedByRep.get(profile.email) ?? { count: 0, revenue: 0 };
     return {
       userId: profile.id,
@@ -165,15 +193,19 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
       pipeline: a.pipeline,
       pipelineCurrentFY: a.pipelineCurrentFY,
       pipelineNextFY: a.pipelineNextFY,
+      pipelinePriorFY: a.pipelinePriorFY,
       revenue: a.revenue,
       revenueCurrentFY: a.revenueCurrentFY,
       revenuePriorFY: a.revenuePriorFY,
+      revenueNextFY: a.revenueNextFY,
       priorYearRevenue: a.priorYearRevenue,
       minPurchasesCurrentFY: a.minPurchasesCurrentFY,
       minPurchasesPriorFY: a.minPurchasesPriorFY,
+      minPurchasesNextFY: a.minPurchasesNextFY,
       revenueTargeted: targetedCurrentFY + targetedNextFY,
       targetedCurrentFY,
       targetedNextFY,
+      targetedPriorFY,
       unmatchedOppCount: unmatched.count,
       unmatchedRevenue: unmatched.revenue,
     };
@@ -185,9 +217,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   const sumActuals = (
     pool: typeof repActuals,
     key:
-      | "revenue" | "revenueCurrentFY" | "revenuePriorFY"
-      | "priorYearRevenue" | "minPurchasesCurrentFY" | "minPurchasesPriorFY"
-      | "pipelineCurrentFY" | "pipelineNextFY",
+      | "revenue" | "revenueCurrentFY" | "revenuePriorFY" | "revenueNextFY"
+      | "priorYearRevenue" | "minPurchasesCurrentFY" | "minPurchasesPriorFY" | "minPurchasesNextFY"
+      | "pipelineCurrentFY" | "pipelineNextFY" | "pipelinePriorFY",
   ): number => pool.reduce((acc, x) => acc + (x[key] ?? 0), 0);
 
   const sumTargetedMap = (pool: Map<string, number>, ids: Iterable<string>): number => {
@@ -202,23 +234,31 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     revenue: sumActuals(repActuals, "revenue"),
     revenueCurrentFY: sumActuals(repActuals, "revenueCurrentFY"),
     revenuePriorFY: sumActuals(repActuals, "revenuePriorFY"),
+    revenueNextFY: sumActuals(repActuals, "revenueNextFY"),
     unassignedRevenue: sumActuals(adminActuals, "revenue"),
     unassignedRevenueCurrentFY: sumActuals(adminActuals, "revenueCurrentFY"),
     unassignedRevenuePriorFY: sumActuals(adminActuals, "revenuePriorFY"),
+    unassignedRevenueNextFY: sumActuals(adminActuals, "revenueNextFY"),
     priorYearRevenue: sumActuals(repActuals, "priorYearRevenue"),
     minPurchasesCurrentFY: sumActuals(repActuals, "minPurchasesCurrentFY"),
     minPurchasesPriorFY: sumActuals(repActuals, "minPurchasesPriorFY"),
+    minPurchasesNextFY: sumActuals(repActuals, "minPurchasesNextFY"),
     unassignedPriorYearRevenue: sumActuals(adminActuals, "priorYearRevenue"),
     unassignedMinPurchasesCurrentFY: sumActuals(adminActuals, "minPurchasesCurrentFY"),
     unassignedMinPurchasesPriorFY: sumActuals(adminActuals, "minPurchasesPriorFY"),
+    unassignedMinPurchasesNextFY: sumActuals(adminActuals, "minPurchasesNextFY"),
     pipelineCurrentFY: sumActuals(repActuals, "pipelineCurrentFY"),
     pipelineNextFY: sumActuals(repActuals, "pipelineNextFY"),
+    pipelinePriorFY: sumActuals(repActuals, "pipelinePriorFY"),
     unassignedPipelineCurrentFY: sumActuals(adminActuals, "pipelineCurrentFY"),
     unassignedPipelineNextFY: sumActuals(adminActuals, "pipelineNextFY"),
+    unassignedPipelinePriorFY: sumActuals(adminActuals, "pipelinePriorFY"),
     targetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, userIds),
     targetedNextFY: sumTargetedMap(targetedNextFYByUser, userIds),
+    targetedPriorFY: sumTargetedMap(targetedPriorFYByUser, userIds),
     unassignedTargetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, adminUserIds),
     unassignedTargetedNextFY: sumTargetedMap(targetedNextFYByUser, adminUserIds),
+    unassignedTargetedPriorFY: sumTargetedMap(targetedPriorFYByUser, adminUserIds),
   };
 
   return {

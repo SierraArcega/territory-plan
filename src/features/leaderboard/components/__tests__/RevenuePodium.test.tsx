@@ -11,14 +11,18 @@ const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string; re
   pipeline: 0,
   pipelineCurrentFY: 0,
   pipelineNextFY: 0,
+  pipelinePriorFY: 0,
   revenueCurrentFY: 0,
   revenuePriorFY: 0,
+  revenueNextFY: 0,
   priorYearRevenue: 0,
   minPurchasesCurrentFY: 0,
   minPurchasesPriorFY: 0,
+  minPurchasesNextFY: 0,
   revenueTargeted: 0,
   targetedCurrentFY: 0,
   targetedNextFY: 0,
+  targetedPriorFY: 0,
   unmatchedOppCount: 0,
   unmatchedRevenue: 0,
   ...overrides,
@@ -32,7 +36,7 @@ describe("RevenuePodium", () => {
       makeEntry({ fullName: "Carol", revenue: 500000, rank: 3 }),
     ];
 
-    render(<RevenuePodium entries={entries} />);
+    render(<RevenuePodium entries={entries} sortColumn="revenue" />);
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -51,7 +55,7 @@ describe("RevenuePodium", () => {
       makeEntry({ fullName: "Carol", revenue: 578543, rank: 3 }),
     ];
 
-    render(<RevenuePodium entries={entries} />);
+    render(<RevenuePodium entries={entries} sortColumn="revenue" />);
 
     expect(screen.getByText("$961,964")).toBeInTheDocument();
     expect(screen.getByText("$795,726")).toBeInTheDocument();
@@ -74,7 +78,7 @@ describe("RevenuePodium", () => {
       makeEntry({ fullName: "Kris Tedesco", revenue: 500000, rank: 3 }),
     ];
 
-    render(<RevenuePodium entries={entries} />);
+    render(<RevenuePodium entries={entries} sortColumn="revenue" />);
 
     expect(screen.getByText("MS")).toBeInTheDocument();
     expect(screen.getByText("MO")).toBeInTheDocument();

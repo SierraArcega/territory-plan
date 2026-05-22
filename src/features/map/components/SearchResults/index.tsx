@@ -486,7 +486,7 @@ export default function SearchResults() {
   return (
     <div
       className={`absolute top-0 right-0 bottom-0 z-10 flex flex-col border-l border-[#D4CFE2]/60 transition-[width] duration-200 ease-in-out ${
-        searchResultsVisible ? "w-[40%] bg-white overflow-hidden" : "w-0 overflow-visible"
+        searchResultsVisible ? "sm:w-[40%] w-full bg-white overflow-hidden" : "w-0 overflow-visible"
       }`}
       onMouseEnter={() => useMapV2Store.getState().hideTooltip()}
     >
@@ -843,7 +843,7 @@ export default function SearchResults() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
           {loading && districts.length === 0 ? (
             // Skeleton loading — 2 column grid
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 grid-cols-1 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="p-3 rounded-lg border border-[#E2DEEC] animate-pulse">
                   <div className="space-y-2">
@@ -866,7 +866,7 @@ export default function SearchResults() {
               <p className="text-xs text-[#A69DC0] mt-1">Try zooming out or adjusting filters.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 grid-cols-1 gap-3">
               {districts.map((d) => (
                 <DistrictSearchCard
                   key={d.leaid}

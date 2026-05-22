@@ -69,15 +69,7 @@ export default function OutcomeModal({
   const [selectedAttendees, setSelectedAttendees] = useState<AttendeeSelection[]>([]);
 
   // Task row list state
-  const [taskRows, setTaskRows] = useState<TaskRow[]>([
-    {
-      id: crypto.randomUUID(),
-      title: `Follow up on: ${activity.title}`,
-      assignedToUserId: currentUserId,
-      priority: "high",
-      dueDate: getDefaultDueDate(3),
-    },
-  ]);
+  const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
   // Follow-up activity state (existing toggle)
   const [showFollowUpActivity, setShowFollowUpActivity] = useState(false);

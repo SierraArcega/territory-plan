@@ -86,7 +86,7 @@ function Dropdown({ label, activeCount, children, width = 240 }: DropdownProps) 
       {open && (
         <div
           role="dialog"
-          className="absolute z-30 mt-1 left-0 bg-white border border-[#D4CFE2] rounded-xl shadow-lg overflow-hidden"
+          className="absolute z-30 mt-1 left-0 bg-white border border-[#D4CFE2] rounded-xl shadow-lg overflow-hidden max-w-[calc(100vw-2rem)]"
           style={{ width }}
         >
           {children(() => setOpen(false))}

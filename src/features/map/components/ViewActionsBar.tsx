@@ -109,7 +109,7 @@ function Popover({
   return (
     <div
       ref={ref}
-      className={`absolute ${posClass} w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-20`}
+      className={`absolute ${posClass} w-72 max-w-[calc(100vw-3rem)] bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-20`}
     >
       {children}
     </div>

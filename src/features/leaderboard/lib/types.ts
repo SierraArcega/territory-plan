@@ -9,17 +9,21 @@ export interface LeaderboardEntry {
   pipeline: number;
   pipelineCurrentFY: number;
   pipelineNextFY: number;
+  pipelinePriorFY: number;
   // Revenue: legacy scalar + per-FY pair (client toggle)
   revenue: number;
   revenueCurrentFY: number;
   revenuePriorFY: number;
+  revenueNextFY: number;
   // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
   priorYearRevenue: number;
   minPurchasesCurrentFY: number;
   minPurchasesPriorFY: number;
+  minPurchasesNextFY: number;
   revenueTargeted: number;
   targetedCurrentFY: number;
   targetedNextFY: number;
+  targetedPriorFY: number;
   // Unmatched-district opps for this rep (sourced from unmatched_opportunities).
   // Renders the per-rep "N unmatched · $X" badge that links to the admin queue.
   unmatchedOppCount: number;

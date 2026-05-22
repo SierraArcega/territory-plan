@@ -10,6 +10,8 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const ADDITIONAL_INTERNAL_DOMAINS = ["elevatek12.com"];
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const searchParams = url.searchParams;
@@ -72,10 +74,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Extract the company domain from the user's email
-    // This is used to filter out internal attendees when syncing calendar events
+    // Derive the primary company domain from the user's email, then build the
+    // full list of internal domains. elevatek12.com is a second Fullmind org
+    // domain whose attendees should never appear as "external".
     const userEmail = user.email || "";
     const companyDomain = userEmail.split("@")[1] || "";
+    const companyDomains = companyDomain
+      ? [companyDomain, ...ADDITIONAL_INTERNAL_DOMAINS.filter((d) => d !== companyDomain)]
+      : ADDITIONAL_INTERNAL_DOMAINS;
 
     // Upsert the calendar integration — one per user per service
     // If the user re-connects, we update the existing integration with new tokens.
@@ -112,10 +118,9 @@ export async function GET(request: NextRequest) {
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
         tokenExpiresAt: tokens.expiresAt,
-        // Preserve existing metadata (backfill state, sync prefs); update companyDomain
-        // in case the user's email domain changed (e.g. they reconnected with a
-        // different account).
-        metadata: { ...existingMetadata, companyDomain },
+        // Preserve existing metadata (backfill state, sync prefs); update domain
+        // fields in case the user reconnected with a different account.
+        metadata: { ...existingMetadata, companyDomain, companyDomains },
         status: "connected",
         syncEnabled: true,
       },
@@ -126,7 +131,7 @@ export async function GET(request: NextRequest) {
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
         tokenExpiresAt: tokens.expiresAt,
-        metadata: { companyDomain },
+        metadata: { companyDomain, companyDomains },
         status: "connected",
         syncEnabled: true,
       },

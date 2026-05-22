@@ -19,6 +19,8 @@ interface ReportListItem {
     fullName: string | null;
     avatarUrl: string | null;
   } | null;
+  isDraft?: true;
+  lastTouchedAt?: string;
 }
 
 type LibraryResponse = {
@@ -50,6 +52,33 @@ export async function GET(): Promise<NextResponse<LibraryResponse | { error: str
     },
   });
 
+  const drafts = await prisma.reportDraft.findMany({
+    where: { userId: user.id },
+    orderBy: { lastTouchedAt: "desc" },
+  });
+
+  const draftItems: ReportListItem[] = drafts.flatMap((d) => {
+    const history = (d.chatHistory as { userMessage?: string }[] | null) ?? [];
+    // Skip drafts that only have a synthetic saved-report load turn (empty userMessage).
+    // These have no real user work and would show "Unsaved report" with a misleading label.
+    const firstRealMessage = history.find((t) => t.userMessage?.trim())?.userMessage;
+    if (!firstRealMessage) return [];
+    return [{
+      id: d.reportId,
+      title: firstRealMessage.slice(0, 80),
+      description: null,
+      question: firstRealMessage,
+      lastRunAt: null,
+      runCount: 0,
+      rowCount: null,
+      isTeamPinned: false,
+      updatedAt: d.lastTouchedAt.toISOString(),
+      owner: null,
+      isDraft: true,
+      lastTouchedAt: d.lastTouchedAt.toISOString(),
+    }];
+  });
+
   const mine: ReportListItem[] = [];
   const starred: ReportListItem[] = [];
   const team: ReportListItem[] = [];
@@ -75,7 +104,7 @@ export async function GET(): Promise<NextResponse<LibraryResponse | { error: str
     if (!isSelf && !r.isTeamPinned) team.push(base);
   }
 
-  return NextResponse.json({ mine, starred, team });
+  return NextResponse.json({ mine: [...draftItems, ...mine], starred, team });
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

@@ -88,7 +88,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
   }, [tasks, columns, reorderTasks]);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-200px)]">
+    <div className="flex gap-4 overflow-x-auto pb-4 min-h-[calc(100vh-200px)]" style={{ touchAction: "pan-x" }}>
       {TASK_STATUSES.map((status) => {
         const config = TASK_STATUS_CONFIG[status];
         const columnTasks = columns[status];
@@ -114,7 +114,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
               <span className="text-sm font-semibold" style={{ color: config.color }}>
                 {config.label}
               </span>
-              <span className="ml-auto text-xs font-medium text-gray-400">
+              <span className="ml-auto text-xs font-medium text-[#9E97B8]">
                 {columnTasks.length}
               </span>
             </div>
@@ -122,7 +122,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
             {/* Scrollable card list */}
             <div
               className={`flex-1 space-y-2 p-1 rounded-lg transition-colors ${
-                isDragOver ? "bg-gray-100 ring-2 ring-dashed ring-gray-300" : ""
+                isDragOver ? "bg-[#EFEDF5] ring-2 ring-dashed ring-[#C2BBD4]" : ""
               }`}
             >
               {columnTasks.map((task) => (

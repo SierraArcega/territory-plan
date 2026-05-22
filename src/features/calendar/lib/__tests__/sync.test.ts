@@ -61,6 +61,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface CalendarMetaOverrides {
   companyDomain?: string;
+  companyDomains?: string[];
   syncDirection?: "one_way" | "two_way";
   syncedActivityTypes?: string[];
   reminderMinutes?: number;
@@ -493,5 +494,130 @@ describe("syncCalendarEvents — regression guards", () => {
       cancelledEvents: 0,
       errors: [],
     });
+  });
+});
+
+describe("syncCalendarEvents — self RSVP filtering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("skips events where self responseStatus is 'tentative' (maybe)", async () => {
+    const event = makeGoogleEvent("evt-maybe", {
+      attendees: [
+        { email: "rep@fullmindlearning.com", responseStatus: "tentative", self: true },
+        { email: "principal@school.org", responseStatus: "accepted" },
+      ],
+    });
+    primeValidSyncPath(makeIntegration(), [event]);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    const result = await syncCalendarEvents(USER_ID);
+
+    expect(prisma.calendarEvent.create).not.toHaveBeenCalled();
+    expect(result.newEvents).toBe(0);
+  });
+
+  it("skips events where self responseStatus is 'declined'", async () => {
+    const event = makeGoogleEvent("evt-declined", {
+      attendees: [
+        { email: "rep@fullmindlearning.com", responseStatus: "declined", self: true },
+        { email: "principal@school.org", responseStatus: "accepted" },
+      ],
+    });
+    primeValidSyncPath(makeIntegration(), [event]);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    const result = await syncCalendarEvents(USER_ID);
+
+    expect(prisma.calendarEvent.create).not.toHaveBeenCalled();
+    expect(result.newEvents).toBe(0);
+  });
+
+  it("stages events where self responseStatus is 'accepted'", async () => {
+    const event = makeGoogleEvent("evt-accepted", {
+      attendees: [
+        { email: "rep@fullmindlearning.com", responseStatus: "accepted", self: true },
+        { email: "principal@school.org", responseStatus: "accepted" },
+      ],
+    });
+    primeValidSyncPath(makeIntegration(), [event]);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    const result = await syncCalendarEvents(USER_ID);
+
+    expect(prisma.calendarEvent.create).toHaveBeenCalledTimes(1);
+    expect(result.newEvents).toBe(1);
+  });
+
+  it("stages events where there is no self attendee (organizer view)", async () => {
+    const event = makeGoogleEvent("evt-no-self", {
+      attendees: [
+        { email: "principal@school.org", responseStatus: "accepted" },
+      ],
+    });
+    primeValidSyncPath(makeIntegration(), [event]);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    const result = await syncCalendarEvents(USER_ID);
+
+    expect(prisma.calendarEvent.create).toHaveBeenCalledTimes(1);
+    expect(result.newEvents).toBe(1);
+  });
+});
+
+describe("syncCalendarEvents — multi-domain internal filtering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("passes companyDomains array to filterExternalAttendees when metadata has companyDomains", async () => {
+    const event = makeGoogleEvent("evt-1");
+    primeValidSyncPath(
+      makeIntegration({
+        metadata: {
+          companyDomain: "fullmindlearning.com",
+          companyDomains: ["fullmindlearning.com", "elevatek12.com"],
+        },
+      }),
+      [event]
+    );
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    expect(filterExternalAttendees).toHaveBeenCalledWith(
+      expect.any(Array),
+      ["fullmindlearning.com", "elevatek12.com"]
+    );
+  });
+
+  it("falls back to [companyDomain] array when only the scalar is set", async () => {
+    const event = makeGoogleEvent("evt-2");
+    primeValidSyncPath(makeIntegration(), [event]);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    expect(filterExternalAttendees).toHaveBeenCalledWith(
+      expect.any(Array),
+      ["fullmindlearning.com"]
+    );
+  });
+
+  it("passes empty array to filterExternalAttendees when no domain is configured", async () => {
+    const event = makeGoogleEvent("evt-3");
+    primeValidSyncPath(
+      makeIntegration({ metadata: { companyDomain: "" } }),
+      [event]
+    );
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    expect(filterExternalAttendees).toHaveBeenCalledWith(
+      expect.any(Array),
+      []
+    );
   });
 });

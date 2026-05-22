@@ -1,15 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronDown } from "lucide-react";
 import RevenuePodium from "./RevenuePodium";
 import RevenueTable from "./RevenueTable";
 import type { RevenueSortColumn, RevenueTableTotals } from "./RevenueTable";
 import { useLeaderboard } from "../lib/queries";
 import type { LeaderboardEntry } from "../lib/types";
-
-type ForwardFYSelection = "current" | "next" | "both";
-type BackwardFYSelection = "current" | "prior" | "both";
 
 /** Convert school year "2025-26" to display "FY26" */
 function formatFYLabel(schoolYr: string): string {
@@ -17,107 +13,104 @@ function formatFYLabel(schoolYr: string): string {
   return `FY${parts[1] ?? schoolYr}`;
 }
 
-/** Compute the display value for pipeline based on FY selection */
-function getPipelineValue(entry: LeaderboardEntry, fy: ForwardFYSelection): number {
-  if (fy === "current") return entry.pipelineCurrentFY;
-  if (fy === "next") return entry.pipelineNextFY;
-  return entry.pipelineCurrentFY + entry.pipelineNextFY;
-}
+type Period = "prior" | "current" | "next";
 
-/** Compute the display value for targeted based on FY selection */
-function getTargetedValue(entry: LeaderboardEntry, fy: ForwardFYSelection): number {
-  if (fy === "current") return entry.targetedCurrentFY;
-  if (fy === "next") return entry.targetedNextFY;
-  return entry.targetedCurrentFY + entry.targetedNextFY;
-}
-
-/** Compute the display value for revenue based on backward FY selection (current/prior/both) */
-function getRevenueValue(entry: LeaderboardEntry, fy: BackwardFYSelection): number {
-  if (fy === "current") return entry.revenueCurrentFY;
-  if (fy === "prior") return entry.revenuePriorFY;
-  return entry.revenueCurrentFY + entry.revenuePriorFY;
-}
-
-/** Compute the display value for min purchases based on backward FY selection */
-function getMinPurchasesValue(entry: LeaderboardEntry, fy: BackwardFYSelection): number {
-  if (fy === "current") return entry.minPurchasesCurrentFY;
-  if (fy === "prior") return entry.minPurchasesPriorFY;
-  return entry.minPurchasesCurrentFY + entry.minPurchasesPriorFY;
+function getColumnValues(entry: LeaderboardEntry, period: Period) {
+  switch (period) {
+    case "prior":
+      return {
+        revenue: entry.revenuePriorFY,
+        minPurchases: entry.minPurchasesPriorFY,
+        pipeline: entry.pipelinePriorFY,
+        targeted: entry.targetedPriorFY,
+      };
+    case "current":
+      return {
+        revenue: entry.revenueCurrentFY,
+        minPurchases: entry.minPurchasesCurrentFY,
+        pipeline: entry.pipelineCurrentFY,
+        targeted: entry.targetedCurrentFY,
+      };
+    case "next":
+      return {
+        revenue: entry.revenueNextFY,
+        minPurchases: entry.minPurchasesNextFY,
+        pipeline: entry.pipelineNextFY,
+        targeted: entry.targetedNextFY,
+      };
+  }
 }
 
 export default function RevenueOverviewTab() {
-  // Forward-looking selectors (pipeline/targeted): current/next/both
-  const [pipelineFY, setPipelineFY] = useState<ForwardFYSelection>("both");
-  const [targetedFY, setTargetedFY] = useState<ForwardFYSelection>("both");
-  // Backward-looking selectors (revenue/min purchases): current/prior/both
-  const [revenueFY, setRevenueFY] = useState<BackwardFYSelection>("current");
-  const [minPurchasesFY, setMinPurchasesFY] = useState<BackwardFYSelection>("prior");
+  const [period, setPeriod] = useState<Period>(() => {
+    if (typeof window === "undefined") return "current";
+    return (sessionStorage.getItem("leaderboard-period") as Period) ?? "current";
+  });
+
+  const handlePeriod = (p: Period) => {
+    setPeriod(p);
+    sessionStorage.setItem("leaderboard-period", p);
+  };
 
   const [sortColumn, setSortColumn] = useState<RevenueSortColumn>("revenue");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const { data: leaderboard, isLoading } = useLeaderboard();
 
-  // Project entries with computed values based on FY selection.
+  // Project entries with computed values based on period selection.
   // `revenue` and `priorYearRevenue` are overridden so the sort logic
   // reads the projected values for those columns.
   const projectedEntries = useMemo(() => {
-    return (leaderboard?.entries ?? []).map((entry) => ({
-      ...entry,
-      revenue: getRevenueValue(entry, revenueFY),
-      priorYearRevenue: getMinPurchasesValue(entry, minPurchasesFY),
-      pipeline: getPipelineValue(entry, pipelineFY),
-      revenueTargeted: getTargetedValue(entry, targetedFY),
-    }));
-  }, [leaderboard?.entries, revenueFY, minPurchasesFY, pipelineFY, targetedFY]);
+    return (leaderboard?.entries ?? []).map((entry) => {
+      const vals = getColumnValues(entry, period);
+      return {
+        ...entry,
+        revenue: vals.revenue,
+        priorYearRevenue: vals.minPurchases,
+        pipeline: vals.pipeline,
+        revenueTargeted: vals.targeted,
+      };
+    });
+  }, [leaderboard?.entries, period]);
 
   const projectedTotals = useMemo<RevenueTableTotals | undefined>(() => {
     const t = leaderboard?.teamTotals;
     if (!t) return undefined;
 
-    const projectForward = (cur: number, next: number, fy: ForwardFYSelection): number => {
-      if (fy === "current") return cur;
-      if (fy === "next") return next;
-      return cur + next;
+    const maps: Record<Period, RevenueTableTotals> = {
+      prior: {
+        revenue: t.revenuePriorFY,
+        priorYearRevenue: t.minPurchasesPriorFY,
+        pipeline: t.pipelinePriorFY,
+        revenueTargeted: t.targetedPriorFY,
+        unassignedRevenue: t.unassignedRevenuePriorFY,
+        unassignedPriorYearRevenue: t.unassignedMinPurchasesPriorFY,
+        unassignedPipeline: t.unassignedPipelinePriorFY,
+        unassignedRevenueTargeted: t.unassignedTargetedPriorFY,
+      },
+      current: {
+        revenue: t.revenueCurrentFY,
+        priorYearRevenue: t.minPurchasesCurrentFY,
+        pipeline: t.pipelineCurrentFY,
+        revenueTargeted: t.targetedCurrentFY,
+        unassignedRevenue: t.unassignedRevenueCurrentFY,
+        unassignedPriorYearRevenue: t.unassignedMinPurchasesCurrentFY,
+        unassignedPipeline: t.unassignedPipelineCurrentFY,
+        unassignedRevenueTargeted: t.unassignedTargetedCurrentFY,
+      },
+      next: {
+        revenue: t.revenueNextFY,
+        priorYearRevenue: t.minPurchasesNextFY,
+        pipeline: t.pipelineNextFY,
+        revenueTargeted: t.targetedNextFY,
+        unassignedRevenue: t.unassignedRevenueNextFY,
+        unassignedPriorYearRevenue: t.unassignedMinPurchasesNextFY,
+        unassignedPipeline: t.unassignedPipelineNextFY,
+        unassignedRevenueTargeted: t.unassignedTargetedNextFY,
+      },
     };
-
-    const projectBackward = (cur: number, prior: number, fy: BackwardFYSelection): number => {
-      if (fy === "current") return cur;
-      if (fy === "prior") return prior;
-      return cur + prior;
-    };
-
-    return {
-      revenue: projectBackward(t.revenueCurrentFY, t.revenuePriorFY, revenueFY),
-      priorYearRevenue: projectBackward(
-        t.minPurchasesCurrentFY,
-        t.minPurchasesPriorFY,
-        minPurchasesFY
-      ),
-      pipeline: projectForward(t.pipelineCurrentFY, t.pipelineNextFY, pipelineFY),
-      revenueTargeted: projectForward(t.targetedCurrentFY, t.targetedNextFY, targetedFY),
-      unassignedRevenue: projectBackward(
-        t.unassignedRevenueCurrentFY,
-        t.unassignedRevenuePriorFY,
-        revenueFY
-      ),
-      unassignedPriorYearRevenue: projectBackward(
-        t.unassignedMinPurchasesCurrentFY,
-        t.unassignedMinPurchasesPriorFY,
-        minPurchasesFY
-      ),
-      unassignedPipeline: projectForward(
-        t.unassignedPipelineCurrentFY,
-        t.unassignedPipelineNextFY,
-        pipelineFY
-      ),
-      unassignedRevenueTargeted: projectForward(
-        t.unassignedTargetedCurrentFY,
-        t.unassignedTargetedNextFY,
-        targetedFY
-      ),
-    };
-  }, [leaderboard?.teamTotals, revenueFY, minPurchasesFY, pipelineFY, targetedFY]);
+    return maps[period];
+  }, [leaderboard?.teamTotals, period]);
 
   const sortedEntries = useMemo(() => {
     return [...projectedEntries].sort((a, b) => {
@@ -146,44 +139,12 @@ export default function RevenueOverviewTab() {
 
   const fy = leaderboard?.fiscalYears;
 
-  const forwardFYOptions: { value: ForwardFYSelection; label: string }[] = fy
-    ? [
-        { value: "current", label: formatFYLabel(fy.currentFY) },
-        { value: "next", label: formatFYLabel(fy.nextFY) },
-        { value: "both", label: "Both" },
-      ]
-    : [];
-
-  const backwardFYOptions: { value: BackwardFYSelection; label: string }[] = fy
-    ? [
-        { value: "current", label: formatFYLabel(fy.currentFY) },
-        { value: "prior", label: formatFYLabel(fy.priorFY) },
-        { value: "both", label: "Both" },
-      ]
-    : [];
-
-  const forwardRangeLabel = (sel: ForwardFYSelection): string | null => {
-    if (!fy) return null;
-    if (sel === "current") return formatFYLabel(fy.currentFY);
-    if (sel === "next") return formatFYLabel(fy.nextFY);
-    return `${formatFYLabel(fy.currentFY)}+${formatFYLabel(fy.nextFY)}`;
+  const columnLabels: Partial<Record<RevenueSortColumn, string>> = {
+    revenue: "Revenue",
+    priorYearRevenue: "Min Purchases",
+    pipeline: "Pipeline",
+    revenueTargeted: "Targeted",
   };
-
-  const backwardRangeLabel = (sel: BackwardFYSelection): string | null => {
-    if (!fy) return null;
-    if (sel === "current") return formatFYLabel(fy.currentFY);
-    if (sel === "prior") return formatFYLabel(fy.priorFY);
-    return `${formatFYLabel(fy.priorFY)}+${formatFYLabel(fy.currentFY)}`;
-  };
-
-  const columnLabels: Partial<Record<RevenueSortColumn, string>> | undefined = fy
-    ? {
-        revenue: `Revenue (${backwardRangeLabel(revenueFY)})`,
-        priorYearRevenue: `Min Purchases (${backwardRangeLabel(minPurchasesFY)})`,
-        pipeline: `Pipeline (${forwardRangeLabel(pipelineFY)})`,
-        revenueTargeted: `Targeted (${forwardRangeLabel(targetedFY)})`,
-      }
-    : undefined;
 
   const columnTooltips: Partial<Record<RevenueSortColumn, string>> = {
     revenue: "Sum of Subscriptions + Sessions",
@@ -194,79 +155,40 @@ export default function RevenueOverviewTab() {
 
   return (
     <div>
-      {/* FY selectors */}
-      {fy && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 bg-[#F7F5FA] border-b border-[#EFEDF5]">
-          <FYSelect
-            label="Revenue"
-            value={revenueFY}
-            options={backwardFYOptions}
-            onChange={(v) => setRevenueFY(v as BackwardFYSelection)}
-          />
-          <FYSelect
-            label="Min Purchases"
-            value={minPurchasesFY}
-            options={backwardFYOptions}
-            onChange={(v) => setMinPurchasesFY(v as BackwardFYSelection)}
-          />
-          <FYSelect
-            label="Pipeline"
-            value={pipelineFY}
-            options={forwardFYOptions}
-            onChange={(v) => setPipelineFY(v as ForwardFYSelection)}
-          />
-          <FYSelect
-            label="Targeted"
-            value={targetedFY}
-            options={forwardFYOptions}
-            onChange={(v) => setTargetedFY(v as ForwardFYSelection)}
-          />
-        </div>
-      )}
+      {/* Period pill selector */}
+      <div className="flex items-center gap-1.5 px-4 py-2.5 bg-[#F7F5FA] border-b border-[#EFEDF5]">
+        {(["prior", "current", "next"] as Period[]).map((p) => {
+          const label =
+            p === "prior" ? `Prior Year${fy ? ` (${formatFYLabel(fy.priorFY)})` : ""}` :
+            p === "current" ? `Current Year${fy ? ` (${formatFYLabel(fy.currentFY)})` : ""}` :
+            `Next Year${fy ? ` (${formatFYLabel(fy.nextFY)})` : ""}`;
+          return (
+            <button
+              key={p}
+              onClick={() => handlePeriod(p)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                period === p
+                  ? "bg-[#403770] text-white"
+                  : "bg-[#EFEDF5] text-[#8A80A8] hover:text-[#403770]"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
-      <RevenuePodium entries={sortedEntries} />
-      <RevenueTable
-        entries={sortedEntries}
-        sortColumn={sortColumn}
-        sortDirection={sortDirection}
-        onSort={handleSort}
-        teamTotals={projectedTotals}
-        columnLabels={columnLabels}
-        columnTooltips={columnTooltips}
-      />
-    </div>
-  );
-}
-
-function FYSelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8A849A]">
-        {label}:
-      </span>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="appearance-none text-xs font-semibold text-[#403770] bg-white border border-[#E2DEEC] rounded-md pl-2.5 pr-6 py-1 cursor-pointer hover:border-[#403770] transition-colors focus:outline-none focus:ring-1 focus:ring-[#403770]"
-        >
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A849A] pointer-events-none" />
+      <RevenuePodium entries={sortedEntries} sortColumn={sortColumn} />
+      <div className="overflow-x-auto">
+        <RevenueTable
+          entries={sortedEntries}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          teamTotals={projectedTotals}
+          columnLabels={columnLabels}
+          columnTooltips={columnTooltips}
+        />
       </div>
     </div>
   );

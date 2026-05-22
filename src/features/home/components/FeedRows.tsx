@@ -240,6 +240,7 @@ interface MeetingRowProps {
   source?: string;
   time?: string;
   onLogActivity?: () => void;
+  onDismiss?: () => void;
 }
 
 export function MeetingRow({
@@ -247,6 +248,7 @@ export function MeetingRow({
   source,
   time,
   onLogActivity,
+  onDismiss,
 }: MeetingRowProps) {
   return (
     <div className="flex items-center gap-3.5 px-5 py-4 hover:bg-[#F7F5FA]/50 transition-colors">
@@ -257,7 +259,16 @@ export function MeetingRow({
         )}
       </div>
       {time && (
-        <span className="text-xs text-[#8A80A8] shrink-0">{time}</span>
+        <span className="text-xs text-[#8A80A8] shrink-0 whitespace-nowrap">{time}</span>
+      )}
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="shrink-0 px-2 py-1 text-xs text-[#8A80A8] hover:text-[#403770] transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#403770]/30 rounded"
+        >
+          Dismiss
+        </button>
       )}
       <ActionButton label="Log activity" onClick={onLogActivity} />
     </div>

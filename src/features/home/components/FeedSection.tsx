@@ -24,7 +24,7 @@ export default function FeedSection({
             className="w-2 h-2 rounded-full shrink-0"
             style={{ backgroundColor: dotColor }}
           />
-          <span className="text-xs font-bold text-[#403770] uppercase tracking-[0.5px]">
+          <span className="text-xs font-bold text-[#403770] uppercase tracking-[0.5px] whitespace-nowrap">
             {title}
           </span>
         </div>

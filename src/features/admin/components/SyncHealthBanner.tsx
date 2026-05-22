@@ -77,13 +77,13 @@ export default function SyncHealthBanner() {
             {config.label}
           </span>
         </div>
-        <span className="text-xs text-[#8A80A8]">
+        <span className="hidden sm:block text-xs text-[#8A80A8]">
           Refreshes every minute
         </span>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Stat
           label="Last Sync"
           value={relativeTime(data.lastSyncAt)}

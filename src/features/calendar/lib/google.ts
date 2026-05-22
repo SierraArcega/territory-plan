@@ -173,19 +173,25 @@ export async function fetchCalendarEvents(
   return events;
 }
 
-// Filter attendees to only external people (not from the rep's company domain)
+// Filter attendees to only external people (not from the rep's company domains)
 // This is the key heuristic: if someone outside the org is on the invite, it's likely a sales meeting
 export function filterExternalAttendees(
   attendees: GoogleCalendarEvent["attendees"],
-  companyDomain: string
+  companyDomains: string | string[]
 ): CalendarEventAttendee[] {
+  const internalDomains = (
+    Array.isArray(companyDomains) ? companyDomains : [companyDomains]
+  )
+    .map((d) => d.toLowerCase())
+    .filter(Boolean);
+
   return attendees
     .filter((a) => {
       // Skip the calendar owner (self)
       if (a.self) return false;
-      // Skip internal attendees (same email domain as company)
+      // Skip internal attendees (any domain that belongs to the org)
       const domain = a.email.split("@")[1]?.toLowerCase();
-      return domain !== companyDomain.toLowerCase();
+      return !internalDomains.includes(domain ?? "");
     })
     .map((a) => ({
       email: a.email,

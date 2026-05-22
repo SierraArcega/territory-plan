@@ -65,7 +65,7 @@ export default function DistrictTabStrip({
     .filter((t) => t.key !== "signals" || showSignals);
 
   return (
-    <div className="flex border-b border-gray-100">
+    <div className="flex overflow-x-auto border-b border-gray-100">
       {visibleTabs.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
@@ -101,7 +101,7 @@ export default function DistrictTabStrip({
                 </span>
               )}
             </div>
-            <span>{tab.label}</span>
+            <span className="whitespace-nowrap">{tab.label}</span>
           </button>
         );
       })}

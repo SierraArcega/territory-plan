@@ -6,8 +6,11 @@ import {
   useActivities,
   useUpdateTask,
   useCalendarInbox,
+  useConfirmCalendarEvent,
+  useDismissCalendarEvent,
   type TaskItem,
   type ActivityListItem,
+  type CalendarEvent,
 } from "@/lib/api";
 import FeedSummaryCards from "./FeedSummaryCards";
 import FeedSection from "./FeedSection";
@@ -15,6 +18,7 @@ import DayNavigator from "./DayNavigator";
 import FeedControls from "./FeedControls";
 import { TaskRow, ActivityRow, MeetingRow, UpcomingActivityRow } from "./FeedRows";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import { ACTIVITY_TYPE_LABELS } from "@/features/activities/types";
 import { Rocket, Users } from "lucide-react";
@@ -73,8 +77,39 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const { data: activitiesData } = useActivities({});
   const { data: calendarData } = useCalendarInbox("pending");
   const updateTask = useUpdateTask();
+  const confirmCalendarEvent = useConfirmCalendarEvent();
+  const dismissCalendarEvent = useDismissCalendarEvent();
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
+  const [meetingOutcome, setMeetingOutcome] = useState<
+    { activityId: string; event: CalendarEvent } | null
+  >(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+
+  // Confirm a calendar event → creates an Activity. For past meetings, open
+  // OutcomeModal so the rep can capture notes/next-steps right away. Mirrors
+  // CalendarEventCard.handleConfirm in src/features/calendar/components/CalendarEventCard.tsx.
+  const handleLogActivity = async (event: CalendarEvent) => {
+    if (confirmCalendarEvent.isPending) return;
+    try {
+      const result = await confirmCalendarEvent.mutateAsync({ eventId: event.id });
+      const isPast = new Date(event.startTime) < new Date();
+      if (isPast) {
+        setMeetingOutcome({ activityId: result.activityId, event });
+      }
+    } catch {
+      // Mutation errors surface via React Query; row stays in the inbox.
+    }
+  };
+
+  const handleDismissMeeting = async (event: CalendarEvent) => {
+    if (dismissCalendarEvent.isPending) return;
+    try {
+      await dismissCalendarEvent.mutateAsync(event.id);
+    } catch {
+      // Mutation errors surface via React Query; row stays in the inbox.
+    }
+  };
 
   // New state for day navigation, pagination, and completed toggle
   const [selectedDate, setSelectedDate] = useState<string>(today);
@@ -104,18 +139,22 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
     );
   }, [activitiesData]);
 
-  // ---- Upcoming activities (planned, sorted by date) ----
+  // ---- Upcoming activities (planned + startDate on or after today, sorted by date) ----
   const upcomingActivities = useMemo(() => {
     const activities = activitiesData?.activities || [];
     return activities
-      .filter((a) => a.status === "planned")
+      .filter((a) => {
+        if (a.status !== "planned") return false;
+        if (a.startDate && toDateKey(a.startDate) < today) return false;
+        return true;
+      })
       .sort((a, b) => {
         if (!a.startDate && !b.startDate) return 0;
         if (!a.startDate) return 1;
         if (!b.startDate) return -1;
         return a.startDate.localeCompare(b.startDate);
       });
-  }, [activitiesData]);
+  }, [activitiesData, today]);
 
   // ---- Meetings to log ----
   const meetingsToLog = useMemo(() => {
@@ -372,15 +411,16 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
                   : undefined
               }
               districtCount={activity.districtCount}
+              onClick={() => setEditingActivityId(activity.id)}
             />
           ))}
         </FeedSection>
       )}
 
-      {/* Meetings to Log */}
+      {/* Unlogged calendar meetings — rep must log or dismiss each */}
       {meetingsToLog.length > 0 && (
         <FeedSection
-          title="Meetings to Log"
+          title="Unlogged meetings — log or dismiss"
           dotColor="#8AA891"
           itemCount={meetingsToLog.length}
         >
@@ -390,6 +430,8 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
               title={event.title}
               source="Google Calendar"
               time={formatTime(event.startTime)}
+              onLogActivity={() => handleLogActivity(event)}
+              onDismiss={() => handleDismissMeeting(event)}
             />
           ))}
         </FeedSection>
@@ -438,6 +480,34 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         <OutcomeModal
           activity={outcomeActivity}
           onClose={() => setOutcomeActivity(null)}
+        />
+      )}
+
+      {/* Activity edit modal — opened from Upcoming Activities */}
+      <ActivityFormModal
+        isOpen={!!editingActivityId}
+        editActivityId={editingActivityId ?? undefined}
+        onClose={() => setEditingActivityId(null)}
+      />
+
+      {/* Outcome Modal — after logging a past calendar meeting */}
+      {meetingOutcome && (
+        <OutcomeModal
+          activity={{
+            id: meetingOutcome.activityId,
+            type: meetingOutcome.event.suggestedActivityType || "program_check_in",
+            title: meetingOutcome.event.title,
+          }}
+          sourceContext={{
+            planIds: meetingOutcome.event.suggestedPlanId
+              ? [meetingOutcome.event.suggestedPlanId]
+              : undefined,
+            districtLeaids: meetingOutcome.event.suggestedDistrictId
+              ? [meetingOutcome.event.suggestedDistrictId]
+              : undefined,
+            contactIds: meetingOutcome.event.suggestedContactIds || undefined,
+          }}
+          onClose={() => setMeetingOutcome(null)}
         />
       )}
     </div>

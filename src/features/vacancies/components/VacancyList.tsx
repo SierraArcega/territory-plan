@@ -225,20 +225,22 @@ function VacancyRow({ vacancy, isHighlighted }: { vacancy: VacancyRecord; isHigh
   return (
     <div ref={ref} className={`rounded-lg p-2.5 space-y-1 ${isHighlighted ? "border-2 border-[#FFCF70] bg-[#FFCF70]/5" : "border border-gray-100"}`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-semibold text-[#403770] leading-tight">
+        <div className="min-w-0 flex-1">
           {vacancy.sourceUrl ? (
             <a
               href={vacancy.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline"
+              className="text-sm font-semibold text-[#403770] leading-tight hover:underline truncate block"
             >
               {vacancy.title}
             </a>
           ) : (
-            vacancy.title
+            <span className="text-sm font-semibold text-[#403770] leading-tight truncate block">
+              {vacancy.title}
+            </span>
           )}
-        </span>
+        </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {vacancy.category && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-[#403770]/10 text-[#403770]">

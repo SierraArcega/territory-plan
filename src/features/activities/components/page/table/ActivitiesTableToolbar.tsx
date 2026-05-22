@@ -86,7 +86,7 @@ export default function ActivitiesTableToolbar({
   }
 
   return (
-    <div className="flex items-center gap-2 px-6 py-2.5 bg-white border-b border-[#E2DEEC]">
+    <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-white border-b border-[#E2DEEC]">
       <div className="relative flex-1 max-w-2xl">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A69DC0]" />
         <input
