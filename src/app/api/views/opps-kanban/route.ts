@@ -5,6 +5,10 @@ import {
   OPP_STAGE_COLUMNS,
   OPP_KANBAN_STAGES,
 } from "@/features/views/lib/opp-stage-columns";
+import {
+  getGlobalCustomerLabels,
+  rankLabelString,
+} from "@/app/api/views/data/global-customer-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +26,7 @@ interface KanbanCard {
   closeDate: string | null;
   salesRepName: string | null;
   detailsLink: string | null;
+  rankLabel: string;
 }
 
 interface KanbanColumn {
@@ -38,6 +43,7 @@ interface TargetedCard {
   leaid: string;
   name: string | null;
   target: number;
+  rankLabel: string;
 }
 
 interface Targeted {
@@ -71,6 +77,7 @@ interface CardRow {
   close_date: Date | string | null;
   sales_rep_name: string | null;
   details_link: string | null;
+  district_lea_id: string | null;
 }
 
 /** Decimal columns arrive as strings from pg — coerce to number or null. */
@@ -136,13 +143,14 @@ export async function GET(req: NextRequest) {
 
   const stages = [...OPP_KANBAN_STAGES];
 
-  // Run aggregate, card, and targeted queries in parallel. Keep this array order
-  // (agg, cards, targeted) stable — tests assert on call indices.
+  // Run aggregate, card, and targeted queries in parallel (plus the cached
+  // global rank labels). Keep the readonlyPool array order (agg, cards, targeted)
+  // stable — tests assert on call indices.
   //
   // "Targeted" = plan districts with NO opportunity this fiscal year. Only
   // computable when a planId is supplied (targets live on territory_plan_districts).
   // Districts are bounded per plan, so we fetch all matches and slice client-side.
-  const [aggResult, cardResult, targetedResult] = await Promise.all([
+  const [aggResult, cardResult, targetedResult, labels] = await Promise.all([
     readonlyPool.query<AggRow>(
       `SELECT stage,
               COUNT(*) AS count,
@@ -157,11 +165,11 @@ export async function GET(req: NextRequest) {
     readonlyPool.query<CardRow>(
       `SELECT id, stage, name, district_name, contract_type, net_booking_amount,
               minimum_purchase_amount, maximum_budget, close_date, sales_rep_name,
-              details_link
+              details_link, district_lea_id
          FROM (
            SELECT o.id, o.stage, o.name, o.district_name, o.contract_type,
                   o.net_booking_amount, o.minimum_purchase_amount, o.maximum_budget,
-                  o.close_date, o.sales_rep_name, o.details_link,
+                  o.close_date, o.sales_rep_name, o.details_link, o.district_lea_id,
                   ROW_NUMBER() OVER (
                     PARTITION BY o.stage
                     ORDER BY o.close_date ASC NULLS LAST, o.net_booking_amount DESC NULLS LAST
@@ -194,6 +202,7 @@ export async function GET(req: NextRequest) {
           [planId, schoolYr],
         )
       : Promise.resolve({ rows: [] as TargetedRow[] }),
+    getGlobalCustomerLabels(),
   ]);
 
   const aggByStage = new Map<string, { count: number; total: number }>();
@@ -218,6 +227,7 @@ export async function GET(req: NextRequest) {
       closeDate: toISO(r.close_date),
       salesRepName: r.sales_rep_name,
       detailsLink: r.details_link,
+      rankLabel: rankLabelString(labels.get(r.district_lea_id ?? "")),
     });
     cardsByStage.set(r.stage, list);
   }
@@ -239,6 +249,7 @@ export async function GET(req: NextRequest) {
     leaid: r.leaid,
     name: r.name,
     target: Number(r.target) || 0,
+    rankLabel: rankLabelString(labels.get(r.leaid)),
   }));
   const targeted: Targeted = {
     count: targetedAll.length,

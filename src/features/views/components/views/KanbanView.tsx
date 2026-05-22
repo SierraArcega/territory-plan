@@ -18,6 +18,7 @@ import { ExternalLink } from "lucide-react";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { OPP_STAGE_COLUMNS } from "@/features/views/lib/opp-stage-columns";
+import { CustomerRankCell } from "@/features/views/components/grid/cells/CustomerRankCell";
 import {
   EmptyState,
   ErrorState,
@@ -47,6 +48,7 @@ interface KanbanCard {
   closeDate: string | null;
   salesRepName: string | null;
   detailsLink: string | null;
+  rankLabel: string;
 }
 
 interface KanbanColumnData {
@@ -62,6 +64,7 @@ interface TargetedCard {
   leaid: string;
   name: string | null;
   target: number;
+  rankLabel: string;
 }
 
 interface TargetedData {
@@ -227,6 +230,9 @@ function DistrictCard({
           style={{ background: accent }}
           aria-hidden
         />
+        <span className="flex-shrink-0">
+          <CustomerRankCell value={card.rankLabel} />
+        </span>
         <span className="text-[13px] font-semibold text-[#403770] truncate">
           {card.name ?? "Unknown district"}
         </span>
@@ -296,6 +302,9 @@ function Card({ card, accent }: { card: KanbanCard; accent: string }) {
             style={{ background: accent }}
             aria-hidden
           />
+          <span className="flex-shrink-0">
+            <CustomerRankCell value={card.rankLabel} />
+          </span>
           <span className="text-[13px] font-semibold text-[#403770] truncate">
             {card.name ?? "Untitled opportunity"}
           </span>

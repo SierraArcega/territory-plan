@@ -33,7 +33,7 @@ import {
 import { SAVED_LIST_SOURCES } from "@/lib/saved-views/filter-tree";
 import type { FilterNode, SavedListSource } from "@/lib/saved-views/filter-tree";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
-import { getGlobalCustomerLabels } from "./global-customer-labels";
+import { getGlobalCustomerLabels, rankLabelString } from "./global-customer-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -358,18 +358,8 @@ export async function GET(req: NextRequest) {
             activities_count_90d: e?.activitiesCount90d ?? 0,
             churn_risk: e?.churnRisk ?? null,
             plan_notes: e?.notes ?? null,
-            // Single string the grid can dispatch on:
-            //   rank → "#1", "#2", …
-            //   win_back → "Win Back"
-            //   new or missing → "New"
-            customer_rank:
-              g == null
-                ? "New"
-                : g.label === "rank" && g.rank != null
-                  ? `#${g.rank}`
-                  : g.label === "win_back"
-                    ? "Win Back"
-                    : "New",
+            // Single string the grid can dispatch on: "#1"/"#2"/… | "Win Back" | "New".
+            customer_rank: rankLabelString(g),
           };
         });
       }

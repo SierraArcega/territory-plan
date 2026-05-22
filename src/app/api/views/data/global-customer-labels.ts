@@ -21,6 +21,18 @@ export interface GlobalLabel {
   label: LabelKind;
 }
 
+/**
+ * Map a GlobalLabel (or a missing entry) to the display string used across the
+ * views feature: "#N" for a ranked customer, "Win Back", or "New". A district
+ * with no label entry is treated as "New".
+ */
+export function rankLabelString(g: GlobalLabel | undefined): string {
+  if (g == null) return "New";
+  if (g.label === "rank" && g.rank != null) return `#${g.rank}`;
+  if (g.label === "win_back") return "Win Back";
+  return "New";
+}
+
 interface RevenueRow {
   leaid: string;
   fy26: number | null;

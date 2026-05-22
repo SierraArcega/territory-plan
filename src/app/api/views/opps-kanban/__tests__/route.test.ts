@@ -13,6 +13,14 @@ vi.mock("@/lib/db-readonly", () => ({
   },
 }));
 
+// Mock only the cached fetcher; keep the real rankLabelString derivation.
+const mockGetLabels = vi.fn();
+vi.mock("@/app/api/views/data/global-customer-labels", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/app/api/views/data/global-customer-labels")>();
+  return { ...actual, getGlobalCustomerLabels: () => mockGetLabels() };
+});
+
 import { GET } from "../route";
 
 const mockUser = { id: "user-1", email: "test@example.com" };
@@ -23,6 +31,8 @@ function makeRequest(url: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no rank data → every card resolves to "New".
+  mockGetLabels.mockResolvedValue(new Map());
 });
 
 describe("GET /api/views/opps-kanban — auth & validation", () => {
@@ -185,8 +195,8 @@ describe("GET /api/views/opps-kanban — targeted column", () => {
       count: 2,
       totalTarget: 150000,
       cards: [
-        { leaid: "1100030", name: "Untouched A", target: 100000 },
-        { leaid: "1100060", name: "Untouched B", target: 50000 },
+        { leaid: "1100030", name: "Untouched A", target: 100000, rankLabel: "New" },
+        { leaid: "1100060", name: "Untouched B", target: 50000, rankLabel: "New" },
       ],
       hasMore: false,
     });
@@ -219,5 +229,70 @@ describe("GET /api/views/opps-kanban — targeted column", () => {
     });
     // Only agg + cards ran — no targeted query without a planId.
     expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("GET /api/views/opps-kanban — rank labels", () => {
+  it("attaches each card's district rank label (opp + targeted)", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockGetLabels.mockResolvedValue(
+      new Map([
+        ["d-1", { rank: 3, label: "rank" }],
+        ["d-2", { rank: null, label: "win_back" }],
+      ]),
+    );
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ stage: "1 - Discovery", count: "1", total: "45000" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "opp-1", stage: "1 - Discovery", name: "Acme",
+            district_name: "Acme District", district_lea_id: "d-1",
+            contract_type: null, net_booking_amount: "45000",
+            minimum_purchase_amount: null, maximum_budget: null,
+            close_date: null, sales_rep_name: null, details_link: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ leaid: "d-2", name: "Beta District", target: "50000" }],
+      });
+
+    const res = await GET(
+      makeRequest("/api/views/opps-kanban?leaids=d-1,d-2&schoolYr=2025-26&planId=plan-1"),
+    );
+    const data = await res.json();
+
+    const discovery = data.columns.find((c: { id: string }) => c.id === "discovery");
+    expect(discovery.cards[0].rankLabel).toBe("#3");
+    expect(data.targeted.cards[0].rankLabel).toBe("Win Back");
+  });
+
+  it("labels a district with no rank entry as New", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockGetLabels.mockResolvedValue(new Map());
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ stage: "1 - Discovery", count: "1", total: "0" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "opp-x", stage: "1 - Discovery", name: "X", district_name: null,
+            district_lea_id: "unknown", contract_type: null, net_booking_amount: null,
+            minimum_purchase_amount: null, maximum_budget: null, close_date: null,
+            sales_rep_name: null, details_link: null,
+          },
+        ],
+      });
+
+    const res = await GET(
+      makeRequest("/api/views/opps-kanban?leaids=l1&schoolYr=2025-26"),
+    );
+    const data = await res.json();
+    const discovery = data.columns.find((c: { id: string }) => c.id === "discovery");
+    expect(discovery.cards[0].rankLabel).toBe("New");
   });
 });

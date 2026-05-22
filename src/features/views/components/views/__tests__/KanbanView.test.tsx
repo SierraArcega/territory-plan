@@ -32,6 +32,7 @@ const fixture = {
         contractType: "Tier 1", netBookingAmount: 45000, minimumPurchaseAmount: 20000,
         maximumBudget: null, closeDate: "2026-06-01T00:00:00.000Z", salesRepName: "Alice Smith",
         detailsLink: "https://lms.fullmindlearning.com/opportunities/111/details",
+        rankLabel: "#3",
       }],
     }),
     col({
@@ -41,6 +42,7 @@ const fixture = {
         contractType: null, netBookingAmount: 90000, minimumPurchaseAmount: 30000,
         maximumBudget: 120000, closeDate: null, salesRepName: null,
         detailsLink: null,
+        rankLabel: "New",
       }],
     }),
     col({ id: "proposal", label: "Proposal" }),
@@ -54,8 +56,8 @@ const fixture = {
     totalTarget: 150000,
     hasMore: false,
     cards: [
-      { leaid: "lea-a", name: "Untouched District A", target: 100000 },
-      { leaid: "lea-b", name: "Untouched District B", target: 50000 },
+      { leaid: "lea-a", name: "Untouched District A", target: 100000, rankLabel: "Win Back" },
+      { leaid: "lea-b", name: "Untouched District B", target: 50000, rankLabel: "#7" },
     ],
   },
 };
@@ -160,5 +162,14 @@ describe("KanbanView", () => {
     expect(
       container.querySelector('[data-row-kind="district"][data-row-id="lea-a"]'),
     ).not.toBeNull();
+  });
+
+  it("shows the district rank label on opp and district cards", async () => {
+    (fetchJson as Mock).mockResolvedValue(fixture);
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    await screen.findByText("Acme Renewal");
+    expect(screen.getByText("#3")).toBeInTheDocument(); // opp-1's district rank
+    expect(screen.getByText("Win Back")).toBeInTheDocument(); // targeted district A
+    expect(screen.getByText("#7")).toBeInTheDocument(); // targeted district B
   });
 });
