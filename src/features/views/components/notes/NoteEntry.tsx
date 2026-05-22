@@ -3,6 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Trash2 } from "lucide-react";
 import { NoteBody } from "./NoteBody";
 import type { DistrictNoteEntry } from "../../lib/queries";
+import { noteTypeMeta } from "../../lib/note-types";
 
 interface Props {
   note: DistrictNoteEntry;
@@ -14,6 +15,7 @@ export function NoteEntry({ note, currentUserId, onDelete }: Props) {
   const mine = currentUserId != null && note.author.id === currentUserId;
   const edited = new Date(note.updatedAt).getTime() - new Date(note.createdAt).getTime() > 1000;
   const initial = (note.author.fullName || note.author.email).slice(0, 1).toUpperCase();
+  const typeMeta = noteTypeMeta(note.noteType);
 
   return (
     <article className="p-3 rounded-[10px] border border-[#E2DEEC] bg-[#FFFCFA] group">
@@ -24,6 +26,9 @@ export function NoteEntry({ note, currentUserId, onDelete }: Props) {
         <span className="font-semibold text-[#403770] whitespace-nowrap">{note.author.fullName || note.author.email}</span>
         <span className="whitespace-nowrap">· {formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}</span>
         {edited && <span className="whitespace-nowrap italic">· edited</span>}
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${typeMeta.pill}`}>
+          {typeMeta.label}
+        </span>
         {mine && (
           <button
             type="button"
