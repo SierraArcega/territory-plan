@@ -46,6 +46,18 @@ only the exact files each commit touches — never `git add -A` / `git add .`.**
   `queryClient.invalidateQueries({ queryKey: ["views", "data"] })`.
 - The districts grid does **not** expose the four individual targets per row (only a summed
   `target`), so Set-targets fetches current values lazily on open.
+- `src/features/views/components/grid/AnchoredPopover.tsx` — **reuse this** for the kebab menu
+  and the Set-targets popover. It body-portals its children, positions them beneath an
+  `anchorRef` with `position: fixed` re-measured on scroll/resize, and handles outside-click +
+  Escape dismissal. Props: `{ anchorRef: RefObject<HTMLElement|null>, open: boolean,
+  onDismiss: () => void, children }`. It left-aligns under the anchor and does **not** clamp to
+  the viewport, so a wide panel anchored to a right-edge kebab must shift itself left (apply a
+  `transform: translateX(...)` on the panel — see Task 1).
+
+> **Prerequisite:** `AnchoredPopover.tsx` is being authored by a parallel session. Before
+> starting Task 1, confirm it is **committed on `worktree-saved-views-sidebar`** (`git log --
+> AnchoredPopover.tsx`) and that its prop signature still matches the above. If it has not
+> landed or its API changed, pause and check with the user — do not fork a second copy.
 
 **Test idiom (house style — see `views/components/views/__tests__/PlanMapSelectionBar.test.tsx`):**
 wrap in a `QueryClientProvider` with `retry:false`; stub the network with
@@ -80,7 +92,7 @@ call `fetchJson` → global `fetch`, so stubbing fetch exercises the real hooks.
 ```tsx
 // __tests__/RowActionsMenu.test.tsx
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RowActionsMenu } from "../RowActionsMenu";
 
@@ -90,6 +102,8 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 const props = { planId: "plan-1", leaid: "0601234", districtName: "Tedesco USD" };
+const openMenu = () =>
+  fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
 
 describe("RowActionsMenu", () => {
   it("renders a kebab button and no menu by default", () => {
@@ -98,20 +112,22 @@ describe("RowActionsMenu", () => {
     expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
   });
 
-  it("opens a menu with the four actions on click", () => {
+  it("opens a menu with the four actions on click", async () => {
     render(<RowActionsMenu {...props} />, { wrapper });
-    fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
-    expect(screen.getByRole("menuitem", { name: /log activity/i })).toBeInTheDocument();
+    openMenu();
+    // AnchoredPopover measures its anchor in an effect, so the portaled menu appears async.
+    expect(await screen.findByRole("menuitem", { name: /log activity/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /set targets/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /create opportunity/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /remove from plan/i })).toBeInTheDocument();
   });
 
-  it("closes the menu on Escape", () => {
+  it("closes the menu on Escape", async () => {
     render(<RowActionsMenu {...props} />, { wrapper });
-    fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
+    openMenu();
+    await screen.findByRole("menuitem", { name: /log activity/i });
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menuitem")).not.toBeInTheDocument());
   });
 });
 ```
@@ -126,11 +142,9 @@ Expected: FAIL — cannot resolve `../RowActionsMenu`.
 ```tsx
 // RowActionsMenu.tsx
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import {
-  MoreHorizontal, Pencil, Target, Briefcase, X,
-} from "lucide-react";
+import { useRef, useState } from "react";
+import { MoreHorizontal, Pencil, Target, Briefcase, X } from "lucide-react";
+import { AnchoredPopover } from "../AnchoredPopover";
 
 interface Props {
   planId: string;
@@ -144,29 +158,15 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
   const [open, setOpen] = useState(false);
   const [, setSurface] = useState<Surface>(null); // surfaces wired in later tasks
   const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (!open) return;
-    const rect = btnRef.current?.getBoundingClientRect();
-    if (rect) setPos({ top: rect.bottom + 4, left: rect.right - 220 });
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   const item =
     "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#403770] hover:bg-[#F7F5FA]";
+
+  // Open exactly one surface; close the menu first.
+  function choose(next: Surface) {
+    setOpen(false);
+    setSurface(next);
+  }
 
   return (
     <>
@@ -181,36 +181,35 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
         <MoreHorizontal className="h-4 w-4" />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: 220 }}
-            className="z-50 rounded-xl border border-[#E2DEEC] bg-white p-1.5 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
+      <AnchoredPopover anchorRef={btnRef} open={open} onDismiss={() => setOpen(false)}>
+        {/* AnchoredPopover left-aligns under the anchor; shift a 220px panel left so it
+            right-aligns under the ~32px right-edge kebab and stays on-screen. */}
+        <div
+          role="menu"
+          style={{ width: 220, transform: "translateX(-188px)" }}
+          className="rounded-xl border border-[#E2DEEC] bg-white p-1.5 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
+        >
+          <button type="button" role="menuitem" className={item} onClick={() => choose("activity")}>
+            <Pencil className="h-3.5 w-3.5 opacity-70" /> Log activity
+          </button>
+          <button type="button" role="menuitem" className={item} onClick={() => choose("targets")}>
+            <Target className="h-3.5 w-3.5 opacity-70" /> Set targets
+          </button>
+          <button type="button" role="menuitem" className={item} onClick={() => setOpen(false)}>
+            <Briefcase className="h-3.5 w-3.5 opacity-70" /> Create opportunity
+            <span className="ml-auto text-[10px] text-[#A69DC0]">↗ LMS</span>
+          </button>
+          <div className="my-1 h-px bg-[#EFEDF5]" />
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#C2410C] hover:bg-[#FFF1EA]"
+            onClick={() => choose("remove")}
           >
-            <button type="button" role="menuitem" className={item}
-              onClick={() => { setSurface("activity"); setOpen(false); }}>
-              <Pencil className="h-3.5 w-3.5 opacity-70" /> Log activity
-            </button>
-            <button type="button" role="menuitem" className={item}
-              onClick={() => { setSurface("targets"); setOpen(false); }}>
-              <Target className="h-3.5 w-3.5 opacity-70" /> Set targets
-            </button>
-            <button type="button" role="menuitem" className={item}
-              onClick={() => setOpen(false)}>
-              <Briefcase className="h-3.5 w-3.5 opacity-70" /> Create opportunity
-              <span className="ml-auto text-[10px] text-[#A69DC0]">↗ LMS</span>
-            </button>
-            <div className="my-1 h-px bg-[#EFEDF5]" />
-            <button type="button" role="menuitem"
-              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#C2410C] hover:bg-[#FFF1EA]"
-              onClick={() => { setSurface("remove"); setOpen(false); }}>
-              <X className="h-3.5 w-3.5 opacity-80" /> Remove from plan
-            </button>
-          </div>,
-          document.body,
-        )}
+            <X className="h-3.5 w-3.5 opacity-80" /> Remove from plan
+          </button>
+        </div>
+      </AnchoredPopover>
     </>
   );
 }
@@ -240,7 +239,9 @@ git commit -m "feat(views): row actions kebab menu shell"
 - [ ] **Step 1: Add the failing test** (append inside the `describe`)
 
 ```tsx
-import { vi, waitFor } from "vitest"; // add vi, waitFor to imports
+// Update the Task 1 vitest import to add `vi`:
+//   import { describe, it, expect, vi } from "vitest";
+// (`waitFor` is already imported from "@testing-library/react" in Task 1.)
 
 it("removes the district after a two-step confirm and invalidates the grid", async () => {
   const fetchMock = vi.fn(() =>
@@ -251,10 +252,10 @@ it("removes the district after a two-step confirm and invalidates the grid", asy
 
   render(<RowActionsMenu {...props} />, { wrapper });
   fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
-  fireEvent.click(screen.getByRole("menuitem", { name: /remove from plan/i }));
-  // First click reveals confirm; network not yet hit.
+  fireEvent.click(await screen.findByRole("menuitem", { name: /remove from plan/i }));
+  // Confirm step revealed; network not yet hit.
   expect(fetchMock).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: /^remove$/i }));
+  fireEvent.click(await screen.findByRole("button", { name: /^remove$/i }));
 
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   const [url, init] = fetchMock.mock.calls[0];
@@ -288,12 +289,12 @@ Change the surface state to drive a confirm dialog. Replace the Remove `menuitem
 confirm popover (portaled, same positioning) when `surface === "remove"`:
 
 ```tsx
-{surface === "remove" &&
-  createPortal(
+{surface === "remove" && (
+  <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
     <div
       role="dialog"
-      style={{ position: "fixed", top: pos.top, left: pos.left, width: 240 }}
-      className="z-50 rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
+      style={{ width: 240, transform: "translateX(-208px)" }}
+      className="rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
     >
       <p className="m-0 mb-2.5 text-[13px] text-[#403770]">
         Remove <b>{districtName}</b> from this plan?
@@ -315,13 +316,14 @@ confirm popover (portaled, same positioning) when `surface === "remove"`:
           {removeMutation.isPending ? "Removing…" : "Remove"}
         </button>
       </div>
-    </div>,
-    document.body,
-  )}
+    </div>
+  </AnchoredPopover>
+)}
 ```
 
-Make `surface`/`setSurface` actually used (remove the throwaway `,` destructure from Task 1:
-`const [surface, setSurface] = useState<Surface>(null);`).
+Make `surface`/`setSurface` actually used (change the throwaway `,` destructure from Task 1 to
+`const [surface, setSurface] = useState<Surface>(null);`). `AnchoredPopover` is already imported
+from Task 1; no `createPortal` needed.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -349,8 +351,9 @@ git commit -m "feat(views): row action — remove district from plan"
 
 ```tsx
 // __tests__/SetTargetsPopover.test.tsx
-import { describe, it, expect, vi, beforeEach, afterEach, waitFor } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { useRef } from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SetTargetsPopover } from "../SetTargetsPopover";
 
@@ -359,35 +362,40 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+// Renders a real anchor + the popover (open) so AnchoredPopover has an anchorRef.
+function Harness({ onClose = () => {} }: { onClose?: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <button ref={ref}>anchor</button>
+      <SetTargetsPopover planId="plan-1" leaid="0601234" districtName="Tedesco USD"
+        anchorRef={ref} open onClose={onClose} />
+    </>
+  );
+}
+
 const detail = {
   renewalTarget: 24000, expansionTarget: 12000,
   winbackTarget: null, newBusinessTarget: 12000,
 };
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
-    if (!init || init.method === "GET" || init.method === undefined) {
-      return Promise.resolve(new Response(JSON.stringify(detail), {
-        status: 200, headers: { "Content-Type": "application/json" } }));
-    }
-    return Promise.resolve(new Response(JSON.stringify({ ...detail }), {
-      status: 200, headers: { "Content-Type": "application/json" } }));
-  }));
+  vi.stubGlobal("fetch", vi.fn((_url: string, _init?: RequestInit) =>
+    Promise.resolve(new Response(JSON.stringify(detail), {
+      status: 200, headers: { "Content-Type": "application/json" } }))));
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe("SetTargetsPopover", () => {
   it("prefills the four targets from the GET", async () => {
-    render(<SetTargetsPopover planId="plan-1" leaid="0601234" districtName="Tedesco USD"
-      anchor={{ top: 0, left: 0 }} onClose={() => {}} />, { wrapper });
+    render(<Harness />, { wrapper });
     expect(await screen.findByDisplayValue("24000")).toBeInTheDocument();
     expect(screen.getByLabelText(/winback/i)).toHaveValue(""); // null → blank
   });
 
   it("saves all four fields via PUT (blank → null)", async () => {
     const onClose = vi.fn();
-    render(<SetTargetsPopover planId="plan-1" leaid="0601234" districtName="Tedesco USD"
-      anchor={{ top: 0, left: 0 }} onClose={onClose} />, { wrapper });
+    render(<Harness onClose={onClose} />, { wrapper });
     await screen.findByDisplayValue("24000");
     fireEvent.change(screen.getByLabelText(/winback/i), { target: { value: "5,000" } });
     fireEvent.click(screen.getByRole("button", { name: /save targets/i }));
@@ -417,11 +425,11 @@ Expected: FAIL — cannot resolve `../SetTargetsPopover`.
 ```tsx
 // SetTargetsPopover.tsx
 "use client";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState, type RefObject } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUpdateDistrictTargets } from "@/features/plans/lib/queries";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
+import { AnchoredPopover } from "../AnchoredPopover";
 
 interface Detail {
   renewalTarget: number | null; expansionTarget: number | null;
@@ -444,17 +452,20 @@ function parseCurrency(v: string): number | null {
 
 interface Props {
   planId: string; leaid: string; districtName: string;
-  anchor: { top: number; left: number };
+  anchorRef: RefObject<HTMLElement | null>;
+  open: boolean;
   onClose: () => void;
 }
 
-export function SetTargetsPopover({ planId, leaid, districtName, anchor, onClose }: Props) {
+export function SetTargetsPopover({ planId, leaid, districtName, anchorRef, open, onClose }: Props) {
   const queryClient = useQueryClient();
   const update = useUpdateDistrictTargets();
+  // enabled:open keeps this from fetching for every row — only when the popover opens.
   const q = useQuery({
     queryKey: ["planDistrict", planId, leaid],
     queryFn: () =>
       fetchJson<Detail>(`${API_BASE}/territory-plans/${planId}/districts/${leaid}`),
+    enabled: open,
   });
 
   const [vals, setVals] = useState<Record<Field, string>>({
@@ -487,45 +498,48 @@ export function SetTargetsPopover({ planId, leaid, districtName, anchor, onClose
     );
   }
 
-  return createPortal(
-    <div role="dialog" aria-label={`Set targets for ${districtName}`}
-      style={{ position: "fixed", top: anchor.top, left: anchor.left, width: 300 }}
-      className="z-50 rounded-xl border border-[#E2DEEC] bg-white p-3.5 shadow-[0_10px_30px_rgba(64,55,112,0.18)]">
-      <h4 className="m-0 mb-0.5 text-[13px] font-bold text-[#403770]">
-        Set targets · {districtName}
-      </h4>
-      <p className="m-0 mb-3 text-[11px] text-[#8A80A8]">Enter any FY revenue target. Blank = unset.</p>
-      <div className="grid grid-cols-2 gap-2">
-        {FIELDS.map(({ field, label }) => (
-          <label key={field} className="block">
-            <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.05em] text-[#8A80A8]">{label}</span>
-            <input
-              aria-label={label}
-              value={vals[field]}
-              onChange={(e) => setVals((p) => ({ ...p, [field]: e.target.value }))}
-              placeholder="—"
-              inputMode="numeric"
-              className="w-full rounded-lg border border-[#E2DEEC] bg-[#FFFCFA] px-2.5 py-2 text-[13px] text-[#403770]"
-            />
-          </label>
-        ))}
+  return (
+    <AnchoredPopover anchorRef={anchorRef} open={open} onDismiss={onClose}>
+      <div role="dialog" aria-label={`Set targets for ${districtName}`}
+        style={{ width: 300, transform: "translateX(-268px)" }}
+        className="rounded-xl border border-[#E2DEEC] bg-white p-3.5 shadow-[0_10px_30px_rgba(64,55,112,0.18)]">
+        <h4 className="m-0 mb-0.5 text-[13px] font-bold text-[#403770]">
+          Set targets · {districtName}
+        </h4>
+        <p className="m-0 mb-3 text-[11px] text-[#8A80A8]">Enter any FY revenue target. Blank = unset.</p>
+        <div className="grid grid-cols-2 gap-2">
+          {FIELDS.map(({ field, label }) => (
+            <label key={field} className="block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.05em] text-[#8A80A8]">{label}</span>
+              <input
+                aria-label={label}
+                value={vals[field]}
+                onChange={(e) => setVals((p) => ({ ...p, [field]: e.target.value }))}
+                placeholder="—"
+                inputMode="numeric"
+                className="w-full rounded-lg border border-[#E2DEEC] bg-[#FFFCFA] px-2.5 py-2 text-[13px] text-[#403770]"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-end gap-2">
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-[#E2DEEC] px-3.5 py-1.5 text-[12px] font-semibold text-[#544A78]">Cancel</button>
+          <button type="button" onClick={save} disabled={update.isPending || q.isLoading}
+            className="rounded-lg bg-[#403770] px-3.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60">
+            {update.isPending ? "Saving…" : "Save targets"}
+          </button>
+        </div>
       </div>
-      <div className="mt-3 flex justify-end gap-2">
-        <button type="button" onClick={onClose}
-          className="rounded-lg border border-[#E2DEEC] px-3.5 py-1.5 text-[12px] font-semibold text-[#544A78]">Cancel</button>
-        <button type="button" onClick={save} disabled={update.isPending || q.isLoading}
-          className="rounded-lg bg-[#403770] px-3.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60">
-          {update.isPending ? "Saving…" : "Save targets"}
-        </button>
-      </div>
-    </div>,
-    document.body,
+    </AnchoredPopover>
   );
 }
 ```
 
-Wire it into `RowActionsMenu.tsx`: import `SetTargetsPopover`; when `surface === "targets"`,
-render `<SetTargetsPopover planId={planId} leaid={leaid} districtName={districtName} anchor={pos} onClose={() => setSurface(null)} />`.
+Wire it into `RowActionsMenu.tsx`: import `SetTargetsPopover` from `./SetTargetsPopover`; render
+it unconditionally (the `enabled:open` query means it costs nothing while closed), driven by
+state — after the menu's `</AnchoredPopover>`:
+`<SetTargetsPopover planId={planId} leaid={leaid} districtName={districtName} anchorRef={btnRef} open={surface === "targets"} onClose={() => setSurface(null)} />`.
 
 - [ ] **Step 4: Run to verify it passes**
 
