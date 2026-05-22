@@ -476,7 +476,13 @@ export function SetTargetsPopover({ planId, leaid, districtName, anchorRef, open
     renewalTarget: "", expansionTarget: "", winbackTarget: "", newBusinessTarget: "",
   });
 
+  // Reset to blank while closed so reopening never shows stale unsaved edits;
+  // prefill from the server once data arrives.
   useEffect(() => {
+    if (!open) {
+      setVals({ renewalTarget: "", expansionTarget: "", winbackTarget: "", newBusinessTarget: "" });
+      return;
+    }
     if (!q.data) return;
     setVals({
       renewalTarget: q.data.renewalTarget != null ? String(q.data.renewalTarget) : "",
@@ -484,7 +490,7 @@ export function SetTargetsPopover({ planId, leaid, districtName, anchorRef, open
       winbackTarget: q.data.winbackTarget != null ? String(q.data.winbackTarget) : "",
       newBusinessTarget: q.data.newBusinessTarget != null ? String(q.data.newBusinessTarget) : "",
     });
-  }, [q.data]);
+  }, [open, q.data]);
 
   function save() {
     update.mutate(
