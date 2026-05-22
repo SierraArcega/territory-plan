@@ -1,13 +1,14 @@
 "use client";
 import { useRef, useState } from "react";
 import { lmsOpportunityUrl } from "./lms";
-import { MoreHorizontal, Pencil, Target, Briefcase, X } from "lucide-react";
+import { MoreHorizontal, Pencil, Target, Briefcase, X, StickyNote } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnchoredPopover } from "../AnchoredPopover";
 import { useRemoveDistrictFromPlan } from "@/features/plans/lib/queries";
 import { SetTargetsPopover } from "./SetTargetsPopover";
 import ActivityFormModal, { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import { useCreateActivity } from "@/features/activities/lib/queries";
+import { NotesPopover } from "@/features/views/components/notes/NotesPopover";
 
 interface Props {
   planId: string;
@@ -15,7 +16,7 @@ interface Props {
   districtName: string;
 }
 
-type Surface = null | "targets" | "remove" | "activity";
+type Surface = null | "targets" | "remove" | "activity" | "note";
 
 export function RowActionsMenu({ planId, leaid, districtName }: Props) {
   const [open, setOpen] = useState(false);
@@ -75,6 +76,9 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
         >
           <button type="button" role="menuitem" className={item} onClick={() => choose("activity")}>
             <Pencil className="h-3.5 w-3.5 opacity-70" /> Log activity
+          </button>
+          <button type="button" role="menuitem" className={item} onClick={() => choose("note")}>
+            <StickyNote className="h-3.5 w-3.5 opacity-70" /> Add note
           </button>
           <button type="button" role="menuitem" className={item} onClick={() => choose("targets")}>
             <Target className="h-3.5 w-3.5 opacity-70" /> Set targets
@@ -165,6 +169,14 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
           title={`Log activity · ${districtName}`}
           initialDistrictLeaid={leaid}
         />
+      )}
+
+      {surface === "note" && (
+        <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
+          <div style={{ transform: "translateX(-448px)" }}>
+            <NotesPopover leaid={leaid} districtName={districtName} onClose={() => setSurface(null)} />
+          </div>
+        </AnchoredPopover>
       )}
     </>
   );

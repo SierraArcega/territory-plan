@@ -3,6 +3,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RowActionsMenu } from "../RowActionsMenu";
 
+// Mock TipTap (used inside NotesPopover → NoteComposer) so jsdom doesn't break.
+const chainStub = {
+  focus: () => chainStub, toggleBold: () => chainStub, toggleItalic: () => chainStub,
+  toggleBulletList: () => chainStub, toggleOrderedList: () => chainStub,
+  setLink: () => chainStub, run: () => {},
+};
+vi.mock("@tiptap/react", () => ({
+  useEditor: () => ({
+    isEmpty: true, isActive: () => false, chain: () => chainStub,
+    getJSON: () => ({}), getText: () => "", commands: { clearContent: () => {} },
+  }),
+  EditorContent: () => null,
+}));
+// useProfile is called inside NotesPopover; stub it to avoid a real fetch.
+vi.mock("@/lib/api", () => ({ useProfile: () => ({ data: { id: "me" } }) }));
+
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
@@ -19,10 +35,11 @@ describe("RowActionsMenu", () => {
     expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
   });
 
-  it("opens a menu with the four actions on click", async () => {
+  it("opens a menu with all five actions on click", async () => {
     render(<RowActionsMenu {...props} />, { wrapper });
     openMenu();
     expect(await screen.findByRole("menuitem", { name: /log activity/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /add note/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /set targets/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /create opportunity/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /remove from plan/i })).toBeInTheDocument();
@@ -62,6 +79,19 @@ describe("RowActionsMenu", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/territory-plans/plan-1/districts/0601234");
     expect((init as RequestInit).method).toBe("DELETE");
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the notes popover from the Add note item", async () => {
+    // NotesPopover calls useDistrictNotes(); stub fetch to return { notes: [] }.
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ notes: [] }), {
+        status: 200, headers: { "Content-Type": "application/json" },
+      }))));
+    render(<RowActionsMenu {...props} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /add note/i }));
+    expect(await screen.findByRole("dialog", { name: /notes for tedesco usd/i })).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 });
