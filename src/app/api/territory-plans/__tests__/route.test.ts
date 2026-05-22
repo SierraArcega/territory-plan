@@ -303,6 +303,33 @@ describe("Territory Plans API", () => {
       expect(data).toHaveLength(1);
       expect(data[0].hidden).toBe(true);
     });
+
+    it("scopes to owned + collaborating plans when ?mine=1", async () => {
+      mockPrisma.territoryPlan.findMany.mockResolvedValue([] as never);
+
+      await listPlans(makeListReq("?mine=1"));
+
+      expect(mockPrisma.territoryPlan.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { ownerId: "user-1" },
+              { collaborators: { some: { userId: "user-1" } } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it("returns all plans (no owner filter) when ?mine is absent", async () => {
+      mockPrisma.territoryPlan.findMany.mockResolvedValue([] as never);
+
+      await listPlans(makeListReq());
+
+      expect(mockPrisma.territoryPlan.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
   });
 
   describe("POST /api/territory-plans", () => {

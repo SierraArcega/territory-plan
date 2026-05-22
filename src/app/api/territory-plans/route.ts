@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { readonlyPool } from "@/lib/db-readonly";
 import { getUser } from "@/lib/supabase/server";
@@ -205,9 +206,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeStats = searchParams.get("stats") === "1";
     const showHidden = searchParams.get("showHidden") === "1";
+    const mine = searchParams.get("mine") === "1";
 
-    // Show all plans — the team shares visibility across plans
-    const whereClause = {};
+    // Default: show all plans — the team shares visibility across plans, and
+    // the leaderboard / map search / filter dropdowns all rely on the full set.
+    // With ?mine=1 (the My Views sidebar), scope to plans the user owns or
+    // collaborates on so each rep sees only their own views.
+    const whereClause: Prisma.TerritoryPlanWhereInput = mine
+      ? {
+          OR: [
+            { ownerId: user.id },
+            { collaborators: { some: { userId: user.id } } },
+          ],
+        }
+      : {};
 
     const plans = await prisma.territoryPlan.findMany({
       where: whereClause,

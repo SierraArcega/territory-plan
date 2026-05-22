@@ -57,6 +57,14 @@ describe("usePlansWithStats", () => {
     expect(calledUrl).not.toContain("/api/plans?");
   });
 
+  it("scopes to the current user's plans via mine=1", async () => {
+    fetchMock.mockResolvedValueOnce(mockJsonResponse([]));
+    renderHook(() => usePlansWithStats(), { wrapper: makeWrapper() });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("mine=1");
+  });
+
   it("appends showHidden=1 when requested", async () => {
     fetchMock.mockResolvedValueOnce(mockJsonResponse([]));
     renderHook(() => usePlansWithStats(true), { wrapper: makeWrapper() });

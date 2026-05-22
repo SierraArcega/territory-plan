@@ -96,14 +96,17 @@ interface ListsResponse {
 // ── Plans ───────────────────────────────────────────────────────────────────
 
 /**
- * Fetch all plans the user can see, with computed stats (progress, pipeline,
- * contacts, opps). Used by the sidebar's Plans subsection AND the portfolio.
+ * Fetch the current user's plans — the ones they own or collaborate on — with
+ * computed stats (progress, pipeline, contacts, opps). Used by the sidebar's
+ * Plans subsection AND the portfolio. The `mine=1` flag scopes the shared
+ * /api/territory-plans endpoint to the logged-in user (the endpoint defaults to
+ * all plans for the leaderboard / map search / filter dropdowns).
  *
  * Uses the canonical `/api/territory-plans` path (per Phase A deviation —
  * /api/plans is the legacy alias, /api/territory-plans is the source of truth).
  */
 export function usePlansWithStats(showHidden = false) {
-  const url = `${API_BASE}/territory-plans?stats=1${showHidden ? "&showHidden=1" : ""}`;
+  const url = `${API_BASE}/territory-plans?stats=1&mine=1${showHidden ? "&showHidden=1" : ""}`;
   return useQuery({
     queryKey: ["views", "plans", "stats", showHidden] as const,
     queryFn: () => fetchJson<PlanWithStats[]>(url),
