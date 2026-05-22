@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { lmsOpportunityUrl } from "./lms";
 import { MoreHorizontal, Pencil, Target, Briefcase, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnchoredPopover } from "../AnchoredPopover";
@@ -59,7 +60,15 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
           <button type="button" role="menuitem" className={item} onClick={() => choose("targets")}>
             <Target className="h-3.5 w-3.5 opacity-70" /> Set targets
           </button>
-          <button type="button" role="menuitem" className={item} onClick={() => setOpen(false)}>
+          <button
+            type="button"
+            role="menuitem"
+            className={item}
+            onClick={() => {
+              window.open(lmsOpportunityUrl(), "_blank", "noopener,noreferrer");
+              setOpen(false);
+            }}
+          >
             <Briefcase className="h-3.5 w-3.5 opacity-70" /> Create opportunity
             <span className="ml-auto text-[10px] text-[#A69DC0]">↗ LMS</span>
           </button>
