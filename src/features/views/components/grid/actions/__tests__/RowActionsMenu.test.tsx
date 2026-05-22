@@ -62,7 +62,7 @@ describe("RowActionsMenu", () => {
   });
 
   it("removes the district after a two-step confirm and invalidates the grid", async () => {
-    const fetchMock = vi.fn(() =>
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
       Promise.resolve(new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { "Content-Type": "application/json" },
       })));
@@ -78,7 +78,7 @@ describe("RowActionsMenu", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/territory-plans/plan-1/districts/0601234");
-    expect((init as RequestInit).method).toBe("DELETE");
+    expect(init?.method).toBe("DELETE");
     vi.unstubAllGlobals();
   });
 
