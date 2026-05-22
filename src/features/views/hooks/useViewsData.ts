@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
@@ -69,5 +69,9 @@ export function useViewsData(args: UseViewsDataArgs) {
     queryFn: () => fetchJson<ViewsDataResponse>(url),
     enabled,
     staleTime: 30 * 1000,
+    // Keep prior rows visible during a refetch (e.g. after a note mutation
+    // invalidates this query) so the table never momentarily renders 0 rows
+    // and tears down every cell.
+    placeholderData: keepPreviousData,
   });
 }
