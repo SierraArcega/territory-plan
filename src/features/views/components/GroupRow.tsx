@@ -71,6 +71,8 @@ interface GroupRowProps {
    * sidebar has flipped `showHidden` so the user can opt back in.
    */
   hidden?: boolean;
+  /** Per-view counts sourced from PlanWithStats — displayed as muted badges in the expanded view list. */
+  viewCounts?: Partial<Record<ViewId, number>>;
 }
 
 export default function GroupRow({
@@ -83,6 +85,7 @@ export default function GroupRow({
   filterCount,
   defaultViewId,
   hidden = false,
+  viewCounts,
 }: GroupRowProps) {
   const groupKey = `${kind}:${id}`;
   const isExpanded = useViewsStore(selectIsGroupExpanded(groupKey));
@@ -196,7 +199,7 @@ export default function GroupRow({
               avoid stacking visual noise). Lists show a filter-count badge. */}
           {!showDotsButton &&
             (isPlan ? (
-              <ProgressRing pct={progress ?? 0} />
+              progress != null && <ProgressRing pct={progress} />
             ) : (
               <span className="text-[10px] font-medium text-[#A69DC0] tabular-nums whitespace-nowrap">
                 {typeof filterCount === "number" ? filterCount : ""}
@@ -278,6 +281,7 @@ export default function GroupRow({
           groupId={id}
           activeViewId={isActive ? router.viewId : null}
           defaultViewId={defaultViewId ?? VIEW_SPECS[0].id}
+          viewCounts={viewCounts}
         />
       )}
     </div>

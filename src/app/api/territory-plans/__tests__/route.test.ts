@@ -21,12 +21,19 @@ vi.mock("@/features/shared/lib/filters", () => ({
   DISTRICT_FIELD_MAP: {},
 }));
 
-// ?stats=1 reads through the readonly pool now (one grouped query per table
-// instead of N×4 Prisma aggregates). Tests inject row arrays per call.
+// ?stats=1 reads through the readonly pool (opps + contacts) and the regular
+// pool (news — not whitelisted on the readonly role). Tests inject row arrays.
 const mockReadonlyQuery = vi.fn();
 vi.mock("@/lib/db-readonly", () => ({
   readonlyPool: {
     query: (...args: unknown[]) => mockReadonlyQuery(...args),
+  },
+}));
+
+const mockPoolQuery = vi.fn();
+vi.mock("@/lib/db", () => ({
+  default: {
+    query: (...args: unknown[]) => mockPoolQuery(...args),
   },
 }));
 
@@ -194,6 +201,7 @@ describe("Territory Plans API", () => {
       mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
       // First query: opportunities aggregated by (district_lea_id, school_yr).
       // Second query: contacts counted by leaid.
+      // Third query: recent news articles counted by leaid.
       mockReadonlyQuery
         .mockResolvedValueOnce({
           rows: [
@@ -210,6 +218,8 @@ describe("Territory Plans API", () => {
         .mockResolvedValueOnce({
           rows: [{ leaid: "0601234", count: "8" }],
         });
+      // news query uses the regular pool (not whitelisted on readonly role)
+      mockPoolQuery.mockResolvedValueOnce({ rows: [] });
 
       const response = await listPlans(makeListReq("?stats=1"));
       const data = await response.json();
@@ -221,6 +231,56 @@ describe("Territory Plans API", () => {
       expect(data[0].contactsCount).toBe(8);
       expect(data[0].oppsCount).toBe(3);
       expect(data[0].closedWonMinCommit).toBe(12000);
+      expect(data[0].recentNewsCount).toBe(0);
+    });
+
+    it("includes recentNewsCount in ?stats=1 response", async () => {
+      const mockPlans = [
+        {
+          id: "plan-news",
+          name: "News Plan",
+          description: null,
+          color: "#403770",
+          status: "working",
+          fiscalYear: 2026,
+          startDate: null,
+          endDate: null,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-15"),
+          _count: { districts: 1 },
+          districts: [
+            {
+              districtLeaid: "1234567",
+              renewalTarget: null,
+              winbackTarget: null,
+              expansionTarget: null,
+              newBusinessTarget: null,
+              district: { enrollment: 100, stateAbbrev: "MN", districtFinancials: [] },
+            },
+          ],
+          taskLinks: [],
+          ownerUser: null,
+          states: [],
+          collaborators: [],
+          hidden: [],
+        },
+      ];
+
+      mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
+      // opps query (readonly pool)
+      mockReadonlyQuery.mockResolvedValueOnce({ rows: [] });
+      // contacts query (readonly pool)
+      mockReadonlyQuery.mockResolvedValueOnce({ rows: [] });
+      // news query — 3 recent articles for this plan (regular pool, grouped by plan_id)
+      mockPoolQuery.mockResolvedValueOnce({
+        rows: [{ plan_id: "plan-news", count: "3" }],
+      });
+
+      const response = await listPlans(makeListReq("?stats=1"));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data[0].recentNewsCount).toBe(3);
     });
 
     it("filters out per-user hidden plans by default", async () => {

@@ -62,6 +62,20 @@ export default function MyViewsSection() {
         </span>
       </header>
 
+      {/* "All plans" row — always visible so users with zero plans can reach the portfolio */}
+      <Link
+        href="/views"
+        className="mt-1 group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] transition-colors duration-100"
+      >
+        <Grid3x3
+          className="w-4 h-4 flex-shrink-0 text-[#544A78]"
+          aria-hidden
+        />
+        <span className="flex-1 min-w-0 truncate whitespace-nowrap">
+          All plans
+        </span>
+      </Link>
+
       {/* Empty state — shown inline when the user has no plans and no lists. */}
       {showEmptyState ? (
         <div className="mt-2 mx-2 p-3 rounded-md border border-dashed border-[#D4CFE2] bg-[#FFFCFA]">
@@ -90,23 +104,6 @@ export default function MyViewsSection() {
         </div>
       ) : (
         <>
-          {/* "All plans" row — routes to portfolio */}
-          <Link
-            href="/views"
-            className="mt-1 group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] transition-colors duration-100"
-          >
-            <Grid3x3
-              className="w-4 h-4 flex-shrink-0 text-[#544A78]"
-              aria-hidden
-            />
-            <span className="flex-1 min-w-0 truncate whitespace-nowrap">
-              All plans
-            </span>
-            <span className="text-[10px] font-medium text-[#8A80A8] tabular-nums whitespace-nowrap">
-              {plansQ.isLoading ? "…" : plans.length}
-            </span>
-          </Link>
-
           <PlansSubsection />
           {LISTS_ENABLED && <ListsSubsection />}
         </>

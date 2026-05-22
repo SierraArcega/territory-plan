@@ -50,7 +50,7 @@ export default function PortfolioView() {
   const router = useViewsRouter();
   const { bucket } = router;
 
-  const plansQ = usePlansWithStats();
+  const plansQ = usePlansWithStats(false, false);
   const profileQ = useProfile();
   const userId = profileQ.data?.id ?? null;
 
@@ -101,7 +101,7 @@ export default function PortfolioView() {
       >
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8] whitespace-nowrap">
-            {bucket === "archived" ? "Archived" : "FY26 Portfolio"}
+            {bucket === "archived" ? "Archived" : "Portfolio"}
           </p>
           <h1 className="mt-1 text-[22px] font-bold tracking-tight text-[#403770] whitespace-nowrap">
             All plans

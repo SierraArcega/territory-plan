@@ -67,7 +67,7 @@ export default function PlansSubsection() {
 
   return (
     <section className="mt-3">
-      {/* Subsection header: target icon + label + FY26 right side */}
+      {/* Subsection header: target icon + label */}
       <header className="flex items-center justify-between px-2 mb-1">
         <div className="flex items-center gap-1.5">
           <Target
@@ -79,9 +79,6 @@ export default function PlansSubsection() {
             Plans
           </span>
         </div>
-        <span className="text-[10px] font-medium text-[#A69DC0] whitespace-nowrap">
-          FY26
-        </span>
       </header>
 
       <Body
@@ -146,6 +143,14 @@ function Body({ isLoading, isError, plans }: BodyProps) {
             target={formatTarget(readTarget(p))}
             fiscal={readFiscalLabel(p)}
             hidden={p.hidden}
+            viewCounts={{
+              map:      p.districtLeaids.length,
+              table:    p.districtLeaids.length,
+              kanban:   p.oppsCount,
+              contacts: p.contactsCount,
+              opps:     p.oppsCount,
+              signals:  p.recentNewsCount,
+            }}
           />
         </li>
       ))}

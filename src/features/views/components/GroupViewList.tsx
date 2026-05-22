@@ -27,6 +27,8 @@ interface GroupViewListProps {
    * is currently a contract marker only.
    */
   defaultViewId?: ViewId;
+  /** Per-view counts sourced from PlanWithStats — displayed as muted right-aligned badges. */
+  viewCounts?: Partial<Record<ViewId, number>>;
 }
 
 /** localStorage key for per-group last-view persistence. */
@@ -68,6 +70,7 @@ export default function GroupViewList({
   kind,
   groupId,
   activeViewId,
+  viewCounts,
 }: GroupViewListProps) {
   const router = useViewsRouter();
 
@@ -100,6 +103,11 @@ export default function GroupViewList({
               <span className="flex-1 min-w-0 truncate whitespace-nowrap">
                 {spec.label}
               </span>
+              {viewCounts?.[spec.id] !== undefined && (
+                <span className="ml-auto text-[10px] font-medium tabular-nums text-[#A69DC0] whitespace-nowrap">
+                  {viewCounts[spec.id]}
+                </span>
+              )}
             </button>
           </li>
         );
