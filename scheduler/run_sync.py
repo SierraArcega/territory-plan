@@ -36,6 +36,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _run_step(label, fn, *args):
+    """Run one sync step, naming it in the log if it raises, then re-raise.
+
+    Added 2026-05-21: a bare psycopg2 error (e.g. 'value too long for type
+    character varying(7)') doesn't say which step produced it. This makes the
+    failing step obvious without changing behavior.
+    """
+    try:
+        return fn(*args)
+    except Exception as e:
+        logger.error("Sync step failed: %s — %s [%s]", label, e, type(e).__name__)
+        raise
+
+
 def _process_opp_hits(opp_hits, sessions_by_opp, district_mapping, manual_resolutions, now):
     """Build records for each opp and classify into matched / unmatched.
 
@@ -65,7 +79,18 @@ def _process_opp_hits(opp_hits, sessions_by_opp, district_mapping, manual_resolu
         # the lookup matches.
         opp_id_str = str(opp["id"])
         if opp_id_str in manual_resolutions:
-            record["district_lea_id"] = manual_resolutions[opp_id_str]
+            resolved_leaid = manual_resolutions[opp_id_str]
+            # DIAGNOSTIC (2026-05-21): the manual-resolution override is the only
+            # write into opportunities.district_lea_id (VARCHAR(7)) with no length
+            # validation. Flag any value that can't fit so a bad admin resolution
+            # is obvious in the logs (the natural resolver is guarded in queries.py).
+            if resolved_leaid is not None and len(str(resolved_leaid)) > 7:
+                logger.error(
+                    "Manual resolution for opp %s has over-length leaid %r (len=%d) — "
+                    "will overflow opportunities.district_lea_id VARCHAR(7)",
+                    opp_id_str, resolved_leaid, len(str(resolved_leaid)),
+                )
+            record["district_lea_id"] = resolved_leaid
             unmatched = None
             healed_count += 1
         matched_records.append(record)
@@ -187,9 +212,9 @@ def run_sync():
         # whose POST-COALESCE leaid is non-NULL — that's the correct input
         # to remove_matched_from_unmatched (a Python-level filter on the
         # record value misses opps whose leaid was preserved by COALESCE).
-        matched_ids = upsert_opportunities(conn, matched_records)
+        matched_ids = _run_step("upsert_opportunities", upsert_opportunities, conn, matched_records)
         if unmatched_records:
-            upsert_unmatched(conn, unmatched_records)
+            _run_step("upsert_unmatched", upsert_unmatched, conn, unmatched_records)
 
         # Build session records for storage
         session_records_by_opp = {}
@@ -211,15 +236,15 @@ def run_sync():
                 for s in opp_sessions
             ]
         total_sessions = sum(len(v) for v in session_records_by_opp.values())
-        upsert_sessions(conn, session_records_by_opp)
+        _run_step("upsert_sessions", upsert_sessions, conn, session_records_by_opp)
 
         # Clean up: remove opps from unmatched that now have a district match.
-        remove_matched_from_unmatched(conn, matched_ids)
+        _run_step("remove_matched_from_unmatched", remove_matched_from_unmatched, conn, matched_ids)
 
-        update_district_pipeline_aggregates(conn)
-        refresh_map_features(conn)
-        refresh_fullmind_financials(conn)
-        refresh_opportunity_actuals(conn)
+        _run_step("update_district_pipeline_aggregates", update_district_pipeline_aggregates, conn)
+        _run_step("refresh_map_features", refresh_map_features, conn)
+        _run_step("refresh_fullmind_financials", refresh_fullmind_financials, conn)
+        _run_step("refresh_opportunity_actuals", refresh_opportunity_actuals, conn)
         set_last_synced_at(conn, now)
 
         logger.info(
@@ -299,9 +324,9 @@ def run_current_fy_backfill():
         if healed_count:
             logger.info(f"Healed {healed_count} opps via manual resolutions")
 
-        matched_ids = upsert_opportunities(conn, matched_records)
+        matched_ids = _run_step("upsert_opportunities", upsert_opportunities, conn, matched_records)
         if unmatched_records:
-            upsert_unmatched(conn, unmatched_records)
+            _run_step("upsert_unmatched", upsert_unmatched, conn, unmatched_records)
 
         session_records_by_opp = {}
         for opp_id, opp_sessions in sessions_by_opp.items():
@@ -322,14 +347,14 @@ def run_current_fy_backfill():
                 for s in opp_sessions
             ]
         total_sessions = sum(len(v) for v in session_records_by_opp.values())
-        upsert_sessions(conn, session_records_by_opp)
+        _run_step("upsert_sessions", upsert_sessions, conn, session_records_by_opp)
 
-        remove_matched_from_unmatched(conn, matched_ids)
+        _run_step("remove_matched_from_unmatched", remove_matched_from_unmatched, conn, matched_ids)
 
-        update_district_pipeline_aggregates(conn)
-        refresh_map_features(conn)
-        refresh_fullmind_financials(conn)
-        refresh_opportunity_actuals(conn)
+        _run_step("update_district_pipeline_aggregates", update_district_pipeline_aggregates, conn)
+        _run_step("refresh_map_features", refresh_map_features, conn)
+        _run_step("refresh_fullmind_financials", refresh_fullmind_financials, conn)
+        _run_step("refresh_opportunity_actuals", refresh_opportunity_actuals, conn)
 
         logger.info(
             f"=== Backfill complete: {len(matched_records)} opps, "
