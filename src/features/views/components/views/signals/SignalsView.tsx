@@ -28,14 +28,13 @@ import {
   EmptyState,
   ErrorState,
   FilterHintBanner,
-  ShowMoreButton,
   ViewScroll,
 } from "../_shared";
+import GridPager from "../../grid/GridPager";
+import { GRID_PAGE_SIZE, pageMeta } from "../../grid/grid-pagination";
 import { useSignalsSummary } from "./queries";
 import SignalsControls, { type SignalsToolbarState } from "./SignalsControls";
 import SignalDistrictRow from "./SignalDistrictRow";
-
-const PAGE_SIZE = 50;
 
 const INITIAL_TOOLBAR: SignalsToolbarState = {
   types: { vac: true, news: true, rfp: true },
@@ -111,9 +110,15 @@ export default function SignalsView({
     } else if (patch.expandAll === false) {
       setExpandedSet(new Set());
     }
-    // A new search term re-scopes the list — reset paging so "Show more" state
-    // doesn't carry across searches.
-    if (patch.search !== undefined) setPage(1);
+    // Any re-scoping change (search text, signal types, time window) snaps
+    // paging back to the first page so we never land on a now-empty page.
+    if (
+      patch.search !== undefined ||
+      patch.types !== undefined ||
+      patch.since !== undefined
+    ) {
+      setPage(1);
+    }
     patchToolbar(patch);
   }
 
@@ -156,8 +161,12 @@ export default function SignalsView({
   }
 
   const total = filtered.length;
-  const visible = filtered.slice(0, page * PAGE_SIZE);
-  const remaining = Math.max(0, total - visible.length);
+  // One fixed-size window per page (matches the table grids' pager).
+  const meta = pageMeta(total, page, GRID_PAGE_SIZE);
+  const visible = filtered.slice(
+    (meta.page - 1) * GRID_PAGE_SIZE,
+    meta.page * GRID_PAGE_SIZE,
+  );
   const searchActive = toolbar.search.trim().length > 0;
 
   return (
@@ -172,29 +181,29 @@ export default function SignalsView({
         {total === 0 ? (
           <WholeEmpty searchActive={searchActive} onReset={resetFilters} />
         ) : (
-          <>
-            <ul className="flex flex-col">
-              {visible.map((district) => (
-                <SignalDistrictRow
-                  key={district.leaid}
-                  district={district}
-                  types={toolbar.types}
-                  since={toolbar.since}
-                  expanded={expandedSet.has(district.leaid)}
-                  onToggle={toggleRow}
-                  lastVisitMs={lastVisitRef.current}
-                />
-              ))}
-            </ul>
-            {remaining > 0 && (
-              <ShowMoreButton
-                onClick={() => setPage((p) => p + 1)}
-                remaining={remaining}
+          <ul className="flex flex-col">
+            {visible.map((district) => (
+              <SignalDistrictRow
+                key={district.leaid}
+                district={district}
+                types={toolbar.types}
+                since={toolbar.since}
+                expanded={expandedSet.has(district.leaid)}
+                onToggle={toggleRow}
+                lastVisitMs={lastVisitRef.current}
               />
-            )}
-          </>
+            ))}
+          </ul>
         )}
       </ViewScroll>
+      {total > GRID_PAGE_SIZE && (
+        <GridPager
+          total={total}
+          page={meta.page}
+          pageSize={GRID_PAGE_SIZE}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 }
