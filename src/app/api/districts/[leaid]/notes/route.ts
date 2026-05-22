@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { isNoteType, DEFAULT_NOTE_TYPE } from "@/features/views/lib/note-types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ function serialize(n: {
   id: string;
   bodyJson: unknown;
   bodyText: string;
+  noteType: string;
   createdAt: Date;
   updatedAt: Date;
   author: { id: string; fullName: string | null; email: string; avatarUrl: string | null };
@@ -18,6 +20,7 @@ function serialize(n: {
     id: n.id,
     bodyJson: n.bodyJson,
     bodyText: n.bodyText,
+    noteType: n.noteType,
     createdAt: n.createdAt.toISOString(),
     updatedAt: n.updatedAt.toISOString(),
     author: n.author,
@@ -58,8 +61,13 @@ export async function POST(
     return NextResponse.json({ error: "bodyJson + non-empty bodyText required" }, { status: 400 });
   }
 
+  const noteType = body?.noteType === undefined ? DEFAULT_NOTE_TYPE : body.noteType;
+  if (!isNoteType(noteType)) {
+    return NextResponse.json({ error: "Invalid noteType" }, { status: 400 });
+  }
+
   const note = await prisma.districtNote.create({
-    data: { districtLeaid: leaid, authorId: user.id, bodyJson, bodyText },
+    data: { districtLeaid: leaid, authorId: user.id, bodyJson, bodyText, noteType },
     include: { author: { select: AUTHOR_SELECT } },
   });
 

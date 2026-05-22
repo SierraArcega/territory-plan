@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser, isAdmin } from "@/lib/supabase/server";
+import { isNoteType } from "@/features/views/lib/note-types";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,13 @@ export async function PATCH(
     return NextResponse.json({ error: "bodyJson + non-empty bodyText required" }, { status: 400 });
   }
 
+  if (body?.noteType !== undefined && !isNoteType(body.noteType)) {
+    return NextResponse.json({ error: "Invalid noteType" }, { status: 400 });
+  }
+
   const note = await prisma.districtNote.update({
     where: { id: noteId },
-    data: { bodyJson, bodyText },
+    data: { bodyJson, bodyText, ...(body?.noteType !== undefined ? { noteType: body.noteType } : {}) },
     include: { author: { select: AUTHOR_SELECT } },
   });
 
@@ -40,6 +45,7 @@ export async function PATCH(
     id: note.id,
     bodyJson: note.bodyJson,
     bodyText: note.bodyText,
+    noteType: note.noteType,
     createdAt: note.createdAt.toISOString(),
     updatedAt: note.updatedAt.toISOString(),
     author: note.author,

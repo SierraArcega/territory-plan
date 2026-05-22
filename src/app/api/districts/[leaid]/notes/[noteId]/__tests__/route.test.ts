@@ -43,11 +43,13 @@ describe("PATCH note", () => {
   it("updates own note", async () => {
     mockPrisma.districtNote.findUnique.mockResolvedValue({ id: "n1", districtLeaid: "3601234", authorId: "author-1" });
     mockPrisma.districtNote.update.mockResolvedValue({
-      id: "n1", bodyJson: { type: "doc" }, bodyText: "edited", createdAt: now, updatedAt: now, author: authorSel,
+      id: "n1", bodyJson: { type: "doc" }, bodyText: "edited", noteType: "risk_flag", createdAt: now, updatedAt: now, author: authorSel,
     });
     const res = await PATCH(req("PATCH", { bodyJson: { type: "doc" }, bodyText: "edited" }), ctx);
     expect(res.status).toBe(200);
-    expect((await res.json()).bodyText).toBe("edited");
+    const json = await res.json();
+    expect(json.bodyText).toBe("edited");
+    expect(json.noteType).toBe("risk_flag");
   });
 });
 
