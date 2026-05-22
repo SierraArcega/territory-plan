@@ -40,11 +40,8 @@ describe("RowActionsMenu", () => {
     render(<RowActionsMenu {...props} />, { wrapper });
     fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
     fireEvent.click(await screen.findByRole("menuitem", { name: /log activity/i }));
-    // ActivityFormModal renders; the title encodes the district.
-    expect(await screen.findByText(/log activity · tedesco usd/i)).toBeInTheDocument();
-    // Switching to "Specific district" scope reveals the preloaded district option.
-    fireEvent.click(screen.getByRole("radio", { name: /specific district/i }));
-    expect(screen.getByRole("option", { name: /tedesco usd/i })).toBeInTheDocument();
+    // Modal opens scoped to this district — the district option is shown without any extra click.
+    expect(await screen.findByRole("option", { name: /tedesco usd/i })).toBeInTheDocument();
   });
 
   it("removes the district after a two-step confirm and invalidates the grid", async () => {

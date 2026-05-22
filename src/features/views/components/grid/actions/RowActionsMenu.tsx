@@ -163,6 +163,7 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
           districts={[{ leaid, name: districtName, stateAbbrev: null }]}
           contacts={[]}
           title={`Log activity · ${districtName}`}
+          initialDistrictLeaid={leaid}
         />
       )}
     </>
