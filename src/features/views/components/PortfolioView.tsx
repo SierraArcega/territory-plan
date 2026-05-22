@@ -50,7 +50,7 @@ export default function PortfolioView() {
   const router = useViewsRouter();
   const { bucket } = router;
 
-  const plansQ = usePlansWithStats();
+  const plansQ = usePlansWithStats(false, false);
   const profileQ = useProfile();
   const userId = profileQ.data?.id ?? null;
 
