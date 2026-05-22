@@ -364,3 +364,60 @@ describe("GET /api/views/opps-kanban — filter & sort", () => {
     expect(disc.hasMore).toBe(true);
   });
 });
+
+describe("GET /api/views/opps-kanban — rank filter & sort", () => {
+  it("keeps only cards whose district is in the selected rank buckets", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockGetLabels.mockResolvedValue(new Map([
+      ["d1", { rank: 2, label: "rank" }],
+      ["d2", { rank: null, label: "new" }],
+    ]));
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        { id: "ranked", stage: "1 - Discovery", name: "R", district_name: null, district_lea_id: "d1", contract_type: null, net_booking_amount: "100", minimum_purchase_amount: null, maximum_budget: null, close_date: null, sales_rep_name: null, details_link: null, state: null },
+        { id: "newone", stage: "1 - Discovery", name: "N", district_name: null, district_lea_id: "d2", contract_type: null, net_booking_amount: "100", minimum_purchase_amount: null, maximum_budget: null, close_date: null, sales_rep_name: null, details_link: null, state: null },
+      ],
+    });
+    const res = await GET(makeRequest("/api/views/opps-kanban?leaids=d1,d2&schoolYr=2025-26&rankBuckets=rank"));
+    const data = await res.json();
+    const disc = data.columns.find((c: { id: string }) => c.id === "discovery");
+    expect(disc.count).toBe(1);
+    expect(disc.cards[0].id).toBe("ranked");
+  });
+
+  it("sorts cards by rank when rankSort=asc (ranked before new)", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockGetLabels.mockResolvedValue(new Map([
+      ["d1", { rank: 5, label: "rank" }],
+      ["d2", { rank: null, label: "new" }],
+    ]));
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        { id: "newone", stage: "1 - Discovery", name: "N", district_name: null, district_lea_id: "d2", contract_type: null, net_booking_amount: "100", minimum_purchase_amount: null, maximum_budget: null, close_date: null, sales_rep_name: null, details_link: null, state: null },
+        { id: "ranked", stage: "1 - Discovery", name: "R", district_name: null, district_lea_id: "d1", contract_type: null, net_booking_amount: "100", minimum_purchase_amount: null, maximum_budget: null, close_date: null, sales_rep_name: null, details_link: null, state: null },
+      ],
+    });
+    const res = await GET(makeRequest("/api/views/opps-kanban?leaids=d1,d2&schoolYr=2025-26&rankSort=asc"));
+    const data = await res.json();
+    const disc = data.columns.find((c: { id: string }) => c.id === "discovery");
+    expect(disc.cards.map((c: { id: string }) => c.id)).toEqual(["ranked", "newone"]);
+  });
+
+  it("applies rank bucket filter to the targeted column too", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockGetLabels.mockResolvedValue(new Map([
+      ["t1", { rank: 1, label: "rank" }],
+      ["t2", { rank: null, label: "new" }],
+    ]));
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // cards
+      .mockResolvedValueOnce({ rows: [    // targeted
+        { leaid: "t1", name: "Ranked Dist", target: "100" },
+        { leaid: "t2", name: "New Dist", target: "100" },
+      ] });
+    const res = await GET(makeRequest("/api/views/opps-kanban?leaids=t1,t2&schoolYr=2025-26&planId=plan-1&rankBuckets=rank"));
+    const data = await res.json();
+    expect(data.targeted.count).toBe(1);
+    expect(data.targeted.cards[0].leaid).toBe("t1");
+  });
+});

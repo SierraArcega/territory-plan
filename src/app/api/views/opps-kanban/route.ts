@@ -94,6 +94,13 @@ function toISO(v: Date | string | null): string | null {
 
 interface SortEntry { id: string; dir: "asc" | "desc" }
 
+/** Lower sorts first: ranked customers by rank number, then win_back, then new. */
+function rankSortKey(g: { rank: number | null; label: string } | undefined): number {
+  if (g?.label === "rank" && g.rank != null) return g.rank;
+  if (g?.label === "win_back") return 1_000_000;
+  return 2_000_000;
+}
+
 function cmpRows(a: CardRow, b: CardRow, e: SortEntry): number {
   const get = (r: CardRow): number | string | null => {
     switch (e.id) {
@@ -189,6 +196,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const rankBuckets = (params.get("rankBuckets") ?? "")
+    .split(",").map((s) => s.trim())
+    .filter((s): s is "rank" | "win_back" | "new" => s === "rank" || s === "win_back" || s === "new");
+  const rankSortRaw = params.get("rankSort");
+  const rankSort: "asc" | "desc" | null =
+    rankSortRaw === "asc" || rankSortRaw === "desc" ? rankSortRaw : null;
+
   const stages = [...OPP_KANBAN_STAGES];
   const baseParams: unknown[] = [leaids, schoolYr, stages];
   const compiled = compileFilterTree("opps", filterTree, "o", baseParams.length);
@@ -231,8 +245,13 @@ export async function GET(req: NextRequest) {
     getGlobalCustomerLabels(),
   ]);
 
+  const bucketOf = (leaid: string | null): string => labels.get(leaid ?? "")?.label ?? "new";
+  const visibleRows = rankBuckets.length === 0
+    ? cardResult.rows
+    : cardResult.rows.filter((r) => rankBuckets.includes(bucketOf(r.district_lea_id)));
+
   const rowsByStage = new Map<string, CardRow[]>();
-  for (const r of cardResult.rows) {
+  for (const r of visibleRows) {
     const list = rowsByStage.get(r.stage) ?? [];
     list.push(r);
     rowsByStage.set(r.stage, list);
@@ -255,13 +274,22 @@ export async function GET(req: NextRequest) {
   const columns: KanbanColumn[] = OPP_STAGE_COLUMNS.map((c) => {
     const rows = rowsByStage.get(c.stage) ?? [];
     const total = rows.reduce((s, r) => s + (num(r.net_booking_amount) ?? 0), 0);
-    const sorted = sort.length > 0
-      ? [...rows].sort((a, b) => { for (const e of sort) { const d = cmpRows(a, b, e); if (d !== 0) return d; } return 0; })
-      : [...rows].sort((a, b) => {
-          const ca = cmpRows(a, b, { id: "close_date", dir: "asc" });
-          if (ca !== 0) return ca;
-          return cmpRows(a, b, { id: "net_booking_amount", dir: "desc" });
-        });
+    const byRank = (a: CardRow, b: CardRow) => {
+      const ka = rankSortKey(labels.get(a.district_lea_id ?? ""));
+      const kb = rankSortKey(labels.get(b.district_lea_id ?? ""));
+      const d = ka === kb ? 0 : ka < kb ? -1 : 1;
+      return rankSort === "desc" ? -d : d;
+    };
+    const sorted = [...rows].sort((a, b) => {
+      if (rankSort) { const d = byRank(a, b); if (d !== 0) return d; }
+      for (const e of sort) { const d = cmpRows(a, b, e); if (d !== 0) return d; }
+      if (sort.length === 0 && !rankSort) {
+        const ca = cmpRows(a, b, { id: "close_date", dir: "asc" });
+        if (ca !== 0) return ca;
+        return cmpRows(a, b, { id: "net_booking_amount", dir: "desc" });
+      }
+      return 0;
+    });
     return { id: c.id, label: c.label, count: rows.length, totalBookings: total, cards: sorted.slice(0, limit).map(toCard), hasMore: rows.length > limit };
   });
 
@@ -271,11 +299,22 @@ export async function GET(req: NextRequest) {
     target: Number(r.target) || 0,
     rankLabel: rankLabelString(labels.get(r.leaid)),
   }));
+  const targetedFiltered = rankBuckets.length === 0
+    ? targetedAll
+    : targetedAll.filter((t) => rankBuckets.includes(labels.get(t.leaid)?.label ?? "new"));
+  if (rankSort) {
+    targetedFiltered.sort((a, b) => {
+      const ka = rankSortKey(labels.get(a.leaid));
+      const kb = rankSortKey(labels.get(b.leaid));
+      const d = ka === kb ? 0 : ka < kb ? -1 : 1;
+      return rankSort === "desc" ? -d : d;
+    });
+  }
   const targeted: Targeted = {
-    count: targetedAll.length,
-    totalTarget: targetedAll.reduce((sum, t) => sum + t.target, 0),
-    cards: targetedAll.slice(0, limit),
-    hasMore: targetedAll.length > limit,
+    count: targetedFiltered.length,
+    totalTarget: targetedFiltered.reduce((sum, t) => sum + t.target, 0),
+    cards: targetedFiltered.slice(0, limit),
+    hasMore: targetedFiltered.length > limit,
   };
 
   return NextResponse.json({ schoolYr, columns, targeted });
