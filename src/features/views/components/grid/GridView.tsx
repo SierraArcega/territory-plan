@@ -379,20 +379,6 @@ export default function GridView(props: GridViewProps) {
 
   const total = q.data?.total ?? 0;
 
-  // data-row-kind for the existing detail-panel routing in GroupCanvas.
-  const rowKind =
-    source === "districts"
-      ? "district"
-      : source === "opps"
-        ? "opp"
-        : source === "contacts"
-          ? "contact"
-          : source === "vacancies"
-            ? "vacancy"
-            : source === "news"
-              ? "news"
-              : "rfp";
-
   const groupBy = layout.groupBy ?? null;
   const groupColumn = groupBy
     ? SOURCE_COLUMNS[source].find((c) => c.id === groupBy.id) ?? null
@@ -434,13 +420,10 @@ export default function GridView(props: GridViewProps) {
     if (!groupColumn) {
       return tableRows.map((row) => {
         const original = row.original as Record<string, unknown>;
-        const rowId = String(original.id ?? original.leaid ?? "");
         return (
           <tr
             key={row.id}
-            data-row-kind={rowKind}
-            data-row-id={rowId}
-            className="hover:bg-[#F7F5FA] cursor-pointer transition-colors duration-100"
+            className="hover:bg-[#F7F5FA] transition-colors duration-100"
           >
             {row.getVisibleCells().map((cell) => (
               <td
@@ -471,7 +454,7 @@ export default function GridView(props: GridViewProps) {
     // captured separately and re-emitted at the end under "— No value —".
     type Bucket = {
       key: string;
-      rows: { row: (typeof tableRows)[number]; rowId: string }[];
+      rows: { row: (typeof tableRows)[number] }[];
     };
     const ordered: Bucket[] = [];
     let nullBucket: Bucket | null = null;
@@ -479,9 +462,8 @@ export default function GridView(props: GridViewProps) {
 
     for (const row of tableRows) {
       const original = row.original as Record<string, unknown>;
-      const rowId = String(original.id ?? original.leaid ?? "");
       const key = groupKeyFor(original);
-      const entry = { row, rowId };
+      const entry = { row };
 
       if (key === "__nogroup__") {
         if (!nullBucket) nullBucket = { key, rows: [] };
@@ -532,14 +514,12 @@ export default function GridView(props: GridViewProps) {
 
       if (collapsed) continue;
 
-      for (const { row, rowId } of bucket.rows) {
+      for (const { row } of bucket.rows) {
         const original = row.original as Record<string, unknown>;
         nodes.push(
           <tr
             key={row.id}
-            data-row-kind={rowKind}
-            data-row-id={rowId}
-            className="hover:bg-[#F7F5FA] cursor-pointer transition-colors duration-100"
+            className="hover:bg-[#F7F5FA] transition-colors duration-100"
           >
             {row.getVisibleCells().map((cell) => (
               <td

@@ -5,10 +5,9 @@
  *
  * Columns are the real Salesforce opportunity stages (funnel 0–5 + Closed Won /
  * Closed Lost) from lib/opp-stage-columns. Opps are scoped to the plan's
- * districts and the plan's fiscal year (→ school year). Read-only: cards open
- * the opp detail panel via GroupCanvas's [data-row-kind][data-row-id]
- * delegation — there is no drag-to-move and no card create in v1 (opps are a
- * read-only Salesforce mirror).
+ * districts and the plan's fiscal year (→ school year). Read-only: there is no
+ * drag-to-move and no card create in v1 (opps are a read-only Salesforce
+ * mirror). The per-card "Open in LMS" link is the only card affordance.
  *
  * Lists are not scoped yet (leaids === null) — same plan-only empty state as the
  * other views until list previews are wired.
@@ -236,9 +235,7 @@ function DistrictCard({
 }) {
   return (
     <div
-      data-row-kind="district"
-      data-row-id={card.leaid}
-      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 cursor-pointer hover:border-[#B8B0D0] transition-colors duration-100"
+      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 transition-colors duration-100"
       style={{ boxShadow: "0 1px 2px rgba(64,55,112,0.05)" }}
     >
       <div className="flex items-center gap-1.5 min-w-0 mb-1.5">
@@ -307,9 +304,7 @@ function Column({ col, accent }: { col: KanbanColumnData; accent: string }) {
 function Card({ card, accent }: { card: KanbanCard; accent: string }) {
   return (
     <div
-      data-row-kind="opp"
-      data-row-id={card.id}
-      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 cursor-pointer hover:border-[#B8B0D0] transition-colors duration-100"
+      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 transition-colors duration-100"
       style={{ boxShadow: "0 1px 2px rgba(64,55,112,0.05)" }}
     >
       <div className="flex items-start justify-between gap-1.5 mb-1.5">

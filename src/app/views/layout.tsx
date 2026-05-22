@@ -6,9 +6,9 @@
  * hideFilterBar prop suppresses the global FilterBar since /views/* has
  * its own ViewTabsStrip per group.
  *
- * DetailPanel + ListBuilderModal stay mounted at this level because they
- * are route-scoped state surfaces. They render null when their open
- * states are falsy, so the mount is a no-op on the portfolio page.
+ * ListBuilderModal stays mounted at this level because it is a route-scoped
+ * state surface. It renders null when its open state is falsy, so the mount
+ * is a no-op on the portfolio page.
  */
 "use client";
 
@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/features/shared/components/layout/AppShell";
 import { useMapStore } from "@/features/shared/lib/app-store";
 import { useProfile } from "@/features/shared/lib/queries";
-import DetailPanel from "@/features/views/components/detail/DetailPanel";
 import ListBuilderModal from "@/features/views/components/builder/ListBuilderModal";
 
 export default function ViewsLayout({
@@ -61,10 +60,6 @@ export default function ViewsLayout({
       hideFilterBar
     >
       <Suspense fallback={null}>{children}</Suspense>
-      {/* DetailPanel reads ?detail=kind:id and renders null when absent. */}
-      <Suspense fallback={null}>
-        <DetailPanel />
-      </Suspense>
       {/* ListBuilderModal reads useViewsStore.builderOpen and renders null when closed. */}
       <Suspense fallback={null}>
         <ListBuilderModal />

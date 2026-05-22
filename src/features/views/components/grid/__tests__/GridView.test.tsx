@@ -154,7 +154,7 @@ describe("GridView — districts source", () => {
     expect(targetIdx).toBeLessThan(districtIdx);
   });
 
-  it("renders rows with data-row-kind='district' for districts source", () => {
+  it("renders one body row per district", () => {
     mockUseViewsData.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -179,22 +179,18 @@ describe("GridView — districts source", () => {
       </Wrapper>,
     );
 
-    const rows = container.querySelectorAll("tr[data-row-kind]");
+    const rows = container.querySelectorAll("tbody tr:not([data-group-key])");
     expect(rows.length).toBe(2);
-    for (const row of Array.from(rows)) {
-      expect(row.getAttribute("data-row-kind")).toBe("district");
-    }
-    expect(
-      (container.querySelector("tr[data-row-id='0100005']") as HTMLElement | null)?.getAttribute("data-row-id"),
-    ).toBe("0100005");
+    expect(container.textContent).toContain("Mountain USD");
+    expect(container.textContent).toContain("Valley USD");
   });
 });
 
 // ---------------------------------------------------------------------------
-// Opps: data-row-kind + visible columns
+// Opps: row rendering + visible columns
 // ---------------------------------------------------------------------------
 describe("GridView — opps source", () => {
-  it("renders rows with data-row-kind='opp' for opps source", () => {
+  it("renders one body row for the opp", () => {
     mockUseViewsData.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -216,9 +212,8 @@ describe("GridView — opps source", () => {
       </Wrapper>,
     );
 
-    const row = container.querySelector("tr[data-row-kind='opp']");
-    expect(row).not.toBeNull();
-    expect(row?.getAttribute("data-row-id")).toBe("opp-1");
+    const rows = container.querySelectorAll("tbody tr:not([data-group-key])");
+    expect(rows.length).toBe(1);
   });
 });
 
@@ -297,10 +292,10 @@ describe("GridView — query states", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Contacts: data-row-kind
+// Contacts: row rendering
 // ---------------------------------------------------------------------------
 describe("GridView — contacts source", () => {
-  it("renders rows with data-row-kind='contact' for contacts source", () => {
+  it("renders one body row for the contact", () => {
     mockUseViewsData.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -322,9 +317,9 @@ describe("GridView — contacts source", () => {
       </Wrapper>,
     );
 
-    const row = container.querySelector("tr[data-row-kind='contact']");
-    expect(row).not.toBeNull();
-    expect(row?.getAttribute("data-row-id")).toBe("c-1");
+    const rows = container.querySelectorAll("tbody tr:not([data-group-key])");
+    expect(rows.length).toBe(1);
+    expect(container.textContent).toContain("Jane Doe");
   });
 });
 
@@ -743,7 +738,7 @@ describe("GridView — group rendering", () => {
     );
 
     // Expanded: 4 data rows + 3 headers
-    const beforeDataRows = container.querySelectorAll("tr[data-row-kind]");
+    const beforeDataRows = container.querySelectorAll("tbody tr:not([data-group-key])");
     expect(beforeDataRows.length).toBe(4);
 
     // Click NY header
@@ -751,7 +746,7 @@ describe("GridView — group rendering", () => {
     fireEvent.click(nyHeader);
 
     // NY rows hidden — 2 fewer data rows
-    const afterDataRows = container.querySelectorAll("tr[data-row-kind]");
+    const afterDataRows = container.querySelectorAll("tbody tr:not([data-group-key])");
     expect(afterDataRows.length).toBe(2);
     // Header still present
     expect(container.querySelector('tr[data-group-key="NY"]')).not.toBeNull();
@@ -777,6 +772,6 @@ describe("GridView — group rendering", () => {
     );
 
     expect(container.querySelectorAll("tr[data-group-key]").length).toBe(0);
-    expect(container.querySelectorAll("tr[data-row-kind]").length).toBe(4);
+    expect(container.querySelectorAll("tbody tr:not([data-group-key])").length).toBe(4);
   });
 });

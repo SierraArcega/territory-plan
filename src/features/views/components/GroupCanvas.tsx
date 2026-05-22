@@ -6,18 +6,12 @@
  * Composition:
  *   - GroupHeader (eyebrow + title + stats/chips + action buttons)
  *   - ViewTabsStrip (8 view tabs + "+ View")
- *   - CanvasBody (scrollable body that delegates row clicks to the detail
- *     panel via the URL ?detail=kind:id param)
+ *   - CanvasBody (scrollable body hosting the active view)
  *
  * Data fetching:
  *   - Plans: `usePlansWithStats()` (already cached by the sidebar mount;
  *     this hook re-uses that cache).
  *   - Lists: `useList(id)` (single record with `filterTree`).
- *
- * Click routing for detail panel: implemented in CanvasBody via event
- * delegation on `[data-row-kind][data-row-id]`. Each view's row markup is
- * expected to include those data attributes so opening the detail panel
- * doesn't need per-view onClick wiring.
  */
 import { useMemo, type ReactNode } from "react";
 import {
@@ -26,12 +20,7 @@ import {
   type PlanWithStats,
   type SavedListSummary,
 } from "../lib/queries";
-import { useViewsRouter } from "../hooks/useViewsRouter";
-import {
-  isDetailKind,
-  type DetailKind,
-  type ViewId,
-} from "../lib/view-types";
+import type { ViewId } from "../lib/view-types";
 import type { GroupKind } from "../hooks/useViewsRouter";
 import GroupHeader from "./GroupHeader";
 import ViewTabsStrip from "./ViewTabsStrip";
@@ -126,7 +115,7 @@ export default function GroupCanvas({
   );
 }
 
-// ── CanvasBody (event delegation for detail panel) ─────────────────────────
+// ── CanvasBody ─────────────────────────────────────────────────────────────
 
 interface CanvasBodyProps {
   kind: GroupKind;
@@ -146,39 +135,8 @@ function CanvasBody({
   list,
   parentId,
 }: CanvasBodyProps) {
-  const router = useViewsRouter();
-
-  // Event delegation: walk up from the click target looking for the first
-  // ancestor with [data-row-kind][data-row-id] attributes. This keeps the
-  // per-view markup simple — rows mark themselves once and the canvas wires
-  // the URL update centrally.
-  const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    const rowEl = target.closest<HTMLElement>(
-      "[data-row-kind][data-row-id]",
-    );
-    if (!rowEl) return;
-    const kindAttr = rowEl.dataset.rowKind;
-    const idAttr = rowEl.dataset.rowId;
-    if (!kindAttr || !idAttr) return;
-    if (!isDetailKind(kindAttr)) return;
-    // Stop on a child anchor/button so we don't double-route — checkboxes,
-    // hidden links, etc. handle their own action.
-    if (target.closest("a, button, input, select, textarea")) {
-      // Allow detail click only when the target is the row itself or a wrapper
-      // div; anchors/buttons inside the row should take precedence.
-      const interactive = target.closest("a, button, input, select, textarea");
-      if (interactive && interactive !== rowEl) return;
-    }
-    router.openDetail(kindAttr as DetailKind, idAttr);
-  };
-
   return (
-    <div
-      className="flex-1 min-h-0 overflow-hidden relative"
-      onClick={onClick}
-    >
+    <div className="flex-1 min-h-0 overflow-hidden relative">
       <ViewBody
         kind={kind}
         viewId={viewId}

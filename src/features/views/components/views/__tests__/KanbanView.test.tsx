@@ -123,15 +123,6 @@ describe("KanbanView", () => {
     expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 
-  it("marks cards for detail-panel routing", async () => {
-    (fetchJson as Mock).mockResolvedValue(fixture);
-    const { container } = render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
-    await screen.findByText("Acme Renewal");
-    expect(
-      container.querySelector('[data-row-kind="opp"][data-row-id="opp-1"]'),
-    ).not.toBeNull();
-  });
-
   it("links out to the opp's LMS url in a new tab, only when present", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
     render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
@@ -156,17 +147,6 @@ describe("KanbanView", () => {
     expect(screen.getByText("Untouched District B")).toBeInTheDocument();
     // summed target shown in the column header
     expect(screen.getByText("$150K")).toBeInTheDocument();
-  });
-
-  it("routes Targeted district cards to the district detail panel", async () => {
-    (fetchJson as Mock).mockResolvedValue(fixture);
-    const { container } = render(
-      wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />),
-    );
-    await screen.findByText("Targeted");
-    expect(
-      container.querySelector('[data-row-kind="district"][data-row-id="lea-a"]'),
-    ).not.toBeNull();
   });
 
   it("shows the district rank label on opp and district cards", async () => {
