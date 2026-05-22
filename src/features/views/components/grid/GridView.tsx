@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   useReactTable,
@@ -26,8 +26,9 @@ import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
 import { RowActionsMenu } from "./actions/RowActionsMenu";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
-import { PlanNotesCell } from "./cells/PlanNotesCell";
+import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
+import { noteTypeMeta } from "../../lib/note-types";
 import {
   LoadingState,
   ErrorState,
@@ -222,21 +223,31 @@ export default function GridView(props: GridViewProps) {
   }
 
   // Compute visible columns from the layout overlaid on SOURCE_COLUMNS defaults.
-  const visibleCols = SOURCE_COLUMNS[source]
-    .filter((c) => {
-      const entry = layout.columns.find((l) => l.id === c.id);
-      return entry ? entry.visible : c.defaultVisible;
-    })
-    .sort((a, b) => {
-      const oa =
-        layout.columns.find((l) => l.id === a.id)?.order ?? a.defaultOrder;
-      const ob =
-        layout.columns.find((l) => l.id === b.id)?.order ?? b.defaultOrder;
-      return oa - ob;
-    });
+  // Memoized so visibleCols — and the tanCols cell fns derived from it — keep a
+  // STABLE identity across renders. Otherwise every render builds new cell
+  // functions, which flexRender renders as a new component type, so React
+  // remounts every cell (losing e.g. an open notes popover) on each re-render.
+  const columnsKey = JSON.stringify(layout.columns);
+  const visibleCols = useMemo(
+    () =>
+      SOURCE_COLUMNS[source]
+        .filter((c) => {
+          const entry = layout.columns.find((l) => l.id === c.id);
+          return entry ? entry.visible : c.defaultVisible;
+        })
+        .sort((a, b) => {
+          const oa =
+            layout.columns.find((l) => l.id === a.id)?.order ?? a.defaultOrder;
+          const ob =
+            layout.columns.find((l) => l.id === b.id)?.order ?? b.defaultOrder;
+          return oa - ob;
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [source, columnsKey],
+  );
 
-  const tanCols: TanColumnDef<Record<string, unknown>>[] = visibleCols.map(
-    (c) => ({
+  const tanCols: TanColumnDef<Record<string, unknown>>[] = useMemo(() =>
+    visibleCols.map((c) => ({
       id: c.id,
       header: c.header,
       accessorKey: c.accessor,
@@ -260,18 +271,26 @@ export default function GridView(props: GridViewProps) {
         }
         if (c.id === "plan_notes" && leaid) {
           return (
-            <PlanNotesCell
-              value={typeof v === "string" ? v : null}
-              planId={planId}
+            <DistrictNotesCell
               leaid={leaid}
-              disabled={planId == null}
+              districtName={typeof row.name === "string" ? row.name : leaid}
+              latest={typeof row.notesLatest === "string" ? row.notesLatest : null}
+              count={typeof row.notesCount === "number" ? row.notesCount : 0}
+              latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
             />
           );
+        }
+        if (c.id === "note_type") {
+          const t = typeof row.notesLatestType === "string" ? row.notesLatestType : null;
+          return t
+            ? <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${noteTypeMeta(t).pill}`}>{noteTypeMeta(t).label}</span>
+            : <span className="text-[#A69DC0]">—</span>;
         }
         if (v == null) return <span className="text-[#A69DC0]">—</span>;
         return <span>{formatCellValue(v, c.format)}</span>;
       },
-    }),
+    })),
+    [visibleCols, planId],
   );
 
   // Compute contiguous group spans for the optional grouped header row.
@@ -291,6 +310,10 @@ export default function GridView(props: GridViewProps) {
     data: q.data?.rows ?? [],
     columns: tanCols,
     getCoreRowModel: getCoreRowModel(),
+    // Stable row identity so a data refetch maps rows by id (not array index),
+    // preserving each row's cells (and any open popover state) instead of
+    // remounting the whole body.
+    getRowId: (row, index) => String(row.id ?? row.leaid ?? index),
   });
 
   if (q.isLoading) return <LoadingState rows={8} />;

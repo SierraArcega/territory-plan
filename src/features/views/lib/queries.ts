@@ -451,8 +451,8 @@ interface UpdatePlanDistrictArgs {
 }
 
 /**
- * Optimistic per-plan-per-district mutation. Used by ChurnRiskCell and
- * PlanNotesCell. Invalidates the active views/data cache key so the next
+ * Optimistic per-plan-per-district mutation. Used by ChurnRiskCell.
+ * Invalidates the active views/data cache key so the next
  * fetch is fresh; the optimistic update keeps the cell snappy in the
  * meantime.
  */
@@ -498,5 +498,70 @@ export function useUpdatePlanDistrict(planId: string, leaid: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["views", "data"] });
     },
+  });
+}
+
+// ── District notes log ──────────────────────────────────────────────────────
+
+export interface DistrictNoteEntry {
+  id: string;
+  bodyJson: unknown;
+  bodyText: string;
+  noteType: string;
+  createdAt: string;
+  updatedAt: string;
+  author: { id: string; fullName: string | null; email: string; avatarUrl: string | null };
+}
+
+export function useDistrictNotes(leaid: string | null) {
+  return useQuery({
+    queryKey: ["district-notes", leaid],
+    queryFn: () =>
+      fetchJson<{ notes: DistrictNoteEntry[] }>(`${API_BASE}/districts/${leaid}/notes`).then((r) => r.notes),
+    enabled: !!leaid,
+    staleTime: 30 * 1000,
+  });
+}
+
+interface CreateArgs { leaid: string; bodyJson: unknown; bodyText: string; noteType?: string }
+interface UpdateArgs { leaid: string; noteId: string; bodyJson: unknown; bodyText: string; noteType?: string }
+interface DeleteArgs { leaid: string; noteId: string }
+
+/** Invalidate the leaid's note list AND the grid data (cell snippet/count). */
+function invalidateNotes(qc: ReturnType<typeof useQueryClient>, leaid: string) {
+  qc.invalidateQueries({ queryKey: ["district-notes", leaid] });
+  qc.invalidateQueries({ queryKey: ["views", "data"] });
+}
+
+export function useCreateDistrictNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, bodyJson, bodyText, noteType }: CreateArgs) =>
+      fetchJson<DistrictNoteEntry>(`${API_BASE}/districts/${leaid}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ bodyJson, bodyText, noteType }),
+      }),
+    onSuccess: (_d, v) => invalidateNotes(qc, v.leaid),
+  });
+}
+
+export function useUpdateDistrictNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, noteId, bodyJson, bodyText, noteType }: UpdateArgs) =>
+      fetchJson<DistrictNoteEntry>(`${API_BASE}/districts/${leaid}/notes/${noteId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ bodyJson, bodyText, noteType }),
+      }),
+    onSuccess: (_d, v) => invalidateNotes(qc, v.leaid),
+  });
+}
+
+export function useDeleteDistrictNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, noteId }: DeleteArgs) =>
+      fetchJson<{ success: boolean }>(`${API_BASE}/districts/${leaid}/notes/${noteId}`, { method: "DELETE" }),
+    onSuccess: (_d, v) => invalidateNotes(qc, v.leaid),
   });
 }

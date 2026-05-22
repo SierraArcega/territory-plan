@@ -211,6 +211,31 @@ describe("validateFilterTree", () => {
   });
 });
 
+describe("compileFilterTree — note_type (virtual, district-scoped)", () => {
+  it("compiles note_type to an EXISTS subquery on district_notes (no plan needed)", () => {
+    const res = compileFilterTree(
+      "districts",
+      { kind: "rule", fieldId: "note_type", op: "is", value: "risk_flag" },
+      "d",
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.whereSql).toContain("EXISTS");
+      expect(res.whereSql).toContain("district_notes");
+      expect(res.whereSql).toContain("note_type = ANY");
+    }
+  });
+
+  it("rejects a bogus note_type value", () => {
+    const res = compileFilterTree(
+      "districts",
+      { kind: "rule", fieldId: "note_type", op: "is", value: "nope" },
+      "d",
+    );
+    expect(res.ok).toBe(false);
+  });
+});
+
 describe("compileFilterTree — has_target (virtual, plan-scoped)", () => {
   it("compiles `has_target = true` to an EXISTS subquery with planId bound", () => {
     const res = compileFilterTree(

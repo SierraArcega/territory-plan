@@ -85,4 +85,24 @@ describe("POST /api/districts/[leaid]/notes", () => {
       }),
     );
   });
+
+  it("defaults noteType to general_update when omitted", async () => {
+    mockPrisma.districtNote.create.mockResolvedValue({
+      id: "n3", bodyJson: { type: "doc" }, bodyText: "x", noteType: "general_update", createdAt: now, updatedAt: now, author: authorSel,
+    });
+    const res = await POST(req("http://localhost/api/districts/3601234/notes", { bodyJson: { type: "doc" }, bodyText: "x" }), {
+      params: Promise.resolve({ leaid: "3601234" }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockPrisma.districtNote.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ noteType: "general_update" }) }),
+    );
+  });
+
+  it("rejects a bogus noteType with 400", async () => {
+    const res = await POST(req("http://localhost/api/districts/3601234/notes", { bodyJson: { type: "doc" }, bodyText: "x", noteType: "nope" }), {
+      params: Promise.resolve({ leaid: "3601234" }),
+    });
+    expect(res.status).toBe(400);
+  });
 });
