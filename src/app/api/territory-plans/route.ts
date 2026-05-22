@@ -5,6 +5,7 @@ import { readonlyPool } from "@/lib/db-readonly";
 import pool from "@/lib/db";
 import { getUser } from "@/lib/supabase/server";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
+import { NEWS_CONFIDENCE_LEVELS } from "@/lib/signals/sql";
 export const dynamic = "force-dynamic";
 
 /**
@@ -131,10 +132,10 @@ async function computeAllPlanStats(
      JOIN news_article_districts nad ON nad.leaid = tpd.district_leaid
      JOIN news_articles na ON na.id = nad.article_id
      WHERE tpd.plan_id = ANY($1::text[])
-       AND nad.confidence IN ('high','llm','source')
+       AND nad.confidence = ANY($2::text[])
        AND na.published_at >= NOW() - INTERVAL '30 days'
      GROUP BY tpd.plan_id`,
-    [planIds],
+    [planIds, NEWS_CONFIDENCE_LEVELS],
   );
 
   const [oppsRows, contactsRows, newsRows] = await Promise.all([oppsRowsP, contactsRowsP, newsRowsP]);
