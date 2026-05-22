@@ -51,7 +51,7 @@ export function ResultsTable({ columns, rows }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-[#D4CFE2] bg-white p-8 text-center text-sm text-[#8A80A8] shadow-sm">
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-[#D4CFE2] bg-white p-8 text-center text-sm text-[#8A80A8] shadow-sm">
         No rows returned.
       </div>
     );
@@ -60,7 +60,7 @@ export function ResultsTable({ columns, rows }: Props) {
   const hiddenCount = columns.length - visibleColumns.length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-lg border border-[#D4CFE2] bg-white shadow-sm">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-lg border border-[#D4CFE2] bg-white shadow-sm">
       <div className="flex shrink-0 items-center justify-between border-b border-[#E2DEEC] p-3">
         <div className="text-xs font-medium text-[#8A80A8]">
           {rows.length} row{rows.length === 1 ? "" : "s"}
@@ -78,7 +78,7 @@ export function ResultsTable({ columns, rows }: Props) {
           </button>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
         <table className="min-w-full text-sm">
           <thead className="sticky top-0 z-10 bg-[#F7F5FA]">
             <tr>

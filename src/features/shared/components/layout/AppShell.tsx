@@ -70,7 +70,7 @@ export default function AppShell({
         )}
 
         {/* Content area - fills remaining space */}
-        <main className="flex-1 relative overflow-hidden">
+        <main className="flex-1 h-full relative overflow-hidden">
           {children}
         </main>
       </div>
