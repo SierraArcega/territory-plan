@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { lmsOpportunityUrl } from "./lms";
-import { MoreHorizontal, Pencil, Target, Briefcase, X, StickyNote } from "lucide-react";
+import { Plus, Pencil, Target, Briefcase, X, StickyNote } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnchoredPopover } from "../AnchoredPopover";
 import { useRemoveDistrictFromPlan } from "@/features/plans/lib/queries";
@@ -42,18 +42,18 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="rounded-md p-1 text-[#544A78] hover:bg-[#F7F5FA]"
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#D4CFE2] text-[#403770] transition-colors hover:border-[#403770] hover:bg-[#403770] hover:text-white"
       >
-        <MoreHorizontal className="h-4 w-4" />
+        <Plus className="h-3.5 w-3.5" />
       </button>
 
       <AnchoredPopover anchorRef={btnRef} open={open} onDismiss={() => setOpen(false)}>
-        {/* AnchoredPopover left-aligns under the anchor; shift a 220px panel left so it
-            right-aligns under the ~32px right-edge kebab and stays on-screen. */}
+        {/* Trigger now sits at the row's left edge (in front of the district name),
+            so the menu left-aligns under it and opens rightward, staying on-screen. */}
         <div
           role="menu"
           aria-label="District actions"
-          style={{ width: 220, transform: "translateX(-188px)" }}
+          style={{ width: 220 }}
           className="rounded-xl border border-[#E2DEEC] bg-white p-1.5 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
         >
           <button type="button" role="menuitem" className={item} onClick={() => choose("activity")}>
@@ -95,7 +95,7 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label="Confirm removal"
-            style={{ width: 240, transform: "translateX(-208px)" }}
+            style={{ width: 240 }}
             className="rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
           >
             <p className="m-0 mb-2.5 text-[13px] text-[#403770]">
@@ -153,7 +153,7 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
 
       {surface === "note" && (
         <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
-          <div style={{ transform: "translateX(-448px)" }}>
+          <div>
             <NotesPopover leaid={leaid} districtName={districtName} onClose={() => setSurface(null)} />
           </div>
         </AnchoredPopover>

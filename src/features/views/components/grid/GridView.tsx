@@ -312,6 +312,20 @@ export default function GridView(props: GridViewProps) {
             ? <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${noteTypeMeta(t).pill}`}>{noteTypeMeta(t).label}</span>
             : <span className="text-[#A69DC0]">—</span>;
         }
+        if (c.id === "name" && showRowActions && leaid) {
+          // Action trigger sits in front of the district name (replaces the
+          // old right-edge column) so the add affordance hugs each row's label.
+          return (
+            <span className="flex items-center gap-2">
+              <RowActionsMenu
+                planId={planId!}
+                leaid={leaid}
+                districtName={typeof v === "string" ? v : String(row.name ?? "")}
+              />
+              <span className="truncate">{formatCellValue(v, c.format)}</span>
+            </span>
+          );
+        }
         if (v == null) return <span className="text-[#A69DC0]">—</span>;
         return <span>{formatCellValue(v, c.format)}</span>;
       },
@@ -412,7 +426,7 @@ export default function GridView(props: GridViewProps) {
     });
   }
 
-  const colCount = visibleCols.length + 1 + (showRowActions ? 1 : 0);
+  const colCount = visibleCols.length + 1;
 
   function renderBody() {
     const tableRows = table.getRowModel().rows;
@@ -433,15 +447,6 @@ export default function GridView(props: GridViewProps) {
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </td>
             ))}
-            {showRowActions && (
-              <td className="border-b border-[#EFEDF5] px-2 py-1.5 text-right whitespace-nowrap">
-                <RowActionsMenu
-                  planId={planId!}
-                  leaid={String(original.leaid ?? "")}
-                  districtName={String(original.name ?? "")}
-                />
-              </td>
-            )}
             {/* Matching spacer cell — keeps the column count consistent
                 so the spacer header has a body counterpart. */}
             <td aria-hidden className="border-b border-[#EFEDF5]" />
@@ -529,15 +534,6 @@ export default function GridView(props: GridViewProps) {
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </td>
             ))}
-            {showRowActions && (
-              <td className="border-b border-[#EFEDF5] px-2 py-1.5 text-right whitespace-nowrap">
-                <RowActionsMenu
-                  planId={planId!}
-                  leaid={String(original.leaid ?? "")}
-                  districtName={String(original.name ?? "")}
-                />
-              </td>
-            )}
             <td aria-hidden className="border-b border-[#EFEDF5]" />
           </tr>,
         );
@@ -655,9 +651,6 @@ export default function GridView(props: GridViewProps) {
                   </th>
                 );
               })}
-              {showRowActions && (
-                <th aria-hidden className="border-b border-[#D4CFE2] bg-[#F7F5FA]" />
-              )}
               {/* Spacer header — `width: 100%` claims any leftover horizontal
                   space so the real columns can shrink to their content width
                   instead of stretching to fill the screen. */}
