@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gridLayoutSchema, viewLayoutsSchema } from "../grid-layout-schema";
+import { gridLayoutSchema, kanbanLayoutSchema, viewLayoutsSchema } from "../grid-layout-schema";
 
 describe("gridLayoutSchema", () => {
   const valid = {
@@ -96,5 +96,44 @@ describe("viewLayoutsSchema", () => {
       mode: "gallery",
     };
     expect(() => viewLayoutsSchema().parse({ news })).toThrow();
+  });
+});
+
+describe("kanbanLayoutSchema", () => {
+  it("accepts a valid kanban layout", () => {
+    const ok = kanbanLayoutSchema().safeParse({
+      filters: { kind: "and", children: [] },
+      sort: [{ id: "net_booking_amount", dir: "desc" }],
+      rankBuckets: ["ranked", "new"],
+      rankSort: "asc",
+    });
+    expect(ok.success).toBe(true);
+  });
+
+  it("rejects an unknown sort field", () => {
+    const bad = kanbanLayoutSchema().safeParse({
+      filters: { kind: "and", children: [] },
+      sort: [{ id: "not_a_field", dir: "asc" }],
+      rankBuckets: [],
+      rankSort: null,
+    });
+    expect(bad.success).toBe(false);
+  });
+
+  it("rejects a bad rank bucket", () => {
+    const bad = kanbanLayoutSchema().safeParse({
+      filters: { kind: "and", children: [] },
+      sort: [],
+      rankBuckets: ["platinum"],
+      rankSort: null,
+    });
+    expect(bad.success).toBe(false);
+  });
+
+  it("is exposed as the optional kanban slot on viewLayouts", () => {
+    const ok = viewLayoutsSchema().safeParse({
+      kanban: { filters: { kind: "and", children: [] }, sort: [], rankBuckets: [], rankSort: null },
+    });
+    expect(ok.success).toBe(true);
   });
 });

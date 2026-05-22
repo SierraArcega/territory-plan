@@ -60,6 +60,33 @@ export function gridLayoutSchema(source: SavedListSource) {
   });
 }
 
+const rankBucketSchema = z.enum(["ranked", "win_back", "new"]);
+
+export function kanbanLayoutSchema() {
+  // Kanban sorts/filters use the opps source's SQL fields, minus stage
+  // (it's the columns) and school_yr (fixed by the plan).
+  const sortableFieldIds = new Set(
+    SOURCE_FIELDS.opps
+      .map((f) => f.id)
+      .filter((id) => id !== "stage" && id !== "school_yr"),
+  );
+  return z.object({
+    filters: filterAndSchema,
+    sort: z.array(sortEntrySchema).superRefine((entries, ctx) => {
+      for (const e of entries) {
+        if (!sortableFieldIds.has(e.id)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Sort field "${e.id}" is not sortable for the kanban`,
+          });
+        }
+      }
+    }),
+    rankBuckets: z.array(rankBucketSchema),
+    rankSort: z.enum(["asc", "desc"]).nullable(),
+  });
+}
+
 // News has an extra `mode` field on top of the standard grid layout fields.
 const newsLayoutSchema = z.object({
   columns: gridLayoutSchema("news").shape.columns,
@@ -78,9 +105,11 @@ export function viewLayoutsSchema() {
       vacancies: gridLayoutSchema("vacancies").optional(),
       news:      newsLayoutSchema.optional(),
       rfps:      gridLayoutSchema("rfps").optional(),
+      kanban:    kanbanLayoutSchema().optional(),
     })
     .nullable();
 }
 
 export type GridViewLayout = z.infer<ReturnType<typeof gridLayoutSchema>>;
 export type ViewLayouts = z.infer<ReturnType<typeof viewLayoutsSchema>>;
+export type KanbanLayout = z.infer<ReturnType<typeof kanbanLayoutSchema>>;
