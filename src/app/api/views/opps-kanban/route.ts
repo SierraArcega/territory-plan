@@ -245,7 +245,7 @@ export async function GET(req: NextRequest) {
     getGlobalCustomerLabels(),
   ]);
 
-  const bucketOf = (leaid: string | null): string => labels.get(leaid ?? "")?.label ?? "new";
+  const bucketOf = (leaid: string | null) => labels.get(leaid ?? "")?.label ?? "new";
   const visibleRows = rankBuckets.length === 0
     ? cardResult.rows
     : cardResult.rows.filter((r) => rankBuckets.includes(bucketOf(r.district_lea_id)));
