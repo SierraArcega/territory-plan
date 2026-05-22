@@ -228,6 +228,7 @@ function ViewBody({
           leaids={leaids}
           fiscalYear={plan?.fiscalYear ?? null}
           planId={plan?.id ?? null}
+          savedLayouts={savedLayouts}
         />
       );
     case "contacts":

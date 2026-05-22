@@ -9,6 +9,11 @@ vi.mock("@/features/shared/lib/api-client", async (importOriginal) => {
   return { ...actual, fetchJson: vi.fn() };
 });
 
+vi.mock("@/features/views/lib/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/views/lib/queries")>();
+  return { ...actual, useUpdatePlanLayout: () => ({ mutate: vi.fn() }), useUpdateListLayout: () => ({ mutate: vi.fn() }) };
+});
+
 import KanbanView from "../KanbanView";
 import { fetchJson } from "@/features/shared/lib/api-client";
 
@@ -68,7 +73,7 @@ beforeEach(() => {
 
 describe("KanbanView", () => {
   it("shows the no-opportunities empty state when the plan has no fiscal year", () => {
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={null} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={null} planId="plan-1" savedLayouts={null} />));
     expect(
       screen.getByText("No opportunities for this plan's year"),
     ).toBeInTheDocument();
@@ -76,14 +81,14 @@ describe("KanbanView", () => {
   });
 
   it("shows the list-scope empty state and never fetches when leaids is null", () => {
-    render(wrap(<KanbanView leaids={null} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={null} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     expect(screen.getByText("List scoping not wired yet")).toBeInTheDocument();
     expect(fetchJson as Mock).not.toHaveBeenCalled();
   });
 
   it("renders opportunity cards with their district and amount", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     expect(await screen.findByText("Acme Renewal")).toBeInTheDocument();
     expect(screen.getByText("Beta Expansion")).toBeInTheDocument();
     expect(screen.getByText("Acme District")).toBeInTheDocument();
@@ -91,7 +96,7 @@ describe("KanbanView", () => {
 
   it("shows the contract-type badge only when present", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     expect(screen.getByText("Tier 1")).toBeInTheDocument(); // opp-1
     expect(screen.queryByText("null")).toBeNull();
@@ -99,28 +104,28 @@ describe("KanbanView", () => {
 
   it("renders a Max budget row only for cards that have one", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     expect(screen.getAllByText("Max budget")).toHaveLength(1);
   });
 
   it("shows the per-column summed bookings in the header", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     expect(screen.getByText("$175K")).toBeInTheDocument();
   });
 
   it("shows a '+N more' footer when a column has more than the rendered cards", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     expect(screen.getByText("+2 more")).toBeInTheDocument();
   });
 
   it("marks cards for detail-panel routing", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    const { container } = render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    const { container } = render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     expect(
       container.querySelector('[data-row-kind="opp"][data-row-id="opp-1"]'),
@@ -129,7 +134,7 @@ describe("KanbanView", () => {
 
   it("links out to the opp's LMS url in a new tab, only when present", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     // opp-1 has a detailsLink; opp-2 does not → exactly one LMS link
     const links = screen.getAllByRole("link", { name: "Open in LMS" });
@@ -145,7 +150,7 @@ describe("KanbanView", () => {
 
   it("renders a leftmost Targeted column of no-opp districts with summed targets", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     expect(await screen.findByText("Targeted")).toBeInTheDocument();
     expect(screen.getByText("Untouched District A")).toBeInTheDocument();
     expect(screen.getByText("Untouched District B")).toBeInTheDocument();
@@ -156,7 +161,7 @@ describe("KanbanView", () => {
   it("routes Targeted district cards to the district detail panel", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
     const { container } = render(
-      wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />),
+      wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />),
     );
     await screen.findByText("Targeted");
     expect(
@@ -166,10 +171,32 @@ describe("KanbanView", () => {
 
   it("shows the district rank label on opp and district cards", async () => {
     (fetchJson as Mock).mockResolvedValue(fixture);
-    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" />));
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
     await screen.findByText("Acme Renewal");
     expect(screen.getByText("#3")).toBeInTheDocument(); // opp-1's district rank
     expect(screen.getByText("Win Back")).toBeInTheDocument(); // targeted district A
     expect(screen.getByText("#7")).toBeInTheDocument(); // targeted district B
+  });
+
+  it("renders the filter/sort toolbar above the board", async () => {
+    (fetchJson as Mock).mockResolvedValue(fixture);
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={null} />));
+    await screen.findByText("Acme Renewal");
+    expect(screen.getByText("Filter")).toBeInTheDocument();
+    expect(screen.getByText("Sort")).toBeInTheDocument();
+  });
+
+  it("seeds the request from a saved filter layout", async () => {
+    (fetchJson as Mock).mockResolvedValue(fixture);
+    const savedLayouts = {
+      kanban: {
+        filters: { kind: "and" as const, children: [{ kind: "rule" as const, fieldId: "net_booking_amount", op: ">=" as const, value: 50000 }] },
+        sort: [], rankBuckets: [], rankSort: null,
+      },
+    };
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} planId="plan-1" savedLayouts={savedLayouts} />));
+    await screen.findByText("Acme Renewal");
+    const url = (fetchJson as Mock).mock.calls.at(-1)?.[0] as string;
+    expect(url).toContain("filters=");
   });
 });

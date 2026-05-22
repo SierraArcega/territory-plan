@@ -28,6 +28,9 @@ import {
   leaidsKey,
 } from "./_shared";
 import { formatMoney } from "./TableView";
+import { useKanbanLayout } from "@/features/views/hooks/useKanbanLayout";
+import { KanbanToolbar } from "./KanbanToolbar";
+import type { ViewLayouts } from "@/lib/saved-views/grid-layout-schema";
 
 interface KanbanViewProps {
   leaids: string[] | null;
@@ -35,6 +38,8 @@ interface KanbanViewProps {
   fiscalYear: number | null;
   /** Plan id — drives the "Targeted" column. null for lists (not scoped in v1). */
   planId: string | null;
+  /** Saved viewLayouts blob from the parent plan/list — seeds filter/sort state. */
+  savedLayouts: ViewLayouts;
 }
 
 interface KanbanCard {
@@ -94,18 +99,25 @@ const EMPTY_TARGETED: TargetedData = {
   hasMore: false,
 };
 
-export default function KanbanView({ leaids, fiscalYear, planId }: KanbanViewProps) {
+export default function KanbanView({ leaids, fiscalYear, planId, savedLayouts }: KanbanViewProps) {
   const keyTag = leaidsKey(leaids);
   const schoolYr = fiscalYear != null ? fiscalYearToSchoolYear(fiscalYear) : "";
 
+  const { layout, setLayout } = useKanbanLayout({ parentKind: "plan", parentId: planId ?? "", savedLayouts });
+  const filtersJson = JSON.stringify(layout.filters);
+  const sortJson = JSON.stringify(layout.sort);
+
   const q = useQuery({
-    queryKey: ["views", "opps-kanban", keyTag, schoolYr, planId ?? "", PAGE_SIZE] as const,
+    queryKey: ["views", "opps-kanban", keyTag, schoolYr, planId ?? "", PAGE_SIZE, filtersJson, sortJson] as const,
     queryFn: () => {
       const csv = leaidsCsv(leaids);
       const planParam = planId ? `&planId=${encodeURIComponent(planId)}` : "";
+      const hasFilters = layout.filters.children.length > 0;
+      const filterParam = hasFilters ? `&filters=${encodeURIComponent(filtersJson)}` : "";
+      const sortParam = layout.sort.length > 0 ? `&sort=${encodeURIComponent(sortJson)}` : "";
       return fetchJson<KanbanResponse>(
         `${API_BASE}/views/opps-kanban?leaids=${encodeURIComponent(csv)}` +
-          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}${planParam}`,
+          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}${planParam}${filterParam}${sortParam}`,
       );
     },
     enabled: leaids !== null && schoolYr !== "",
@@ -144,21 +156,24 @@ export default function KanbanView({ leaids, fiscalYear, planId }: KanbanViewPro
   }
 
   return (
-    <div
-      className="h-full overflow-auto bg-[#FFFCFA] p-4"
-      style={{ touchAction: "pan-y" }}
-    >
-      <div className="flex gap-3 min-w-max h-full">
-        {targeted.count > 0 && (
-          <TargetedColumn targeted={targeted} accent={TARGETED_ACCENT} />
-        )}
-        {columns.map((col) => (
-          <Column
-            key={col.id}
-            col={col}
-            accent={ACCENT_BY_ID[col.id] ?? "#A69DC0"}
-          />
-        ))}
+    <div className="flex h-full flex-col">
+      <KanbanToolbar layout={layout} onChange={setLayout} />
+      <div
+        className="flex-1 overflow-auto bg-[#FFFCFA] p-4"
+        style={{ touchAction: "pan-y" }}
+      >
+        <div className="flex gap-3 min-w-max h-full">
+          {targeted.count > 0 && (
+            <TargetedColumn targeted={targeted} accent={TARGETED_ACCENT} />
+          )}
+          {columns.map((col) => (
+            <Column
+              key={col.id}
+              col={col}
+              accent={ACCENT_BY_ID[col.id] ?? "#A69DC0"}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
