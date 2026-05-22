@@ -60,7 +60,10 @@ export function gridLayoutSchema(source: SavedListSource) {
   });
 }
 
-const rankBucketSchema = z.enum(["ranked", "win_back", "new"]);
+// Bucket values match LabelKind from global-customer-labels.ts: a ranked
+// customer ("rank"), a win-back, or new — so the kanban route can compare a
+// district's label to the selected buckets directly.
+const rankBucketSchema = z.enum(["rank", "win_back", "new"]);
 
 export function kanbanLayoutSchema() {
   // Kanban sorts/filters use the opps source's SQL fields, minus stage

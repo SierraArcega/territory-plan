@@ -104,7 +104,7 @@ describe("kanbanLayoutSchema", () => {
     const ok = kanbanLayoutSchema().safeParse({
       filters: { kind: "and", children: [] },
       sort: [{ id: "net_booking_amount", dir: "desc" }],
-      rankBuckets: ["ranked", "new"],
+      rankBuckets: ["rank", "new"],
       rankSort: "asc",
     });
     expect(ok.success).toBe(true);
