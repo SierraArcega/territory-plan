@@ -121,14 +121,18 @@ async function computeAllPlanStats(
     [leaids],
   );
 
-  const newsRowsP = pool.query<{ leaid: string; count: string }>(
-    `SELECT nad.leaid, COUNT(DISTINCT na.id) AS count
-     FROM news_article_districts nad
+  // Group by plan_id (via territory_plan_districts) so articles that span
+  // multiple districts in the same plan are counted once, not once per district.
+  const planIds = plans.map((p) => p.id);
+  const newsRowsP = pool.query<{ plan_id: string; count: string }>(
+    `SELECT tpd.plan_id, COUNT(DISTINCT na.id) AS count
+     FROM territory_plan_districts tpd
+     JOIN news_article_districts nad ON nad.leaid = tpd.district_leaid
      JOIN news_articles na ON na.id = nad.article_id
-     WHERE nad.leaid = ANY($1::text[])
+     WHERE tpd.plan_id = ANY($1::text[])
        AND na.published_at >= NOW() - INTERVAL '30 days'
-     GROUP BY nad.leaid`,
-    [leaids],
+     GROUP BY tpd.plan_id`,
+    [planIds],
   );
 
   const [oppsRows, contactsRows, newsRows] = await Promise.all([oppsRowsP, contactsRowsP, newsRowsP]);
@@ -158,9 +162,9 @@ async function computeAllPlanStats(
     contactsByLeaid.set(r.leaid, Number(r.count));
   }
 
-  const newsByLeaid = new Map<string, number>();
+  const newsByPlanId = new Map<string, number>();
   for (const r of newsRows.rows) {
-    newsByLeaid.set(r.leaid, Number(r.count));
+    newsByPlanId.set(r.plan_id, Number(r.count));
   }
 
   for (const plan of plans) {
@@ -181,7 +185,6 @@ async function computeAllPlanStats(
     let bookings = 0;
     let contactsCount = 0;
     let closedWonMinCommit = 0;
-    let recentNewsCount = 0;
     for (const d of plan.districts) {
       const o = oppsByKey.get(`${d.districtLeaid}|${schoolYr}`);
       if (o) {
@@ -191,8 +194,8 @@ async function computeAllPlanStats(
         closedWonMinCommit += o.closedWonMinCommit;
       }
       contactsCount += contactsByLeaid.get(d.districtLeaid) ?? 0;
-      recentNewsCount += newsByLeaid.get(d.districtLeaid) ?? 0;
     }
+    const recentNewsCount = newsByPlanId.get(plan.id) ?? 0;
     const progress =
       plan.targetsTotal > 0
         ? Math.max(0, Math.min(100, Math.round((bookings / plan.targetsTotal) * 100)))

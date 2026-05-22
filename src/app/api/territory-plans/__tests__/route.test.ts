@@ -271,9 +271,9 @@ describe("Territory Plans API", () => {
       mockReadonlyQuery.mockResolvedValueOnce({ rows: [] });
       // contacts query (readonly pool)
       mockReadonlyQuery.mockResolvedValueOnce({ rows: [] });
-      // news query — 3 recent articles for this district (regular pool)
+      // news query — 3 recent articles for this plan (regular pool, grouped by plan_id)
       mockPoolQuery.mockResolvedValueOnce({
-        rows: [{ leaid: "1234567", count: "3" }],
+        rows: [{ plan_id: "plan-news", count: "3" }],
       });
 
       const response = await listPlans(makeListReq("?stats=1"));
