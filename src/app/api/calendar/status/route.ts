@@ -29,6 +29,10 @@ function getCalendarMetadata(integration: { metadata: unknown }): CalendarMetada
   return (integration.metadata ?? {}) as CalendarMetadata;
 }
 
+function resolveCompanyDomains(meta: CalendarMetadata): string[] {
+  return meta.companyDomains ?? (meta.companyDomain ? [meta.companyDomain] : []);
+}
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -71,7 +75,7 @@ export async function GET() {
         id: integration.id,
         googleAccountEmail: integration.accountEmail ?? "",
         companyDomain: meta.companyDomain ?? "",
-        companyDomains: meta.companyDomains ?? (meta.companyDomain ? [meta.companyDomain] : []),
+        companyDomains: resolveCompanyDomains(meta),
         syncEnabled: integration.syncEnabled,
         lastSyncAt: integration.lastSyncAt?.toISOString() || null,
         status: integration.status,

@@ -10,6 +10,8 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const ADDITIONAL_INTERNAL_DOMAINS = ["elevatek12.com"];
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const searchParams = url.searchParams;
@@ -77,7 +79,6 @@ export async function GET(request: NextRequest) {
     // domain whose attendees should never appear as "external".
     const userEmail = user.email || "";
     const companyDomain = userEmail.split("@")[1] || "";
-    const ADDITIONAL_INTERNAL_DOMAINS = ["elevatek12.com"];
     const companyDomains = companyDomain
       ? [companyDomain, ...ADDITIONAL_INTERNAL_DOMAINS.filter((d) => d !== companyDomain)]
       : ADDITIONAL_INTERNAL_DOMAINS;

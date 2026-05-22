@@ -175,7 +175,6 @@ export async function fetchCalendarEvents(
 
 // Filter attendees to only external people (not from the rep's company domains)
 // This is the key heuristic: if someone outside the org is on the invite, it's likely a sales meeting
-// Accepts a single domain string (legacy) or an array of domains (multi-domain orgs)
 export function filterExternalAttendees(
   attendees: GoogleCalendarEvent["attendees"],
   companyDomains: string | string[]

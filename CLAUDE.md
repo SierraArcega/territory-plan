@@ -118,6 +118,34 @@ your local code never runs.
   Clay table's input columns / HTTP callback payload — app-side code alone
   won't fix a mismatch on Clay's side.
 
+## Before Opening a PR
+
+Run `/code-review` after any batch of related work — every ~20 PRs, or any time a feature touches multiple files. Issues caught at PR time are cheap; issues caught after they've been copy-pasted into 3 other files are not.
+
+Quick self-check before you open:
+
+- **Search before you write** — grep for any utility, hook, or component you're about to create. Common locations: `src/features/shared/lib/`, `src/features/shared/components/`, adjacent feature `lib/` directories. See **Known Shared Utilities** below.
+- **Constants at module level** — never declare a `const` that doesn't depend on request data inside a request handler or render function body.
+- **Duplicate JSX = extract first** — if the same markup appears in 2+ files, create a shared component before the third copy lands. This is especially easy to miss during multi-file passes (mobile optimization, feature rollouts).
+- **"Mirror X logic exactly" = extract a helper** — duplication acknowledged in a comment is duplication that will drift. Extract it before opening the PR.
+- **No TODOs in migration files** — deferred work belongs in issues, not SQL files that ship to production.
+
+### Known Shared Utilities & Components
+
+Before writing new logic, check if it already exists:
+
+**Frontend**
+- `src/features/activities/components/page/CollapseButton.tsx` — `sm:hidden` ChevronUp collapse button; used by activity page header/filters/tabs
+- `src/features/shared/hooks/useIsMobile.ts` — `useIsMobile()` for the 639px breakpoint; store result in a `useRef` when needed inside async callbacks
+- `src/features/shared/lib/date-utils.ts` — `parseLocalDate()` for local-midnight date parsing (do not hand-roll `split("T")[0] + "T00:00:00"`)
+
+**Calendar**
+- `src/features/calendar/lib/google.ts` — `filterExternalAttendees()` for domain-based attendee filtering
+- `src/app/api/calendar/status/route.ts` — `resolveCompanyDomains(meta)` for the `companyDomains`/`companyDomain` scalar fallback pattern; import or copy this before inlining the coalesce logic
+
+**ETL (Python)**
+- `scripts/etl/loaders/fullmind.py` — `_compute_is_customer(r)` and `_compute_has_open_pipeline(r)` for Fullmind district flag logic; never inline these expressions
+
 ## Large Files — Read Selectively
 - `src/features/map/lib/store.ts` (~1400 lines) — Zustand store, grep for specific slices
 - `src/features/map/lib/layers.ts` (688 lines) — MapLibre layer configs
@@ -130,6 +158,7 @@ your local code never runs.
 - `/design-review` — post-implementation design QA audit
 - `/frontend-design` — build UI with Fullmind brand compliance
 - `/mobile-design` — responsive layout guidance for < 640px: collapsible panels, responsive tables, nav adaptation, icon minimization, scroll safety, safe zones, testing checklist
+- `/code-review` — review recent changes for reuse, quality, and efficiency; run every ~20 PRs or after any multi-file feature pass
 
 ## Documentation
 - `Documentation/UI Framework/` — 80+ component/pattern specs (the design system)
