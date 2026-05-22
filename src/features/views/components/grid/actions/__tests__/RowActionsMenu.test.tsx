@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RowActionsMenu } from "../RowActionsMenu";
 
@@ -18,6 +18,29 @@ vi.mock("@tiptap/react", () => ({
 }));
 // useProfile is called inside NotesPopover; stub it to avoid a real fetch.
 vi.mock("@/lib/api", () => ({ useProfile: () => ({ data: { id: "me" } }) }));
+
+// Stub the heavy home activity modal — we only assert the wiring contract:
+// that RowActionsMenu mounts it preselected with the clicked district + plan.
+vi.mock("@/features/activities/components/ActivityFormModal", () => ({
+  default: ({
+    isOpen,
+    defaultPlanId,
+    defaultDistricts,
+  }: {
+    isOpen: boolean;
+    defaultPlanId?: string;
+    defaultDistricts?: { leaid: string; name: string }[];
+  }) =>
+    isOpen ? (
+      <div data-testid="activity-modal" data-plan-id={defaultPlanId ?? ""}>
+        {(defaultDistricts ?? []).map((d) => (
+          <span key={d.leaid} data-leaid={d.leaid}>
+            {d.name}
+          </span>
+        ))}
+      </div>
+    ) : null,
+}));
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -53,12 +76,14 @@ describe("RowActionsMenu", () => {
     await waitFor(() => expect(screen.queryByRole("menuitem")).not.toBeInTheDocument());
   });
 
-  it("opens the activity modal with the district preselected", async () => {
+  it("opens the home activity modal preselected with the clicked district and plan", async () => {
     render(<RowActionsMenu {...props} />, { wrapper });
     fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
     fireEvent.click(await screen.findByRole("menuitem", { name: /log activity/i }));
-    // Modal opens scoped to this district — the district option is shown without any extra click.
-    expect(await screen.findByRole("option", { name: /tedesco usd/i })).toBeInTheDocument();
+    // The home modal mounts pre-associated with the row's plan + district — no extra clicks.
+    const modal = await screen.findByTestId("activity-modal");
+    expect(modal).toHaveAttribute("data-plan-id", "plan-1");
+    expect(within(modal).getByText(/tedesco usd/i)).toBeInTheDocument();
   });
 
   it("removes the district after a two-step confirm and invalidates the grid", async () => {

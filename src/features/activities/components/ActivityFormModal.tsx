@@ -38,8 +38,12 @@ interface ActivityFormModalProps {
   onClose: () => void;
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
+  /** Districts to pre-associate the activity with (e.g. the district row a rep clicked). */
+  defaultDistricts?: { leaid: string; name: string; stateAbbrev: string | null }[];
   embedded?: boolean;
   editActivityId?: string;
+  /** Fired after a successful create so callers can refresh their own queries. */
+  onCreated?: () => void;
 }
 
 type ModalStep = "pick-category" | "pick-type" | "form";
@@ -49,9 +53,14 @@ export default function ActivityFormModal({
   onClose,
   defaultCategory,
   defaultPlanId,
+  defaultDistricts,
   embedded,
   editActivityId,
+  onCreated,
 }: ActivityFormModalProps) {
+  // Serialized key so the reset effect re-runs only when the actual set of
+  // pre-associated districts changes — not on every render from a fresh array.
+  const defaultDistrictsKey = (defaultDistricts ?? []).map((d) => d.leaid).join(",");
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
@@ -86,7 +95,7 @@ export default function ActivityFormModal({
   const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
   const [selectedDistricts, setSelectedDistricts] = useState<
     { leaid: string; name: string; stateAbbrev: string | null; visitDate?: string; notes?: string }[]
-  >([]);
+  >(defaultDistricts ?? []);
 
   // Outcome state
   const [outcomeRating, setOutcomeRating] = useState(0);
@@ -140,7 +149,7 @@ export default function ActivityFormModal({
     setOutcomeNote("");
     setLinkedOpportunities([]);
     setOutcomeContacts([]);
-    setSelectedDistricts([]);
+    setSelectedDistricts(defaultDistricts ?? []);
     setTaskDrafts([]);
     setExpenses([]);
     setRelatedActivities([]);
@@ -161,7 +170,7 @@ export default function ActivityFormModal({
       }
       setSuccessFlash(null);
     }
-  }, [isOpen, defaultCategory, defaultPlanId, isEditMode]);
+  }, [isOpen, defaultCategory, defaultPlanId, isEditMode, defaultDistrictsKey]);
 
   // Populate form when edit activity data loads
   useEffect(() => {
@@ -379,6 +388,8 @@ export default function ActivityFormModal({
         });
       }
 
+      onCreated?.();
+
       if (createAnother) {
         resetForm();
         setSuccessFlash(`"${savedTitle}" created`);
@@ -521,8 +532,8 @@ export default function ActivityFormModal({
                   className="group flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA] transition-all text-center"
                 >
                   <span className="text-3xl group-hover:scale-110 transition-transform">{CATEGORY_ICONS[category]}</span>
-                  <span className="text-sm font-semibold text-[#403770]">{CATEGORY_LABELS[category]}</span>
-                  <span className="text-xs text-[#A69DC0] leading-tight">{CATEGORY_DESCRIPTIONS[category]}</span>
+                  <span className="w-full text-sm font-semibold text-[#403770]">{CATEGORY_LABELS[category]}</span>
+                  <span className="w-full text-xs text-[#A69DC0] leading-tight text-balance">{CATEGORY_DESCRIPTIONS[category]}</span>
                 </button>
               ))}
             </div>

@@ -20,7 +20,10 @@
  */
 import { useMemo, useState } from "react";
 import { MapPin } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEntity } from "../../lib/queries";
+import { useMapV2Store } from "@/features/map/lib/store";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import DetailPanelHeader from "./DetailPanelHeader";
 import DetailPanelTabs, { type DistrictDetailTab } from "./DetailPanelTabs";
 import {
@@ -80,6 +83,11 @@ interface Props {
 export default function DistrictDetailContent({ id, onClose }: Props) {
   const q = useEntity("district", id);
   const [tab, setTab] = useState<DistrictDetailTab>("overview");
+  const [logOpen, setLogOpen] = useState(false);
+  // Current plan context (set when viewing a plan's grid) — pre-associates the
+  // logged activity with "the plan I'm in". Null on list views (no plan scope).
+  const viewsPlanId = useMapV2Store((s) => s.viewsPlanId);
+  const qc = useQueryClient();
 
   const data = isDistrictApiResponse(q.data) ? q.data : null;
   const district = data?.district ?? null;
@@ -141,6 +149,7 @@ export default function DistrictDetailContent({ id, onClose }: Props) {
           </>
         }
         onClose={onClose}
+        onPrimaryAction={() => setLogOpen(true)}
         secondaryActionLabel="Add to list"
       />
 
@@ -241,6 +250,18 @@ export default function DistrictDetailContent({ id, onClose }: Props) {
           </div>
         </PanelBody>
       )}
+
+      <ActivityFormModal
+        isOpen={logOpen}
+        onClose={() => setLogOpen(false)}
+        defaultPlanId={viewsPlanId ?? undefined}
+        defaultDistricts={
+          district
+            ? [{ leaid: district.leaid, name: district.name, stateAbbrev: district.stateAbbrev }]
+            : []
+        }
+        onCreated={() => qc.invalidateQueries({ queryKey: ["views", "data"] })}
+      />
     </>
   );
 }

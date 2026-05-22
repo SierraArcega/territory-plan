@@ -6,8 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnchoredPopover } from "../AnchoredPopover";
 import { useRemoveDistrictFromPlan } from "@/features/plans/lib/queries";
 import { SetTargetsPopover } from "./SetTargetsPopover";
-import ActivityFormModal, { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
-import { useCreateActivity } from "@/features/activities/lib/queries";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import { NotesPopover } from "@/features/views/components/notes/NotesPopover";
 
 interface Props {
@@ -25,23 +24,6 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
 
   const queryClient = useQueryClient();
   const removeMutation = useRemoveDistrictFromPlan();
-  const createActivity = useCreateActivity();
-
-  async function handleCreateActivity(data: ActivityFormData) {
-    await createActivity.mutateAsync({
-      type: data.type,
-      title: data.title,
-      startDate: new Date(data.startDate).toISOString(),
-      endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
-      status: data.status,
-      planIds: [planId],
-      districtLeaids: data.districtLeaid ? [data.districtLeaid] : undefined,
-      contactIds: data.contactIds.length > 0 ? data.contactIds : undefined,
-      notes: data.notes || undefined,
-    });
-    queryClient.invalidateQueries({ queryKey: ["views", "data"] });
-    setSurface(null);
-  }
 
   const item =
     "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#403770] hover:bg-[#F7F5FA]";
@@ -163,11 +145,9 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
         <ActivityFormModal
           isOpen
           onClose={() => setSurface(null)}
-          onSubmit={handleCreateActivity}
-          districts={[{ leaid, name: districtName, stateAbbrev: null }]}
-          contacts={[]}
-          title={`Log activity · ${districtName}`}
-          initialDistrictLeaid={leaid}
+          defaultPlanId={planId}
+          defaultDistricts={[{ leaid, name: districtName, stateAbbrev: null }]}
+          onCreated={() => queryClient.invalidateQueries({ queryKey: ["views", "data"] })}
         />
       )}
 
