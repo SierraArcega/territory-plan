@@ -3,7 +3,7 @@ _2026-05-22_
 
 ## Overview
 
-Five bugs/improvements across the Plans portfolio page, My Views sidebar, and plan-row sidebar items. All changes are contained to the views feature and the territory-plans API route. No schema migrations required.
+Four bugs/improvements across the Plans portfolio page, My Views sidebar, and plan-row sidebar items. All changes are contained to the views feature and the territory-plans API route. No schema migrations required.
 
 ---
 
@@ -41,23 +41,7 @@ Plans with targets configured (including 0% achieved) still show the ring. Plans
 
 ---
 
-## 4. Expanded Meta Line Omits 0% for Plans Without Targets
-
-**Root cause:** The expanded meta line in `GroupRow` gates the percentage label on `typeof progress === "number"`. When `progress` is `null` (no targets), the condition is false and no percentage appears — so Missouri shows "FY27" while North Dakota (with targets, 0 bookings) shows "0% FY27".
-
-**Fix:** Broaden the condition to include `null`:
-```tsx
-{(typeof progress === "number" || progress === null) && (
-  <span>{progress ?? 0}%</span>
-)}
-```
-Both cases now display `0%`. The ring (item 3) is hidden for null progress because a zero-length arc is visual noise with no meaning; the text label `0%` is retained because it is explicit and informative — the user understands the plan has no bookings yet.
-
-**Files:** `src/features/views/components/GroupRow.tsx`
-
----
-
-## 5. View Count Badges in Sidebar Plan Rows
+## 4. View Count Badges in Sidebar Plan Rows
 
 Show a count to the right of each view-type item (Map, Table, Kanban, Contacts, Opps, Signals) when a plan is expanded in the sidebar. Lets users anticipate what's inside before clicking and doubles as a prefetch signal — the counts come from data already loaded by `usePlansWithStats(?stats=1)`.
 
