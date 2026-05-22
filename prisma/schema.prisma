@@ -917,6 +917,7 @@ model DistrictNote {
   authorId      String   @map("author_id") @db.Uuid
   bodyJson      Json     @map("body_json")
   bodyText      String   @default("") @map("body_text")
+  noteType      String   @default("general_update") @map("note_type") @db.VarChar(20)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
