@@ -196,7 +196,7 @@ export default function GroupRow({
               avoid stacking visual noise). Lists show a filter-count badge. */}
           {!showDotsButton &&
             (isPlan ? (
-              <ProgressRing pct={progress ?? 0} />
+              progress !== null && <ProgressRing pct={progress} />
             ) : (
               <span className="text-[10px] font-medium text-[#A69DC0] tabular-nums whitespace-nowrap">
                 {typeof filterCount === "number" ? filterCount : ""}
