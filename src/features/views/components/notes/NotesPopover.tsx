@@ -38,7 +38,7 @@ export function NotesPopover({ leaid, districtName, onClose }: Props) {
   }, [onClose]);
 
   function submit(draft: NoteDraft) {
-    create.mutate({ leaid, bodyJson: draft.bodyJson, bodyText: draft.bodyText });
+    create.mutate({ leaid, bodyJson: draft.bodyJson, bodyText: draft.bodyText, noteType: draft.noteType });
   }
 
   return (

@@ -156,6 +156,8 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       column: "",
       type: "text",
       ops: ["is", "is any of"],
+      // Keep in sync with NOTE_TYPE_VALUES in src/features/views/lib/note-types.ts
+      // (src/lib must not import from src/features, so this list is duplicated).
       enumValues: ["general_update", "good_news", "risk_flag", "next_step", "meeting_recap"],
       virtual: true,
       requiresPlanContext: false,

@@ -148,6 +148,8 @@ function compileVirtualField(
       throw new Error(`"note_type" only supports ops "is" / "is any of"; got "${node.op}".`);
     }
     const values = Array.isArray(node.value) ? node.value : [node.value];
+    // Keep in sync with NOTE_TYPE_VALUES in src/features/views/lib/note-types.ts
+    // (src/lib must not import from src/features, so this list is duplicated).
     const allowed = new Set(["general_update", "good_news", "risk_flag", "next_step", "meeting_recap"]);
     if (!values.every((v) => typeof v === "string" && allowed.has(v))) {
       throw new Error(`"note_type" only accepts general_update | good_news | risk_flag | next_step | meeting_recap`);
