@@ -24,6 +24,7 @@ import { GridFilterChips } from "./GridFilterChips";
 import { GridSortChips } from "./GridSortChips";
 import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
+import { RowActionsMenu } from "./actions/RowActionsMenu";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { PlanNotesCell } from "./cells/PlanNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
@@ -195,6 +196,7 @@ export default function GridView(props: GridViewProps) {
   // When the grid lives inside a plan, forward the planId so virtual fields
   // like `has_target` can compile their EXISTS subquery on the backend.
   const planId = parentKind === "plan" ? parentId ?? null : null;
+  const showRowActions = parentKind === "plan" && source === "districts" && planId != null;
   const q = useViewsData({ source, leaids, listId, planId, layout, limit, offset: 0 });
 
   function handleSortChange(columnId: string, dir: "asc" | "desc" | null, shift: boolean) {
@@ -376,7 +378,7 @@ export default function GridView(props: GridViewProps) {
     });
   }
 
-  const colCount = visibleCols.length + 1;
+  const colCount = visibleCols.length + 1 + (showRowActions ? 1 : 0);
 
   function renderBody() {
     const tableRows = table.getRowModel().rows;
@@ -400,6 +402,15 @@ export default function GridView(props: GridViewProps) {
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </td>
             ))}
+            {showRowActions && (
+              <td className="border-b border-[#EFEDF5] px-2 py-1.5 text-right whitespace-nowrap">
+                <RowActionsMenu
+                  planId={planId!}
+                  leaid={String(original.leaid ?? "")}
+                  districtName={String(original.name ?? "")}
+                />
+              </td>
+            )}
             {/* Matching spacer cell — keeps the column count consistent
                 so the spacer header has a body counterpart. */}
             <td aria-hidden className="border-b border-[#EFEDF5]" />
@@ -474,6 +485,7 @@ export default function GridView(props: GridViewProps) {
       if (collapsed) continue;
 
       for (const { row, rowId } of bucket.rows) {
+        const original = row.original as Record<string, unknown>;
         nodes.push(
           <tr
             key={row.id}
@@ -489,6 +501,15 @@ export default function GridView(props: GridViewProps) {
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </td>
             ))}
+            {showRowActions && (
+              <td className="border-b border-[#EFEDF5] px-2 py-1.5 text-right whitespace-nowrap">
+                <RowActionsMenu
+                  planId={planId!}
+                  leaid={String(original.leaid ?? "")}
+                  districtName={String(original.name ?? "")}
+                />
+              </td>
+            )}
             <td aria-hidden className="border-b border-[#EFEDF5]" />
           </tr>,
         );
@@ -606,6 +627,9 @@ export default function GridView(props: GridViewProps) {
                   </th>
                 );
               })}
+              {showRowActions && (
+                <th aria-hidden className="border-b border-[#D4CFE2] bg-[#F7F5FA]" />
+              )}
               {/* Spacer header — `width: 100%` claims any leftover horizontal
                   space so the real columns can shrink to their content width
                   instead of stretching to fill the screen. */}
