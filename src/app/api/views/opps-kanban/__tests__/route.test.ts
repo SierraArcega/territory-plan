@@ -332,6 +332,22 @@ describe("GET /api/views/opps-kanban — filter & sort", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects malformed filters JSON with 400", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    const res = await GET(makeRequest(
+      `/api/views/opps-kanban?leaids=d1&schoolYr=2025-26&filters=${encodeURIComponent("{bad json")}`,
+    ));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects malformed sort JSON with 400", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    const res = await GET(makeRequest(
+      `/api/views/opps-kanban?leaids=d1&schoolYr=2025-26&sort=${encodeURIComponent("{bad json")}`,
+    ));
+    expect(res.status).toBe(400);
+  });
+
   it("caps a column at 50 cards with hasMore, count reflects all fetched rows", async () => {
     mockGetUser.mockResolvedValue(mockUser);
     const rows = Array.from({ length: 60 }, (_, i) => ({
