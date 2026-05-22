@@ -91,7 +91,7 @@ export function ResultsPane({
   };
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-[#FFFCFA]" style={{ flex: 1.6 }}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#FFFCFA]" style={{ flex: 1.6 }}>
       <div className="flex shrink-0 items-start gap-3 px-[18px] pt-3.5 pb-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8]">
@@ -151,7 +151,7 @@ export function ResultsPane({
 
       <ChipStrip summary={version.summary} />
 
-      <div className="min-h-0 flex-1 px-[18px] pb-[18px]">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-[18px] pb-[18px]">
         <ResultsTable columns={version.columns} rows={version.rows} />
       </div>
 

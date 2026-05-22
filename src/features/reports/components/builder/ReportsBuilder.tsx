@@ -576,7 +576,7 @@ export function ReportsBuilder({
   }, [setChatCollapsed]);
 
   const resultsPane = (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {recoveryState === "banner" && (
         <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
           <span className="text-[#5B21B6]">
@@ -646,14 +646,14 @@ export function ReportsBuilder({
   // chatCollapsed doubles as the "show results" toggle on mobile.
   if (isMobile) {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-[#FFFCFA]">
+      <div className="absolute inset-0 flex flex-col bg-[#FFFCFA]">
         {chatCollapsed ? resultsPane : builderChat}
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 bg-[#FFFCFA]">
+    <div className="absolute inset-0 flex bg-[#FFFCFA]">
       {chatCollapsed ? (
         <CollapsedChatRail
           versions={versions}
