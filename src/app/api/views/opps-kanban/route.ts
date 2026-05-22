@@ -9,6 +9,9 @@ import {
   getGlobalCustomerLabels,
   rankLabelString,
 } from "@/app/api/views/data/global-customer-labels";
+import { compileFilterTree, validateFilterTree } from "@/lib/saved-views/sql-compiler";
+import { filterAndSchema } from "@/lib/saved-views/schema";
+import type { FilterNode } from "@/lib/saved-views/filter-tree";
 
 export const dynamic = "force-dynamic";
 
@@ -59,12 +62,6 @@ interface TargetedRow {
   target: string;
 }
 
-interface AggRow {
-  stage: string;
-  count: string;
-  total: string;
-}
-
 interface CardRow {
   id: string;
   stage: string;
@@ -78,6 +75,7 @@ interface CardRow {
   sales_rep_name: string | null;
   details_link: string | null;
   district_lea_id: string | null;
+  state: string | null;
 }
 
 /** Decimal columns arrive as strings from pg — coerce to number or null. */
@@ -92,6 +90,27 @@ function toISO(v: Date | string | null): string | null {
   if (!v) return null;
   const d = new Date(v);
   return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+}
+
+interface SortEntry { id: string; dir: "asc" | "desc" }
+
+function cmpRows(a: CardRow, b: CardRow, e: SortEntry): number {
+  const get = (r: CardRow): number | string | null => {
+    switch (e.id) {
+      case "net_booking_amount": return num(r.net_booking_amount);
+      case "close_date": return r.close_date ? new Date(r.close_date).getTime() : null;
+      case "state": return r.state;
+      case "contract_type": return r.contract_type;
+      default: return null;
+    }
+  };
+  const av = get(a), bv = get(b);
+  if (av == null && bv == null) return 0;
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  let c = av < bv ? -1 : av > bv ? 1 : 0;
+  if (e.dir === "desc") c = -c;
+  return c;
 }
 
 function emptyColumns(): KanbanColumn[] {
@@ -141,46 +160,53 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const stages = [...OPP_KANBAN_STAGES];
+  // Parse + validate filters
+  const filtersRaw = params.get("filters");
+  const sortRaw = params.get("sort");
 
-  // Run aggregate, card, and targeted queries in parallel (plus the cached
-  // global rank labels). Keep the readonlyPool array order (agg, cards, targeted)
-  // stable — tests assert on call indices.
-  //
-  // "Targeted" = plan districts with NO opportunity this fiscal year. Only
-  // computable when a planId is supplied (targets live on territory_plan_districts).
-  // Districts are bounded per plan, so we fetch all matches and slice client-side.
-  const [aggResult, cardResult, targetedResult, labels] = await Promise.all([
-    readonlyPool.query<AggRow>(
-      `SELECT stage,
-              COUNT(*) AS count,
-              COALESCE(SUM(net_booking_amount), 0) AS total
-         FROM opportunities
-        WHERE district_lea_id = ANY($1)
-          AND school_yr = $2
-          AND stage = ANY($3)
-        GROUP BY stage`,
-      [leaids, schoolYr, stages],
-    ),
+  let filterTree: FilterNode = { kind: "and", children: [] };
+  if (filtersRaw) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(filtersRaw); } catch {
+      return NextResponse.json({ error: "Invalid filters JSON" }, { status: 400 });
+    }
+    const ok = filterAndSchema.safeParse(parsed);
+    if (!ok.success) return NextResponse.json({ error: "Invalid filters" }, { status: 400 });
+    filterTree = ok.data as FilterNode;
+    const fieldErr = validateFilterTree("opps", filterTree);
+    if (fieldErr) return NextResponse.json({ error: fieldErr }, { status: 400 });
+  }
+
+  let sort: SortEntry[] = [];
+  if (sortRaw) {
+    try {
+      const arr = JSON.parse(sortRaw);
+      if (Array.isArray(arr)) {
+        sort = arr.filter((e): e is SortEntry => e && typeof e.id === "string" && (e.dir === "asc" || e.dir === "desc"));
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid sort JSON" }, { status: 400 });
+    }
+  }
+
+  const stages = [...OPP_KANBAN_STAGES];
+  const baseParams: unknown[] = [leaids, schoolYr, stages];
+  const compiled = compileFilterTree("opps", filterTree, "o", baseParams.length);
+  if (!compiled.ok) return NextResponse.json({ error: compiled.error }, { status: 400 });
+  const filterWhere = compiled.whereSql && compiled.whereSql !== "TRUE" ? ` AND ${compiled.whereSql}` : "";
+  const fetchParams = [...baseParams, ...compiled.params];
+
+  const [cardResult, targetedResult, labels] = await Promise.all([
     readonlyPool.query<CardRow>(
-      `SELECT id, stage, name, district_name, contract_type, net_booking_amount,
-              minimum_purchase_amount, maximum_budget, close_date, sales_rep_name,
-              details_link, district_lea_id
-         FROM (
-           SELECT o.id, o.stage, o.name, o.district_name, o.contract_type,
-                  o.net_booking_amount, o.minimum_purchase_amount, o.maximum_budget,
-                  o.close_date, o.sales_rep_name, o.details_link, o.district_lea_id,
-                  ROW_NUMBER() OVER (
-                    PARTITION BY o.stage
-                    ORDER BY o.close_date ASC NULLS LAST, o.net_booking_amount DESC NULLS LAST
-                  ) AS rn
-             FROM opportunities o
-            WHERE o.district_lea_id = ANY($1)
-              AND o.school_yr = $2
-              AND o.stage = ANY($3)
-         ) ranked
-        WHERE rn <= $4`,
-      [leaids, schoolYr, stages, limit],
+      `SELECT o.id, o.stage, o.name, o.district_name, o.contract_type,
+              o.net_booking_amount, o.minimum_purchase_amount, o.maximum_budget,
+              o.close_date, o.sales_rep_name, o.details_link, o.district_lea_id, o.state
+         FROM opportunities o
+        WHERE o.district_lea_id = ANY($1)
+          AND o.school_yr = $2
+          AND o.stage = ANY($3)${filterWhere}
+        LIMIT 5000`,
+      fetchParams,
     ),
     planId
       ? readonlyPool.query<TargetedRow>(
@@ -205,44 +231,38 @@ export async function GET(req: NextRequest) {
     getGlobalCustomerLabels(),
   ]);
 
-  const aggByStage = new Map<string, { count: number; total: number }>();
-  for (const r of aggResult.rows) {
-    aggByStage.set(r.stage, {
-      count: Number(r.count) || 0,
-      total: Number(r.total) || 0,
-    });
+  const rowsByStage = new Map<string, CardRow[]>();
+  for (const r of cardResult.rows) {
+    const list = rowsByStage.get(r.stage) ?? [];
+    list.push(r);
+    rowsByStage.set(r.stage, list);
   }
 
-  const cardsByStage = new Map<string, KanbanCard[]>();
-  for (const r of cardResult.rows) {
-    const list = cardsByStage.get(r.stage) ?? [];
-    list.push({
-      id: r.id,
-      name: r.name,
-      districtName: r.district_name,
-      contractType: r.contract_type,
-      netBookingAmount: num(r.net_booking_amount),
-      minimumPurchaseAmount: num(r.minimum_purchase_amount),
-      maximumBudget: num(r.maximum_budget),
-      closeDate: toISO(r.close_date),
-      salesRepName: r.sales_rep_name,
-      detailsLink: r.details_link,
-      rankLabel: rankLabelString(labels.get(r.district_lea_id ?? "")),
-    });
-    cardsByStage.set(r.stage, list);
-  }
+  const toCard = (r: CardRow): KanbanCard => ({
+    id: r.id,
+    name: r.name,
+    districtName: r.district_name,
+    contractType: r.contract_type,
+    netBookingAmount: num(r.net_booking_amount),
+    minimumPurchaseAmount: num(r.minimum_purchase_amount),
+    maximumBudget: num(r.maximum_budget),
+    closeDate: toISO(r.close_date),
+    salesRepName: r.sales_rep_name,
+    detailsLink: r.details_link,
+    rankLabel: rankLabelString(labels.get(r.district_lea_id ?? "")),
+  });
 
   const columns: KanbanColumn[] = OPP_STAGE_COLUMNS.map((c) => {
-    const agg = aggByStage.get(c.stage) ?? { count: 0, total: 0 };
-    const cards = cardsByStage.get(c.stage) ?? [];
-    return {
-      id: c.id,
-      label: c.label,
-      count: agg.count,
-      totalBookings: agg.total,
-      cards,
-      hasMore: agg.count > cards.length,
-    };
+    const rows = rowsByStage.get(c.stage) ?? [];
+    const total = rows.reduce((s, r) => s + (num(r.net_booking_amount) ?? 0), 0);
+    const sorted = sort.length > 0
+      ? [...rows].sort((a, b) => { for (const e of sort) { const d = cmpRows(a, b, e); if (d !== 0) return d; } return 0; })
+      : [...rows].sort((a, b) => {
+          const ca = cmpRows(a, b, { id: "close_date", dir: "asc" });
+          if (ca !== 0) return ca;
+          return cmpRows(a, b, { id: "net_booking_amount", dir: "desc" });
+        });
+    return { id: c.id, label: c.label, count: rows.length, totalBookings: total, cards: sorted.slice(0, limit).map(toCard), hasMore: rows.length > limit };
   });
 
   const targetedAll: TargetedCard[] = targetedResult.rows.map((r) => ({
