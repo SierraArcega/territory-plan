@@ -106,9 +106,11 @@ export default function KanbanView({ leaids, fiscalYear, planId, savedLayouts }:
   const { layout, setLayout } = useKanbanLayout({ parentKind: "plan", parentId: planId ?? "", savedLayouts });
   const filtersJson = JSON.stringify(layout.filters);
   const sortJson = JSON.stringify(layout.sort);
+  const rankBucketsParam = layout.rankBuckets.length > 0 ? `&rankBuckets=${layout.rankBuckets.join(",")}` : "";
+  const rankSortParam = layout.rankSort ? `&rankSort=${layout.rankSort}` : "";
 
   const q = useQuery({
-    queryKey: ["views", "opps-kanban", keyTag, schoolYr, planId ?? "", PAGE_SIZE, filtersJson, sortJson] as const,
+    queryKey: ["views", "opps-kanban", keyTag, schoolYr, planId ?? "", PAGE_SIZE, filtersJson, sortJson, layout.rankBuckets.join(","), layout.rankSort ?? ""] as const,
     queryFn: () => {
       const csv = leaidsCsv(leaids);
       const planParam = planId ? `&planId=${encodeURIComponent(planId)}` : "";
@@ -117,7 +119,7 @@ export default function KanbanView({ leaids, fiscalYear, planId, savedLayouts }:
       const sortParam = layout.sort.length > 0 ? `&sort=${encodeURIComponent(sortJson)}` : "";
       return fetchJson<KanbanResponse>(
         `${API_BASE}/views/opps-kanban?leaids=${encodeURIComponent(csv)}` +
-          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}${planParam}${filterParam}${sortParam}`,
+          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}${planParam}${filterParam}${sortParam}${rankBucketsParam}${rankSortParam}`,
       );
     },
     enabled: leaids !== null && schoolYr !== "",
