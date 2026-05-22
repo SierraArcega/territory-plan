@@ -295,7 +295,7 @@ export function ReportsBuilder({
           };
           appendTurnFromResult("", null, safeData);
           handleSelectVersion(1);
-          if (window.matchMedia("(max-width: 639px)").matches) setChatCollapsed(true);
+          if (isMobileRef.current) setChatCollapsed(true);
         } catch (err) {
           console.error("[ReportsBuilder] /run failed", err);
           setLoadError(err instanceof Error ? err.message : String(err));

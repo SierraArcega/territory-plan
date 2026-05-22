@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ChevronDown, ChevronRight, ChevronUp, Plus, RotateCcw, Search, Square, SquareCheck, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, RotateCcw, Search, Square, SquareCheck, X } from "lucide-react";
+import { CollapseButton } from "./CollapseButton";
 import {
   ACTIVITY_CATEGORIES,
   ACTIVITY_TYPE_LABELS,
@@ -362,16 +363,7 @@ export default function ActivitiesFilterChips({ onOpenCommandBar, onCollapse }: 
             Reset filters
           </button>
         )}
-        {onCollapse && (
-          <button
-            type="button"
-            onClick={onCollapse}
-            className="sm:hidden p-1.5 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors"
-            aria-label="Collapse filters"
-          >
-            <ChevronUp className="w-3.5 h-3.5" />
-          </button>
-        )}
+        {onCollapse && <CollapseButton onClick={onCollapse} label="Collapse filters" />}
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronUp, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { CollapseButton } from "./CollapseButton";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 import {
   useSavedViews,
@@ -99,16 +100,7 @@ export default function SavedViewTabs({ onCollapse }: { currentUserId: string | 
             <Plus className="w-3 h-3" />
             Save view
           </button>
-          {onCollapse && (
-            <button
-              type="button"
-              onClick={onCollapse}
-              className="sm:hidden ml-1 mb-1 p-1.5 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors"
-              aria-label="Collapse views"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-          )}
+          {onCollapse && <CollapseButton onClick={onCollapse} label="Collapse views" className="ml-1 mb-1" />}
         </>
       )}
     </div>

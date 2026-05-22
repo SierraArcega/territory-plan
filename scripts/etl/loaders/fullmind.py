@@ -25,6 +25,19 @@ PIPELINE_COLUMNS = [
     "has_open_pipeline",
 ]
 
+
+def _compute_is_customer(r: Dict) -> bool:
+    return (
+        r["fy25_closed_won_net_booking"] > 0 or
+        r["fy26_closed_won_net_booking"] > 0 or
+        r["fy25_net_invoicing"] > 0 or
+        r["fy26_net_invoicing"] > 0
+    )
+
+
+def _compute_has_open_pipeline(r: Dict) -> bool:
+    return r["fy26_open_pipeline"] > 0 or r["fy27_open_pipeline"] > 0
+
 # Import utilities
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -98,19 +111,8 @@ def parse_csv_row(row: Dict[str, str]) -> Dict:
         record[field] = parse_int(record.get(field, ""))
 
     # Compute status flags
-    # is_customer: Has any closed won booking OR net invoicing in any year
-    record["is_customer"] = (
-        record["fy25_closed_won_net_booking"] > 0 or
-        record["fy26_closed_won_net_booking"] > 0 or
-        record["fy25_net_invoicing"] > 0 or
-        record["fy26_net_invoicing"] > 0
-    )
-
-    # has_open_pipeline: Has any open pipeline value
-    record["has_open_pipeline"] = (
-        record["fy26_open_pipeline"] > 0 or
-        record["fy27_open_pipeline"] > 0
-    )
+    record["is_customer"] = _compute_is_customer(record)
+    record["has_open_pipeline"] = _compute_has_open_pipeline(record)
 
     return record
 
@@ -219,15 +221,9 @@ def update_districts_with_fullmind_data(
             # Aggregate numeric fields
             for field in numeric_fields:
                 deduped[leaid][field] = deduped[leaid][field] + r[field]
-            # Recalculate boolean flags
-            deduped[leaid]["is_customer"] = (
-                deduped[leaid]["fy25_net_invoicing"] > 0 or
-                deduped[leaid]["fy26_net_invoicing"] > 0
-            )
-            deduped[leaid]["has_open_pipeline"] = (
-                deduped[leaid]["fy26_open_pipeline"] > 0 or
-                deduped[leaid]["fy27_open_pipeline"] > 0
-            )
+            # Recalculate boolean flags after aggregation
+            deduped[leaid]["is_customer"] = _compute_is_customer(deduped[leaid])
+            deduped[leaid]["has_open_pipeline"] = _compute_has_open_pipeline(deduped[leaid])
             # Keep first account_name, sales_executive, lmsid (they should be the same)
 
     records = list(deduped.values())
@@ -478,17 +474,12 @@ def upsert_unmatched_to_districts(
             deduped[key] = r.copy()
         else:
             existing = deduped[key]
-            for field in ["fy25_net_invoicing", "fy26_net_invoicing",
+            for field in ["fy25_closed_won_net_booking", "fy26_closed_won_net_booking",
+                          "fy25_net_invoicing", "fy26_net_invoicing",
                           "fy26_open_pipeline", "fy27_open_pipeline"]:
                 existing[field] = existing[field] + r[field]
-            existing["is_customer"] = (
-                existing["fy25_net_invoicing"] > 0 or
-                existing["fy26_net_invoicing"] > 0
-            )
-            existing["has_open_pipeline"] = (
-                existing["fy26_open_pipeline"] > 0 or
-                existing["fy27_open_pipeline"] > 0
-            )
+            existing["is_customer"] = _compute_is_customer(existing)
+            existing["has_open_pipeline"] = _compute_has_open_pipeline(existing)
     records = list(deduped.values())
 
     # Build a lookup of existing M-series districts keyed by (name, state_abbrev)

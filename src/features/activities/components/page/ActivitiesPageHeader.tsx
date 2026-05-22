@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronUp, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { CollapseButton } from "./CollapseButton";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 import ViewToggle from "./ViewToggle";
 import CalendarSyncBadge from "./CalendarSyncBadge";
@@ -64,16 +65,7 @@ export default function ActivitiesPageHeader({
             <Plus className="w-4 h-4" />
             New
           </button>
-          {onCollapse && (
-            <button
-              type="button"
-              onClick={onCollapse}
-              className="sm:hidden p-1.5 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors"
-              aria-label="Collapse header"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-          )}
+          {onCollapse && <CollapseButton onClick={onCollapse} label="Collapse header" />}
         </div>
       </div>
 
