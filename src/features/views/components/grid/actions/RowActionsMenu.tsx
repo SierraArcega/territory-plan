@@ -31,6 +31,7 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
         type="button"
         aria-label={`Actions for ${districtName}`}
         aria-haspopup="menu"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="rounded-md p-1 text-[#544A78] hover:bg-[#F7F5FA]"
       >
@@ -42,6 +43,7 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
             right-aligns under the ~32px right-edge kebab and stays on-screen. */}
         <div
           role="menu"
+          aria-label="District actions"
           style={{ width: 220, transform: "translateX(-188px)" }}
           className="rounded-xl border border-[#E2DEEC] bg-white p-1.5 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
         >
@@ -59,7 +61,7 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#C2410C] hover:bg-[#FFF1EA]"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#c25a52] hover:bg-[#fef1f0]"
             onClick={() => choose("remove")}
           >
             <X className="h-3.5 w-3.5 opacity-80" /> Remove from plan
