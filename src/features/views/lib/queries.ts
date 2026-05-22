@@ -507,6 +507,7 @@ export interface DistrictNoteEntry {
   id: string;
   bodyJson: unknown;
   bodyText: string;
+  noteType: string;
   createdAt: string;
   updatedAt: string;
   author: { id: string; fullName: string | null; email: string; avatarUrl: string | null };
@@ -522,8 +523,8 @@ export function useDistrictNotes(leaid: string | null) {
   });
 }
 
-interface CreateArgs { leaid: string; bodyJson: unknown; bodyText: string }
-interface UpdateArgs { leaid: string; noteId: string; bodyJson: unknown; bodyText: string }
+interface CreateArgs { leaid: string; bodyJson: unknown; bodyText: string; noteType?: string }
+interface UpdateArgs { leaid: string; noteId: string; bodyJson: unknown; bodyText: string; noteType?: string }
 interface DeleteArgs { leaid: string; noteId: string }
 
 /** Invalidate the leaid's note list AND the grid data (cell snippet/count). */
@@ -535,10 +536,10 @@ function invalidateNotes(qc: ReturnType<typeof useQueryClient>, leaid: string) {
 export function useCreateDistrictNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ leaid, bodyJson, bodyText }: CreateArgs) =>
+    mutationFn: ({ leaid, bodyJson, bodyText, noteType }: CreateArgs) =>
       fetchJson<DistrictNoteEntry>(`${API_BASE}/districts/${leaid}/notes`, {
         method: "POST",
-        body: JSON.stringify({ bodyJson, bodyText }),
+        body: JSON.stringify({ bodyJson, bodyText, noteType }),
       }),
     onSuccess: (_d, v) => invalidateNotes(qc, v.leaid),
   });
@@ -547,10 +548,10 @@ export function useCreateDistrictNote() {
 export function useUpdateDistrictNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ leaid, noteId, bodyJson, bodyText }: UpdateArgs) =>
+    mutationFn: ({ leaid, noteId, bodyJson, bodyText, noteType }: UpdateArgs) =>
       fetchJson<DistrictNoteEntry>(`${API_BASE}/districts/${leaid}/notes/${noteId}`, {
         method: "PATCH",
-        body: JSON.stringify({ bodyJson, bodyText }),
+        body: JSON.stringify({ bodyJson, bodyText, noteType }),
       }),
     onSuccess: (_d, v) => invalidateNotes(qc, v.leaid),
   });

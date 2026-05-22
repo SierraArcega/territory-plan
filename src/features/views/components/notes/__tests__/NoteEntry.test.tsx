@@ -15,6 +15,7 @@ const base: DistrictNoteEntry = {
   id: "n1",
   bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hello" }] }] },
   bodyText: "hello",
+  noteType: "general",
   createdAt: "2026-05-21T12:00:00Z",
   updatedAt: "2026-05-21T12:00:00Z",
   author: { id: "me", fullName: "Sierra A.", email: "s@fm.com", avatarUrl: null },
