@@ -27,6 +27,7 @@ import { GridColumnMenu } from "./GridColumnMenu";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
+import { noteTypeMeta } from "../../lib/note-types";
 import {
   LoadingState,
   ErrorState,
@@ -266,6 +267,12 @@ export default function GridView(props: GridViewProps) {
               latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
             />
           );
+        }
+        if (c.id === "note_type") {
+          const t = typeof row.notesLatestType === "string" ? row.notesLatestType : null;
+          return t
+            ? <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${noteTypeMeta(t).pill}`}>{noteTypeMeta(t).label}</span>
+            : <span className="text-[#A69DC0]">—</span>;
         }
         if (v == null) return <span className="text-[#A69DC0]">—</span>;
         return <span>{formatCellValue(v, c.format)}</span>;

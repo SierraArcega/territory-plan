@@ -1,8 +1,9 @@
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type { EnumSourceId } from "./enum-sources";
+import { NOTE_TYPE_VALUES, NOTE_TYPE_LABELS } from "./note-types";
 
 export type FilterWidget =
-  | { kind: "multiselect"; values: readonly string[] }
+  | { kind: "multiselect"; values: readonly string[]; labels?: Record<string, string> }
   | { kind: "multiselect"; enumSource: EnumSourceId }
   | { kind: "select"; values: readonly string[] }
   | { kind: "select"; enumSource: EnumSourceId }
@@ -133,6 +134,10 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
     { id: "has_target",    header: "Has target",kind: "derived", accessor: "hasTarget",
       sortable: false, filterFieldId: "has_target",      filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
       align: "center", format: "boolean",defaultVisible: false, defaultOrder: 22 },
+    { id: "note_type", header: "Note type", kind: "derived", accessor: "notesLatestType",
+      sortable: false, filterFieldId: "note_type",
+      filterWidget: { kind: "multiselect", values: NOTE_TYPE_VALUES, labels: NOTE_TYPE_LABELS },
+      align: "left",  format: "pill",  defaultVisible: false, defaultOrder: 23 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",

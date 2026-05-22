@@ -140,6 +140,25 @@ function compileVirtualField(
         AND tpd.churn_risk = ANY(${valuesParam}::text[])
     )`;
   }
+  if (fieldId === "note_type") {
+    if (ctx.source !== "districts") {
+      throw new Error(`"note_type" is only valid for source "districts".`);
+    }
+    if (node.op !== "is" && node.op !== "is any of") {
+      throw new Error(`"note_type" only supports ops "is" / "is any of"; got "${node.op}".`);
+    }
+    const values = Array.isArray(node.value) ? node.value : [node.value];
+    const allowed = new Set(["general_update", "good_news", "risk_flag", "next_step", "meeting_recap"]);
+    if (!values.every((v) => typeof v === "string" && allowed.has(v))) {
+      throw new Error(`"note_type" only accepts general_update | good_news | risk_flag | next_step | meeting_recap`);
+    }
+    const valuesParam = emitParam(ctx, values);
+    return `EXISTS (
+      SELECT 1 FROM district_notes dn
+      WHERE dn.district_leaid = ${ctx.alias}."leaid"
+        AND dn.note_type = ANY(${valuesParam}::text[])
+    )`;
+  }
   throw new Error(`No virtual handler for field "${fieldId}".`);
 }
 

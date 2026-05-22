@@ -149,6 +149,18 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       requiresPlanContext: true,
     },
     {
+      // Virtual: EXISTS subquery on district_notes.note_type. District-scoped —
+      // no plan context required (notes belong to the district, not the plan).
+      id: "note_type",
+      label: "Note type",
+      column: "",
+      type: "text",
+      ops: ["is", "is any of"],
+      enumValues: ["general_update", "good_news", "risk_flag", "next_step", "meeting_recap"],
+      virtual: true,
+      requiresPlanContext: false,
+    },
+    {
       // Virtual: sortable-only. Sort emits the rank CTE inline and joins on
       // leaid. Filtering is not supported in v1.
       id: "customer_rank",

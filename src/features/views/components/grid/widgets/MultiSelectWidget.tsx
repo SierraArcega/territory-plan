@@ -23,7 +23,7 @@ export function MultiSelectWidget({
 
   const options: { value: string; label: string }[] = isDynamic
     ? (enumQuery.data?.values ?? [])
-    : widget.values.map((v) => ({ value: v, label: v }));
+    : widget.values.map((v) => ({ value: v, label: widget.labels?.[v] ?? v }));
 
   const filtered = useMemo(() => {
     if (!query) return options;
