@@ -121,4 +121,22 @@ describe("GridGroupChip", () => {
     expect(pickerBtn.disabled).toBe(true);
   });
 
+  // Regression: the picker must portal out of the chip wrapper so the strip's
+  // overflow-x-auto (which forces overflow-y:auto) can't clip it.
+  it("portals the picker out of the chip wrapper so it can't be clipped", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <GridGroupChip
+        source="districts"
+        layout={emptyLayout()}
+        onChange={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByText("Group"));
+
+    const panel = screen.getByText("Group by");
+    expect(container.contains(panel)).toBe(false);
+  });
+
 });

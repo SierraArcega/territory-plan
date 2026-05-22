@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { X, Plus } from "lucide-react";
 import { SOURCE_COLUMNS, type ColumnDef } from "@/features/views/lib/columns";
 import type {
@@ -15,6 +15,7 @@ import { DateRangeWidget } from "./widgets/DateRangeWidget";
 import type { DateRangeValue } from "./widgets/DateRangeWidget";
 import { ToggleWidget } from "./widgets/ToggleWidget";
 import { TextWidget } from "./widgets/TextWidget";
+import { AnchoredPopover } from "./AnchoredPopover";
 
 interface GridFilterChipsProps {
   source: SavedListSource;
@@ -191,6 +192,7 @@ export function GridFilterChips({
   onChange,
 }: GridFilterChipsProps) {
   const [edit, setEdit] = useState<EditState | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   // Build chip array from layout.filters.children
   const chips = layout.filters.children.map((child, i) => {
@@ -341,7 +343,7 @@ export function GridFilterChips({
   };
 
   return (
-    <div className="relative inline-flex items-center gap-2">
+    <div ref={wrapRef} className="relative inline-flex items-center gap-2">
       {chips.map((c) => {
         const label = c.column?.header ?? chipFieldId(c.node) ?? "?";
         const widgetKind = c.column?.filterWidget?.kind;
@@ -398,21 +400,24 @@ export function GridFilterChips({
         </button>
       )}
 
-      {/* Popover host — rendered outside the overflow-x-auto strip so it
-          isn't clipped/forced into a scroll context. */}
-      {edit?.mode === "picker" && (
-        <div className="absolute left-0 top-full z-10 mt-1">
+      {/* Popover host — portaled to <body> so the strip's overflow-x-auto
+          (which forces overflow-y:auto) can't clip the picker/widget. */}
+      <AnchoredPopover
+        anchorRef={wrapRef}
+        open={edit !== null}
+        onDismiss={() => setEdit(null)}
+      >
+        {edit?.mode === "picker" && (
           <FilterFieldPicker
             source={source}
             usedFieldIds={usedFieldIds}
             onPick={(col) => setEdit({ mode: "widget", column: col })}
             onClose={() => setEdit(null)}
           />
-        </div>
-      )}
-      {edit?.mode === "widget" && edit.column && (
-        <div className="absolute left-0 top-full z-10 mt-1">
-          {renderWidget(
+        )}
+        {edit?.mode === "widget" &&
+          edit.column &&
+          renderWidget(
             edit.column,
             edit.chipIndex !== undefined
               ? extractChipValue(
@@ -422,8 +427,7 @@ export function GridFilterChips({
               : undefined,
             (v) => commit(edit.column!, v, edit.chipIndex),
           )}
-        </div>
-      )}
+      </AnchoredPopover>
     </div>
   );
 }

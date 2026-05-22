@@ -162,4 +162,25 @@ describe("GridSortChips", () => {
 
     expect(screen.queryByText("Clear all")).toBeNull();
   });
+
+  // Regression: the picker used to render position:absolute inside the chip
+  // strip, which has overflow-x-auto (forcing overflow-y:auto). That clipped
+  // the dropdown to the strip's height and grew a stray scrollbar, hiding the
+  // options. The picker must portal out of the component's own subtree so no
+  // overflow ancestor can clip it.
+  it("portals the picker out of the chip wrapper so it can't be clipped", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <GridSortChips
+        source="districts"
+        layout={emptyLayout()}
+        onChange={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByText("Sort"));
+
+    const panel = screen.getByText("Add sort");
+    expect(container.contains(panel)).toBe(false);
+  });
 });

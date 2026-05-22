@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Layers, Plus, X } from "lucide-react";
 import { SOURCE_COLUMNS, type ColumnDef } from "@/features/views/lib/columns";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 import { GroupFieldPicker } from "./GroupFieldPicker";
+import { AnchoredPopover } from "./AnchoredPopover";
 
 interface GridGroupChipProps {
   source: SavedListSource;
@@ -18,6 +19,7 @@ export function GridGroupChip({
   onChange,
 }: GridGroupChipProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const groupBy = layout.groupBy ?? null;
   const groupedCol = groupBy
@@ -32,7 +34,7 @@ export function GridGroupChip({
   const clearGroup = () => onChange({ ...layout, groupBy: null });
 
   return (
-    <div className="relative inline-flex items-center gap-2">
+    <div ref={wrapRef} className="relative inline-flex items-center gap-2">
       {groupBy && (
         <div className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]">
           <button
@@ -68,16 +70,18 @@ export function GridGroupChip({
         </button>
       )}
 
-      {pickerOpen && (
-        <div className="absolute left-0 top-full z-30 mt-1">
-          <GroupFieldPicker
-            source={source}
-            currentGroupId={groupBy?.id ?? null}
-            onPick={pickGroup}
-            onClose={() => setPickerOpen(false)}
-          />
-        </div>
-      )}
+      <AnchoredPopover
+        anchorRef={wrapRef}
+        open={pickerOpen}
+        onDismiss={() => setPickerOpen(false)}
+      >
+        <GroupFieldPicker
+          source={source}
+          currentGroupId={groupBy?.id ?? null}
+          onPick={pickGroup}
+          onClose={() => setPickerOpen(false)}
+        />
+      </AnchoredPopover>
     </div>
   );
 }

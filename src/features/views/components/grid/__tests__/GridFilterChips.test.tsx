@@ -429,4 +429,29 @@ describe("GridFilterChips", () => {
       expect(() => filterAndSchema.parse(layout.filters)).not.toThrow();
     });
   });
+
+  // Regression: the picker used to render position:absolute inside the chip
+  // strip, whose overflow-x-auto forces overflow-y:auto and clipped the
+  // dropdown (stray scrollbar hiding the options). It must portal out of the
+  // component's own subtree so no overflow ancestor can clip it.
+  describe("overflow clipping regression", () => {
+    it("portals the filter picker out of the chip wrapper", async () => {
+      const user = userEvent.setup();
+      const Wrapper = makeWrapper();
+      const { container } = render(
+        <Wrapper>
+          <GridFilterChips
+            source="districts"
+            layout={emptyLayout()}
+            onChange={() => {}}
+          />
+        </Wrapper>,
+      );
+
+      await user.click(screen.getByText("Filter"));
+
+      const panel = screen.getByText("Add filter");
+      expect(container.contains(panel)).toBe(false);
+    });
+  });
 });

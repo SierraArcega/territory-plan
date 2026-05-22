@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { SOURCE_COLUMNS, type ColumnDef } from "@/features/views/lib/columns";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 import { SortFieldPicker } from "./SortFieldPicker";
+import { AnchoredPopover } from "./AnchoredPopover";
 
 interface GridSortChipsProps {
   source: SavedListSource;
@@ -27,6 +28,7 @@ export function GridSortChips({
   onChange,
 }: GridSortChipsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const usedFieldIds = layout.sort.map((s) => s.id);
 
@@ -56,7 +58,7 @@ export function GridSortChips({
   const showStackIndex = layout.sort.length > 1;
 
   return (
-    <div className="relative inline-flex items-center gap-2">
+    <div ref={wrapRef} className="relative inline-flex items-center gap-2">
       {layout.sort.map((entry, i) => {
         const col = SOURCE_COLUMNS[source].find((c) => c.id === entry.id);
         const label = col?.header ?? entry.id;
@@ -111,16 +113,18 @@ export function GridSortChips({
         </button>
       )}
 
-      {pickerOpen && (
-        <div className="absolute left-0 top-full z-30 mt-1">
-          <SortFieldPicker
-            source={source}
-            usedFieldIds={usedFieldIds}
-            onPick={addSort}
-            onClose={() => setPickerOpen(false)}
-          />
-        </div>
-      )}
+      <AnchoredPopover
+        anchorRef={wrapRef}
+        open={pickerOpen}
+        onDismiss={() => setPickerOpen(false)}
+      >
+        <SortFieldPicker
+          source={source}
+          usedFieldIds={usedFieldIds}
+          onPick={addSort}
+          onClose={() => setPickerOpen(false)}
+        />
+      </AnchoredPopover>
     </div>
   );
 }
