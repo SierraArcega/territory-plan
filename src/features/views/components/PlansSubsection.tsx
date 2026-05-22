@@ -146,6 +146,14 @@ function Body({ isLoading, isError, plans }: BodyProps) {
             target={formatTarget(readTarget(p))}
             fiscal={readFiscalLabel(p)}
             hidden={p.hidden}
+            viewCounts={{
+              map:      p.districtLeaids.length,
+              table:    p.districtLeaids.length,
+              kanban:   p.oppsCount,
+              contacts: p.contactsCount,
+              opps:     p.oppsCount,
+              signals:  p.recentNewsCount,
+            }}
           />
         </li>
       ))}
