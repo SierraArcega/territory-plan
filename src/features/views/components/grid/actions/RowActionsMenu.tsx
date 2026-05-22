@@ -1,7 +1,9 @@
 "use client";
 import { useRef, useState } from "react";
 import { MoreHorizontal, Pencil, Target, Briefcase, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnchoredPopover } from "../AnchoredPopover";
+import { useRemoveDistrictFromPlan } from "@/features/plans/lib/queries";
 
 interface Props {
   planId: string;
@@ -13,8 +15,11 @@ type Surface = null | "targets" | "remove" | "activity";
 
 export function RowActionsMenu({ planId, leaid, districtName }: Props) {
   const [open, setOpen] = useState(false);
-  const [, setSurface] = useState<Surface>(null); // surfaces wired in later tasks
+  const [surface, setSurface] = useState<Surface>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  const queryClient = useQueryClient();
+  const removeMutation = useRemoveDistrictFromPlan();
 
   const item =
     "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#403770] hover:bg-[#F7F5FA]";
@@ -68,6 +73,47 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
           </button>
         </div>
       </AnchoredPopover>
+
+      {surface === "remove" && (
+        <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
+          <div
+            role="dialog"
+            style={{ width: 240, transform: "translateX(-208px)" }}
+            className="rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
+          >
+            <p className="m-0 mb-2.5 text-[13px] text-[#403770]">
+              Remove <b>{districtName}</b> from this plan?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-[#E2DEEC] px-3 py-1.5 text-[12px] text-[#544A78]"
+                onClick={() => setSurface(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={removeMutation.isPending}
+                className="rounded-md bg-[#c25a52] px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+                onClick={() => {
+                  removeMutation.mutate(
+                    { planId, leaid },
+                    {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ["views", "data"] });
+                        setSurface(null);
+                      },
+                    },
+                  );
+                }}
+              >
+                {removeMutation.isPending ? "Removing…" : "Remove"}
+              </button>
+            </div>
+          </div>
+        </AnchoredPopover>
+      )}
     </>
   );
 }

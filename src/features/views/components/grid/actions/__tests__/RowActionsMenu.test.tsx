@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RowActionsMenu } from "../RowActionsMenu";
@@ -34,5 +34,26 @@ describe("RowActionsMenu", () => {
     await screen.findByRole("menuitem", { name: /log activity/i });
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("menuitem")).not.toBeInTheDocument());
+  });
+
+  it("removes the district after a two-step confirm and invalidates the grid", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ success: true }), {
+        status: 200, headers: { "Content-Type": "application/json" },
+      })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<RowActionsMenu {...props} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: /actions for tedesco usd/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /remove from plan/i }));
+    // Confirm step revealed; network not yet hit.
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: /^remove$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/territory-plans/plan-1/districts/0601234");
+    expect((init as RequestInit).method).toBe("DELETE");
+    vi.unstubAllGlobals();
   });
 });
