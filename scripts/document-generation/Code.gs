@@ -5,28 +5,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Generates a completed order document and PDF from a data object.
+ * Generates a completed order document from a data object.
  *
- * Steps:
- *   1. Copy template into Generated Orders folder
- *   2. Replace all «FIELD» merge tokens
- *   3. Insert calculated pricing table at placeholder zone
- *   4. Pre-fill Fullmind signature block
- *   4.5 Add invisible eSign anchor tags to the buyer signature cell
- *   5. Save the Doc
- *   6. Export PDF to Generated PDFs folder
- *   7. Send PDF for client e-signature via Dropbox Sign
+ * When USE_GOOGLE_ESIGN = true (Config.gs):
+ *   - Inserts [GSIGN_SIG] placeholder, saves the Doc, logs the docUrl.
+ *   - No PDF is exported. Run esign-request.js to send for e-signature.
+ *
+ * When USE_GOOGLE_ESIGN = false:
+ *   - Adds Dropbox Sign anchor tags, exports PDF, calls Dropbox Sign API.
  *
  * @param {Object} data  Shape: see getSampleOrderData() in SampleData.gs
- *
- *   data.lineItems {Array<{name, sku, unitPrice, qty}>}
- *   ─────────────────────────────────────────────────────
- *   POC: populated from getSampleOrderData() (5 hardcoded SKUs).
- *   Production: replace with line items from the Fullmind LMS Opportunity.
- *   The insertPricingTable() function accepts any number of rows — no code
- *   changes needed when the data source switches.
- *
- * @returns {{ docUrl: string, pdfUrl: string, signatureRequestId: string|null }}
+ * @returns {{ docUrl: string, pdfUrl: string|null, signatureRequestId: string|null }}
  */
 function generateOrderDocument(data) {
   assertConfigured();
@@ -41,16 +30,11 @@ function generateOrderDocument(data) {
   var body     = doc.getBody();
   Logger.log('Created doc copy: ' + docCopy.getUrl());
 
-  // 2. Replace merge fields
+  // 2. Replace merge fields (body + header + footer)
   replaceAllMergeFields(doc, data);
   Logger.log('Merge fields replaced.');
 
   // 3. Insert pricing table
-  // ── FUTURE INJECTION POINT ──────────────────────────────────────────────────
-  // In production, replace data.lineItems with the array of line items from
-  // the Fullmind LMS Opportunity associated with this order. The function
-  // signature and table structure remain identical — only the data source changes.
-  // ────────────────────────────────────────────────────────────────────────────
   var grandTotal = insertPricingTable(body, data.lineItems);
   Logger.log('Pricing table inserted. Grand total: $' + grandTotal.toFixed(2));
 
@@ -58,43 +42,51 @@ function generateOrderDocument(data) {
   fillFullmindSignatureBlock(body, data);
   Logger.log('Fullmind signature block pre-filled.');
 
-  // 4.5 Add invisible eSign anchor tags to the buyer signature cell
-  addESignAnchorTags(body);
-  Logger.log('eSign anchor tags added.');
+  // 4.5  Prepare for signing (path branches here)
+  var pdfFile    = null;
+  var eSignResult = null;
+
+  if (USE_GOOGLE_ESIGN) {
+    addGSignPlaceholders(body);
+    Logger.log('GSign placeholder added.');
+  } else {
+    addESignAnchorTags(body);
+    Logger.log('eSign anchor tags added (Dropbox Sign path).');
+  }
 
   // 5. Save
   doc.saveAndClose();
   Logger.log('Document saved.');
 
-  // 6. Export PDF
-  var pdfBlob = DriveApp.getFileById(docCopy.getId()).getAs('application/pdf');
-  pdfBlob.setName(docTitle + '.pdf');
-  var pdfFile = pdfFolder.createFile(pdfBlob);
-  Logger.log('PDF exported: ' + pdfFile.getUrl());
+  if (!USE_GOOGLE_ESIGN) {
+    // 6. Export PDF (Dropbox Sign path only)
+    var pdfBlob = DriveApp.getFileById(docCopy.getId()).getAs('application/pdf');
+    pdfBlob.setName(docTitle + '.pdf');
+    pdfFile = pdfFolder.createFile(pdfBlob);
+    Logger.log('PDF exported: ' + pdfFile.getUrl());
 
-  // 7. Send PDF for client e-signature via Dropbox Sign
-  var eSignResult = null;
-  if (data.signerEmail && data.signerEmail !== 'test@example.com') {
-    eSignResult = sendForDropboxSign(pdfFile.getId(), data.signerEmail, data.signerName, docTitle);
-    Logger.log('Dropbox Sign request ID: ' + eSignResult.signatureRequestId);
-  } else {
-    Logger.log('⚠️  eSign SKIPPED — data.signerEmail is missing or still set to "test@example.com". ' +
-               'Set a real client email in SampleData.gs (or the data object) to trigger signing. ' +
-               'signatureRequestId will be null in the return value.');
+    // 7. Send via Dropbox Sign API
+    if (data.signerEmail && data.signerEmail !== 'test@example.com') {
+      eSignResult = sendForDropboxSign(
+        pdfFile.getId(), data.signerEmail, data.signerName, docTitle
+      );
+      Logger.log('Dropbox Sign request ID: ' + eSignResult.signatureRequestId);
+    } else {
+      Logger.log('⚠️  eSign SKIPPED — set a real signerEmail to trigger signing.');
+    }
   }
 
   return {
     docUrl:             docCopy.getUrl(),
-    pdfUrl:             pdfFile.getUrl(),
+    pdfUrl:             pdfFile ? pdfFile.getUrl() : null,
     signatureRequestId: eSignResult ? eSignResult.signatureRequestId : null
   };
 }
 
 /**
- * End-to-end test runner. Select this function in the Apps Script editor and
- * click Run to execute the full pipeline against the sample data.
- *
- * Check the Execution log for URLs, then open both files to verify output.
+ * End-to-end test runner. Select this function in the Apps Script editor
+ * and click Run to execute the full pipeline against the sample data.
+ * Check the Execution log for URLs and the verification checklist.
  */
 function runEndToEndTest() {
   var data          = getSampleOrderData();
@@ -106,13 +98,23 @@ function runEndToEndTest() {
   Logger.log('');
   Logger.log('=== END-TO-END TEST COMPLETE ===');
   Logger.log('Doc URL: ' + result.docUrl);
-  Logger.log('PDF URL: ' + result.pdfUrl);
+  if (result.pdfUrl) { Logger.log('PDF URL: ' + result.pdfUrl); }
   Logger.log('');
   Logger.log('Verification checklist:');
-  Logger.log('[ ] Doc: all « » tokens replaced (Ctrl+F for « to confirm none remain)');
-  Logger.log('[ ] Doc: pricing table present with 7 rows (header + 5 items + total)');
-  Logger.log('[ ] Doc: grand total = $' + expectedTotal.toFixed(2));
-  Logger.log('[ ] Doc: Fullmind signature block shows "Marcus Webb" + title');
-  Logger.log('[ ] PDF: opens correctly, matches doc content, layout intact');
-  Logger.log('[ ] Dropbox Sign: check https://app.hellosign.com for signature request (test_mode=1 — no real email sent)');
+  Logger.log('[ ] All « » tokens replaced (Ctrl+F for « — none should remain)');
+  Logger.log('[ ] Pricing table: 7 rows, grand total = $' + expectedTotal.toFixed(2));
+  Logger.log('[ ] Fullmind sig block shows rep name + title');
+
+  if (USE_GOOGLE_ESIGN) {
+    Logger.log('[ ] Buyer cell ends with visible "[GSIGN_SIG]" on its own line');
+    Logger.log('');
+    Logger.log('Next step — run Playwright:');
+    Logger.log('  node esign-request.js \\');
+    Logger.log('    --docUrl="' + result.docUrl + '" \\');
+    Logger.log('    --email="client@example.com" \\');
+    Logger.log('    --title="' + data.buyerCompanyName + ' Order"');
+  } else {
+    Logger.log('[ ] PDF opens correctly, layout intact');
+    Logger.log('[ ] Dropbox Sign: https://app.hellosign.com — check for request');
+  }
 }

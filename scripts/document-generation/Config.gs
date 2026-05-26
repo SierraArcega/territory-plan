@@ -7,6 +7,11 @@ var TEMPLATE_ID      = '1eyi6PmXOVXG0hUqzNIHozBfNPWUUYuZapNiK3WsIojM'; // [TEMPL
 var OUTPUT_FOLDER_ID = '19ozLBWn3zyX3ZSKRRHq9n0mnhjhkaBFN';  // Generated Orders folder
 var PDF_FOLDER_ID    = '1etHVzYQb_xKFu6igcYyXxoYUFG8lrE7z';  // Generated PDFs folder
 
+// ── Signing path selector ──────────────────────────────────────────────────
+// true  → Google eSign: Playwright drives the UI. No PDF exported.
+// false → Dropbox Sign: exports PDF, calls Dropbox Sign REST API.
+var USE_GOOGLE_ESIGN = true;
+
 /**
  * Sanity-check: confirms the three IDs resolve to real Drive items.
  * Run this first after filling in the IDs above.
