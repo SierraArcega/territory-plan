@@ -3,9 +3,9 @@
 // Fill in your Drive IDs after completing the Drive setup in Task 0.
 // ─────────────────────────────────────────────────────────────────────────────
 
-var TEMPLATE_ID      = 'YOUR_TEMPLATE_DOC_ID_HERE';     // [TEMPLATE] Purchase Order Agreement
-var OUTPUT_FOLDER_ID = 'YOUR_GENERATED_ORDERS_FOLDER_ID_HERE'; // Generated Orders folder
-var PDF_FOLDER_ID    = 'YOUR_GENERATED_PDFS_FOLDER_ID_HERE';   // Generated PDFs folder
+var TEMPLATE_ID      = '1-iUHZfuCaWwMqO0s6rQt80w_MkdsKqMN'; // [TEMPLATE] Purchase Order Agreement
+var OUTPUT_FOLDER_ID = '19ozLBWn3zyX3ZSKRRHq9n0mnhjhkaBFN';  // Generated Orders folder
+var PDF_FOLDER_ID    = '1etHVzYQb_xKFu6igcYyXxoYUFG8lrE7z';  // Generated PDFs folder
 
 /**
  * Sanity-check: confirms the three IDs resolve to real Drive items.
