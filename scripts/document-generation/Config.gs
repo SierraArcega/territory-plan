@@ -3,7 +3,7 @@
 // Fill in your Drive IDs after completing the Drive setup in Task 0.
 // ─────────────────────────────────────────────────────────────────────────────
 
-var TEMPLATE_ID      = '1-iUHZfuCaWwMqO0s6rQt80w_MkdsKqMN'; // [TEMPLATE] Purchase Order Agreement
+var TEMPLATE_ID      = '1eyi6PmXOVXG0hUqzNIHozBfNPWUUYuZapNiK3WsIojM'; // [TEMPLATE] Purchase Order Agreement (native Google Doc)
 var OUTPUT_FOLDER_ID = '19ozLBWn3zyX3ZSKRRHq9n0mnhjhkaBFN';  // Generated Orders folder
 var PDF_FOLDER_ID    = '1etHVzYQb_xKFu6igcYyXxoYUFG8lrE7z';  // Generated PDFs folder
 
