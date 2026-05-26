@@ -1,0 +1,12 @@
+{
+  "name": "document-generation",
+  "version": "1.0.0",
+  "description": "Google eSign Playwright automation for Fullmind order documents",
+  "scripts": {
+    "setup": "node esign-setup.js",
+    "esign": "node esign-request.js"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}
