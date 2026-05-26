@@ -10,10 +10,14 @@
 
 /**
  * Builds a pricing table from lineItems and inserts it at the placeholder zone.
- * Removes both placeholder paragraphs after insertion.
  *
- * Table columns: Description / Service | SKU | Unit Price | Qty | Extended Total
- * Last row: ORDER TOTAL spanning final column.
+ * Handles two template structures automatically:
+ *   A) Placeholder is a direct body child paragraph → inserts a new table at that position
+ *   B) Placeholder is inside a table cell (e.g. the ACME template) → inserts rows into
+ *      the existing table at the placeholder row's position, then removes the placeholder row
+ *
+ * The lineItems array is intentionally passed as a parameter — in production this data
+ * will come from a Fullmind LMS Opportunity, making the row count variable.
  *
  * @param {GoogleAppsScript.Document.Body} body
  * @param {Array<{name: string, sku: string, unitPrice: number, qty: number}>} lineItems
@@ -23,26 +27,22 @@
 function insertPricingTable(body, lineItems) {
   var grandTotal = 0;
 
-  // Header row + one row per line item + total row
-  var tableData = [
-    ['Description / Service', 'SKU', 'Unit Price', 'Qty', 'Extended Total']
-  ];
-
+  // Build row data arrays (5 columns matching the ACME template structure)
+  var newRowsData = [];
   lineItems.forEach(function(item) {
     var extended = item.unitPrice * item.qty;
     grandTotal  += extended;
-    tableData.push([
-      item.name,
-      item.sku,
-      '$' + item.unitPrice.toFixed(2),
+    newRowsData.push([
+      item.name + ' [' + item.sku + ']',
       String(item.qty),
+      'Session',
+      '$' + item.unitPrice.toFixed(2),
       '$' + extended.toFixed(2)
     ]);
   });
+  newRowsData.push(['', '', '', 'SUBTOTAL', '$' + grandTotal.toFixed(2)]);
 
-  tableData.push(['', '', '', 'ORDER TOTAL', '$' + grandTotal.toFixed(2)]);
-
-  // Locate placeholder paragraphs
+  // Locate placeholder paragraphs (getParagraphs() traverses into table cells too)
   var paragraphs      = body.getParagraphs();
   var zonePlaceholder = null;
   var descPlaceholder = null;
@@ -64,13 +64,43 @@ function insertPricingTable(body, lineItems) {
     );
   }
 
-  // Insert table at the placeholder's child index, then remove placeholders.
-  // References remain valid after insertion, so removeFromParent() works regardless of shift.
-  var insertIndex = body.getChildIndex(zonePlaceholder);
-  body.insertTable(insertIndex, tableData);
-  zonePlaceholder.removeFromParent();
-  if (descPlaceholder && descPlaceholder !== zonePlaceholder) {
-    descPlaceholder.removeFromParent();
+  var parent = zonePlaceholder.getParent();
+
+  if (parent.getType() === DocumentApp.ElementType.TABLE_CELL) {
+    // ── Case B: placeholder is inside a table cell ───────────────────────────
+    // Walk up: Paragraph → TableCell → TableRow → Table
+    var tableRow = parent.getParent();
+    var table    = tableRow.getParent();
+    var rowIndex = table.getChildIndex(tableRow);
+
+    // Insert new data rows immediately before the placeholder row
+    newRowsData.forEach(function(rowData, i) {
+      var newRow = table.insertTableRow(rowIndex + i);
+      rowData.forEach(function(cellText) {
+        newRow.appendTableCell(cellText);
+      });
+    });
+
+    // Remove the placeholder row (now shifted down by newRowsData.length)
+    table.removeRow(rowIndex + newRowsData.length);
+
+    // Remove the "Variable number..." row if it exists in the same table
+    for (var r = table.getNumRows() - 1; r >= 0; r--) {
+      if (table.getRow(r).getText().indexOf('Variable number of line-item rows') !== -1) {
+        table.removeRow(r);
+        break;
+      }
+    }
+
+  } else {
+    // ── Case A: placeholder is a direct body child ───────────────────────────
+    var headerRow   = ['Description / Part No.', 'Qty', 'Unit', 'Unit Price', 'Extended Total'];
+    var insertIndex = body.getChildIndex(zonePlaceholder);
+    body.insertTable(insertIndex, [headerRow].concat(newRowsData));
+    zonePlaceholder.removeFromParent();
+    if (descPlaceholder && descPlaceholder !== zonePlaceholder) {
+      descPlaceholder.removeFromParent();
+    }
   }
 
   return grandTotal;
