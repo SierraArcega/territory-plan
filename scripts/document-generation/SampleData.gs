@@ -22,6 +22,9 @@ function getSampleOrderData() {
     freightTerms:      'N/A — Educational Services',
     documentRefId:     'DOC-FM-0042',
     effectiveDate:     'July 1, 2026',
+    orderNumber:       'PO-FM-2026-0042',   // used for «ORDER_NUMBER» in page header
+    signerEmail:       'test@example.com',   // replace with real client email for live send
+    signerName:        'Dr. Jane Holloway',
     // POC: 5 hardcoded SKUs from flat_priced_products.csv (FY27 Instructional Services).
     // Production: replace this array with line items from the Fullmind LMS Opportunity.
     lineItems: [

@@ -30,7 +30,8 @@ function escapeReplacement(s) {
  * @param {GoogleAppsScript.Document.Body} body
  * @param {Object} data  getSampleOrderData() shape
  */
-function replaceAllMergeFields(body, data) {
+function replaceAllMergeFields(doc, data) {
+  var body = doc.getBody();
   var grandTotal = data.lineItems.reduce(function(sum, item) {
     return sum + (item.unitPrice * item.qty);
   }, 0);
@@ -47,12 +48,36 @@ function replaceAllMergeFields(body, data) {
     '«FREIGHT_TERMS»':      escapeReplacement(data.freightTerms),
     '«ORDER_TOTAL»':        'USD ' + grandTotal.toFixed(2),   // already safe — no $ in value
     '«DOCUMENT_REF_ID»':    escapeReplacement(data.documentRefId),
-    '«EFFECTIVE_DATE»':     escapeReplacement(data.effectiveDate)
+    '«EFFECTIVE_DATE»':     escapeReplacement(data.effectiveDate),
+    '«ORDER_NUMBER»':       escapeReplacement(data.orderNumber)
   };
 
   Object.keys(fields).forEach(function(token) {
     body.replaceText(token, fields[token]);
   });
+
+  // Also replace tokens in page header and footer — body.replaceText() does not reach these
+  try {
+    var header = doc.getHeader();
+    if (header) {
+      Object.keys(fields).forEach(function(token) {
+        header.replaceText(token, fields[token]);
+      });
+    }
+  } catch (e) {
+    Logger.log('Header replacement skipped: ' + e.message);
+  }
+
+  try {
+    var footer = doc.getFooter();
+    if (footer) {
+      Object.keys(fields).forEach(function(token) {
+        footer.replaceText(token, fields[token]);
+      });
+    }
+  } catch (e) {
+    Logger.log('Footer replacement skipped: ' + e.message);
+  }
 }
 
 /**
@@ -66,9 +91,8 @@ function testMergeFields() {
   var template  = DriveApp.getFileById(TEMPLATE_ID);
   var testCopy  = template.makeCopy('TEST — MergeFields', DriveApp.getFolderById(OUTPUT_FOLDER_ID));
   var doc       = DocumentApp.openById(testCopy.getId());
-  var body      = doc.getBody();
 
-  replaceAllMergeFields(body, data);
+  replaceAllMergeFields(doc, data);
   doc.saveAndClose();
 
   Logger.log('Test doc: ' + testCopy.getUrl());

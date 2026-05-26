@@ -12,8 +12,10 @@
  *   2. Replace all «FIELD» merge tokens
  *   3. Insert calculated pricing table at placeholder zone
  *   4. Pre-fill Fullmind signature block
+ *   4.5 Add invisible eSign anchor tags to the buyer signature cell
  *   5. Save the Doc
  *   6. Export PDF to Generated PDFs folder
+ *   7. Send PDF for client e-signature via Dropbox Sign
  *
  * @param {Object} data  Shape: see getSampleOrderData() in SampleData.gs
  *
@@ -24,7 +26,7 @@
  *   The insertPricingTable() function accepts any number of rows — no code
  *   changes needed when the data source switches.
  *
- * @returns {{ docUrl: string, pdfUrl: string }}
+ * @returns {{ docUrl: string, pdfUrl: string, signatureRequestId: string|null }}
  */
 function generateOrderDocument(data) {
   assertConfigured();
@@ -40,7 +42,7 @@ function generateOrderDocument(data) {
   Logger.log('Created doc copy: ' + docCopy.getUrl());
 
   // 2. Replace merge fields
-  replaceAllMergeFields(body, data);
+  replaceAllMergeFields(doc, data);
   Logger.log('Merge fields replaced.');
 
   // 3. Insert pricing table
@@ -56,6 +58,10 @@ function generateOrderDocument(data) {
   fillFullmindSignatureBlock(body, data);
   Logger.log('Fullmind signature block pre-filled.');
 
+  // 4.5 Add invisible eSign anchor tags to the buyer signature cell
+  addESignAnchorTags(body);
+  Logger.log('eSign anchor tags added.');
+
   // 5. Save
   doc.saveAndClose();
   Logger.log('Document saved.');
@@ -66,9 +72,19 @@ function generateOrderDocument(data) {
   var pdfFile = pdfFolder.createFile(pdfBlob);
   Logger.log('PDF exported: ' + pdfFile.getUrl());
 
+  // 7. Send PDF for client e-signature via Dropbox Sign
+  var eSignResult = null;
+  if (data.signerEmail && data.signerEmail !== 'test@example.com') {
+    eSignResult = sendForDropboxSign(pdfFile.getId(), data.signerEmail, data.signerName, docTitle);
+    Logger.log('Dropbox Sign request ID: ' + eSignResult.signatureRequestId);
+  } else {
+    Logger.log('Skipping Dropbox Sign send — signerEmail is placeholder. Update data.signerEmail to send for real.');
+  }
+
   return {
-    docUrl: docCopy.getUrl(),
-    pdfUrl: pdfFile.getUrl()
+    docUrl:             docCopy.getUrl(),
+    pdfUrl:             pdfFile.getUrl(),
+    signatureRequestId: eSignResult ? eSignResult.signatureRequestId : null
   };
 }
 
@@ -96,4 +112,5 @@ function runEndToEndTest() {
   Logger.log('[ ] Doc: grand total = $' + expectedTotal.toFixed(2));
   Logger.log('[ ] Doc: Fullmind signature block shows "Marcus Webb" + title');
   Logger.log('[ ] PDF: opens correctly, matches doc content, layout intact');
+  Logger.log('[ ] Dropbox Sign: check https://app.hellosign.com for signature request (test_mode=1 — no real email sent)');
 }

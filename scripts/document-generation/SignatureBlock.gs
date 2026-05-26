@@ -37,7 +37,7 @@ function testSignatureBlock() {
   var doc      = DocumentApp.openById(testCopy.getId());
   var body     = doc.getBody();
 
-  replaceAllMergeFields(body, data);
+  replaceAllMergeFields(doc, data);
   fillFullmindSignatureBlock(body, data);
   doc.saveAndClose();
 

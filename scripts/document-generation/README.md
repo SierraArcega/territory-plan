@@ -54,6 +54,7 @@ For each `.gs` file below, create a matching script file and paste the contents:
 | `MergeFields.gs` | `MergeFields` |
 | `TableInsertion.gs` | `TableInsertion` |
 | `SignatureBlock.gs` | `SignatureBlock` |
+| `ESign.gs` | `ESign` |
 | `Code.gs` | `Code` |
 
 To add a new file: click the **+** icon next to "Files" in the left panel and
@@ -109,6 +110,40 @@ verify against the checklist printed in the log:
 
 ---
 
+## Phase 2: Dropbox Sign eSign Setup
+
+Before running `runEndToEndTest` with eSign enabled:
+
+### 1. Set Script Properties
+
+In the Apps Script editor → click the ⚙ icon (Project Settings) → scroll to **Script Properties** → click **Add script property** for each:
+
+| Property | Value |
+|---|---|
+| `DROPBOX_SIGN_API_KEY` | Your Dropbox Sign API key |
+| `TEST_SIGNER_EMAIL` | Your own email (for POC testing) |
+| `TEST_SIGNER_NAME` | Your full name |
+
+The API key is stored securely in Google's Script Properties store — it is never saved in code or committed to the repo.
+
+### 2. Run the end-to-end test
+
+Select `runEndToEndTest` → Run. With a real `signerEmail` in the sample data (not `test@example.com`), the script will:
+1. Generate and fill the document
+2. Add invisible anchor tags to the client signature cell
+3. Export the PDF
+4. Send it to Dropbox Sign (in test_mode — no real email sent, but visible in the dashboard)
+
+Check your [Dropbox Sign dashboard](https://app.hellosign.com) to confirm the signature request was created and the fields are correctly placed.
+
+### 3. Go live
+
+To send real signing requests:
+- Set `data.signerEmail` to the actual client's email in `SampleData.gs`
+- Remove `'test_mode': '1'` from `ESign.gs` `sendForDropboxSign()`
+
+---
+
 ## Individual Test Functions
 
 Each module has its own test function for isolated debugging:
@@ -120,6 +155,7 @@ Each module has its own test function for isolated debugging:
 | `testMergeFields()` | Token replacement only |
 | `testTableInsertion()` | Table insertion only |
 | `testSignatureBlock()` | Merge fields + signature block |
+| `testESign()` | Dropbox Sign send (uses most recent PDF) |
 | `runEndToEndTest()` | Full pipeline |
 
 Each test that creates a document copy will log a URL. Delete the test copy
