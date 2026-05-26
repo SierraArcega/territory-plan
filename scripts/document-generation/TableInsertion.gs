@@ -69,7 +69,7 @@ function insertPricingTable(body, lineItems) {
   var insertIndex = body.getChildIndex(zonePlaceholder);
   body.insertTable(insertIndex, tableData);
   zonePlaceholder.removeFromParent();
-  if (descPlaceholder) {
+  if (descPlaceholder && descPlaceholder !== zonePlaceholder) {
     descPlaceholder.removeFromParent();
   }
 
@@ -83,6 +83,7 @@ function insertPricingTable(body, lineItems) {
  * Delete the test copy from Drive when done.
  */
 function testTableInsertion() {
+  assertConfigured();
   var data     = getSampleOrderData();
   var template = DriveApp.getFileById(TEMPLATE_ID);
   var testCopy = template.makeCopy('TEST — TableInsertion', DriveApp.getFolderById(OUTPUT_FOLDER_ID));

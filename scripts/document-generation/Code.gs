@@ -27,6 +27,7 @@
  * @returns {{ docUrl: string, pdfUrl: string }}
  */
 function generateOrderDocument(data) {
+  assertConfigured();
   var outputFolder = DriveApp.getFolderById(OUTPUT_FOLDER_ID);
   var pdfFolder    = DriveApp.getFolderById(PDF_FOLDER_ID);
   var template     = DriveApp.getFileById(TEMPLATE_ID);
@@ -78,7 +79,10 @@ function generateOrderDocument(data) {
  * Check the Execution log for URLs, then open both files to verify output.
  */
 function runEndToEndTest() {
-  var data   = getSampleOrderData();
+  var data          = getSampleOrderData();
+  var expectedTotal = data.lineItems.reduce(function(sum, item) {
+    return sum + (item.unitPrice * item.qty);
+  }, 0);
   var result = generateOrderDocument(data);
 
   Logger.log('');
@@ -89,7 +93,7 @@ function runEndToEndTest() {
   Logger.log('Verification checklist:');
   Logger.log('[ ] Doc: all « » tokens replaced (Ctrl+F for « to confirm none remain)');
   Logger.log('[ ] Doc: pricing table present with 7 rows (header + 5 items + total)');
-  Logger.log('[ ] Doc: grand total = $3956.36');
+  Logger.log('[ ] Doc: grand total = $' + expectedTotal.toFixed(2));
   Logger.log('[ ] Doc: Fullmind signature block shows "Marcus Webb" + title');
   Logger.log('[ ] PDF: opens correctly, matches doc content, layout intact');
 }

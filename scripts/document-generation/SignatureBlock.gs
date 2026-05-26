@@ -30,6 +30,7 @@ function fillFullmindSignatureBlock(body, data) {
  * Delete the test copy from Drive when done.
  */
 function testSignatureBlock() {
+  assertConfigured();
   var data     = getSampleOrderData();
   var template = DriveApp.getFileById(TEMPLATE_ID);
   var testCopy = template.makeCopy('TEST — SignatureBlock', DriveApp.getFolderById(OUTPUT_FOLDER_ID));

@@ -4,6 +4,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Escapes special regex replacement characters in a string so it can be safely
+ * passed as the second argument to Body.replaceText().
+ * In Apps Script's replaceText, the replacement string follows Java's
+ * Matcher.replaceAll conventions: $n refers to capture groups, \\ is a literal
+ * backslash. Without escaping, values containing $ or \ will produce wrong output.
+ * @param {string} s
+ * @returns {string}
+ */
+function escapeReplacement(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/\$/g, '\\$');
+}
+
+/**
  * Replaces all «FIELD» tokens in the document body with values from data.
  * Computes ORDER_TOTAL from lineItems and substitutes it too.
  *
@@ -23,18 +36,18 @@ function replaceAllMergeFields(body, data) {
   }, 0);
 
   var fields = {
-    '«BUYER_COMPANY_NAME»': data.buyerCompanyName,
-    '«BUYER_CONTACT_NAME»': data.buyerContactName,
-    '«ACCT_MANAGER_NAME»':  data.acctManagerName,
-    '«ORDER_DATE»':         data.orderDate,
-    '«DELIVERY_DATE»':      data.deliveryDate,
-    '«CONTRACT_REF»':       data.contractRef,
-    '«PAYMENT_TERMS»':      data.paymentTerms,
-    '«SHIP_TO_LOCATION»':   data.shipToLocation,
-    '«FREIGHT_TERMS»':      data.freightTerms,
-    '«ORDER_TOTAL»':        'USD ' + grandTotal.toFixed(2),
-    '«DOCUMENT_REF_ID»':    data.documentRefId,
-    '«EFFECTIVE_DATE»':     data.effectiveDate
+    '«BUYER_COMPANY_NAME»': escapeReplacement(data.buyerCompanyName),
+    '«BUYER_CONTACT_NAME»': escapeReplacement(data.buyerContactName),
+    '«ACCT_MANAGER_NAME»':  escapeReplacement(data.acctManagerName),
+    '«ORDER_DATE»':         escapeReplacement(data.orderDate),
+    '«DELIVERY_DATE»':      escapeReplacement(data.deliveryDate),
+    '«CONTRACT_REF»':       escapeReplacement(data.contractRef),
+    '«PAYMENT_TERMS»':      escapeReplacement(data.paymentTerms),
+    '«SHIP_TO_LOCATION»':   escapeReplacement(data.shipToLocation),
+    '«FREIGHT_TERMS»':      escapeReplacement(data.freightTerms),
+    '«ORDER_TOTAL»':        'USD ' + grandTotal.toFixed(2),   // already safe — no $ in value
+    '«DOCUMENT_REF_ID»':    escapeReplacement(data.documentRefId),
+    '«EFFECTIVE_DATE»':     escapeReplacement(data.effectiveDate)
   };
 
   Object.keys(fields).forEach(function(token) {
@@ -48,6 +61,7 @@ function replaceAllMergeFields(body, data) {
  * Delete the test copy from Drive before re-running.
  */
 function testMergeFields() {
+  assertConfigured();
   var data      = getSampleOrderData();
   var template  = DriveApp.getFileById(TEMPLATE_ID);
   var testCopy  = template.makeCopy('TEST — MergeFields', DriveApp.getFolderById(OUTPUT_FOLDER_ID));
