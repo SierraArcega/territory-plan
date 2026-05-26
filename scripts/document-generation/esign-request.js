@@ -56,9 +56,10 @@ async function loadDocument(page) {
     );
   }
 
-  // Google Docs renders document content inside an iframe.
-  // Wait for iframe[3] to confirm the doc is fully rendered.
-  await page.locator('iframe').nth(3).waitFor({ state: 'visible', timeout: 20000 });
+  // Wait for the Tools menu item — reliable signal that Google Docs is fully
+  // rendered and interactive. More stable than waiting on a specific iframe
+  // index, which varies by load order.
+  await page.getByRole('menuitem', { name: 'Tools' }).waitFor({ state: 'visible', timeout: 30000 });
   console.log('✓ Step 1: Document loaded');
 }
 
