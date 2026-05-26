@@ -53,7 +53,9 @@ Then `npx prisma generate`.
 - `prisma/schema.prisma` — remove the 4 Initiative models, the `MetricRegistry`
   model, the `initiativeScores InitiativeScore[]` relation line on `UserProfile`,
   and the `// ===== Initiative Leaderboard =====` section comment.
-- `scripts/seed-initiative-0.ts` — delete (only real consumer of the Prisma models).
+- `scripts/seed-initiative-0.ts` and `prisma/seed-metric-registry.ts` — delete (the
+  only real consumers of the Prisma models; both are standalone seeders not wired into
+  `prisma/seed.ts`).
 - `src/features/leaderboard/lib/types.ts` — remove the vestigial `| "initiative"`
   member from the `LeaderboardView` union (no other code references it).
 - `src/lib/district-column-metadata.ts` — remove the 5 table names from `excludedTables`.
