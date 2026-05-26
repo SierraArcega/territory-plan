@@ -101,10 +101,10 @@ async function openESignPanel(page) {
 async function removePlaceholder(page) {
   console.log('Step 3: Removing [GSIGN_SIG] placeholder...');
 
-  // The document body lives inside iframe[3]. All keyboard events targeting
-  // the doc content must be sent to this element.
-  const docBody = page.locator('iframe').nth(3).contentFrame()
-                      .getByRole('textbox', { name: 'Document content' });
+  // Use frameLocator to find the document content textbox across ALL iframes
+  // without relying on a specific index. The eSign panel adds iframes when it
+  // opens, shifting nth(3) — frameLocator searches all of them automatically.
+  const docBody = page.frameLocator('iframe').getByRole('textbox', { name: 'Document content' });
 
   // Open Find bar
   await docBody.press('ControlOrMeta+f');
