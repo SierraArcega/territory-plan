@@ -42,7 +42,6 @@ export interface RevenueRankResponse {
 
 export type LeaderboardView =
   | "combined"
-  | "initiative"
   | "pipeline"
   | "take"
   | "revenue"
