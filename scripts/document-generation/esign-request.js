@@ -175,23 +175,21 @@ async function fillSendForm(page, docTitle, signerEmail) {
 /**
  * Step 7 — Submit the eSignature request.
  *
- * ⚠️  The exact selector for the final Send button was not captured during
- * codegen. 'Send' is a best guess. If this step fails, inspect the page with
- * `headless: false` (already set) and update this selector.
+ * The send dialog has a second "Request eSignature" button that confirms the
+ * send — same label as the button that opened the dialog, but it appears
+ * inside the form after the fields are filled.
  */
 async function submit(page) {
   console.log('Step 7: Submitting...');
 
-  // Try common labels for the final send button
-  const sendButton =
-    page.getByRole('button', { name: 'Send' })
-    .or(page.getByRole('button', { name: 'Send request' }))
-    .or(page.getByRole('button', { name: 'Request eSignature' }));
+  // The send form has a "Request eSignature" submit button at the bottom.
+  // After fillSendForm() the dialog is in view; click the last visible
+  // instance of that button to avoid ambiguity with the panel button.
+  const submitButton = page.getByRole('button', { name: 'Request eSignature' }).last();
+  await submitButton.waitFor({ state: 'visible', timeout: 10000 });
+  await submitButton.click();
 
-  await sendButton.first().waitFor({ state: 'visible', timeout: 10000 });
-  await sendButton.first().click();
-
-  // Wait for a confirmation indicator
+  // Wait for the confirmation screen to appear
   await page.waitForTimeout(4000);
   console.log('✓ Step 7: Request submitted');
 }
