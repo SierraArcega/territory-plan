@@ -290,10 +290,12 @@ export function useBulkEnrich() {
       planId,
       targetRole,
       schoolLevels,
+      leaids,
     }: {
       planId: string;
       targetRole: string;
       schoolLevels?: number[];
+      leaids?: string[];
     }) => {
       // Custom fetch (not fetchJson) so we can attach the parsed response body
       // to thrown errors. The rollup-district 400 response carries structured
@@ -306,6 +308,7 @@ export function useBulkEnrich() {
           body: JSON.stringify({
             targetRole,
             ...(schoolLevels ? { schoolLevels } : {}),
+            ...(leaids ? { leaids } : {}),
           }),
         }
       );
