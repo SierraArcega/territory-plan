@@ -151,6 +151,14 @@ function testESign() {
   var signerName  = PropertiesService.getScriptProperties().getProperty('TEST_SIGNER_NAME')
                     || 'Test Signer';
 
+  if (!signerEmail || signerEmail.indexOf('your-email') !== -1 || signerEmail.indexOf('example.com') !== -1) {
+    throw new Error(
+      'testESign: signer email is still a placeholder. ' +
+      'Set TEST_SIGNER_EMAIL in Script Properties (Project Settings ⚙ → Script Properties) ' +
+      'to your own email address before running this test.'
+    );
+  }
+
   // Find the most recent PDF in the Generated PDFs folder
   var pdfFolder = DriveApp.getFolderById(PDF_FOLDER_ID);
   var files     = pdfFolder.getFilesByMimeType('application/pdf');

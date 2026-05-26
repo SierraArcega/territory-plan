@@ -17,6 +17,11 @@
 function fillFullmindSignatureBlock(body, data) {
   // "Authorized Representative, Seller" appears only once — in the signature block.
   // Replacing it with name + \n + title pre-fills the Fullmind side of the agreement.
+
+  // Note: replaceText() replaces all occurrences in the body.
+  // This is safe for the ACME template where "Authorized Representative, Seller"
+  // appears only once (in the signature table). If adapting to a different template,
+  // verify there are no duplicate occurrences in headers, footers, or other sections.
   body.replaceText(
     'Authorized Representative, Seller',
     data.acctManagerName + '\nAccount Manager, Fullmind Learning'

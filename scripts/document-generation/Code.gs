@@ -78,7 +78,9 @@ function generateOrderDocument(data) {
     eSignResult = sendForDropboxSign(pdfFile.getId(), data.signerEmail, data.signerName, docTitle);
     Logger.log('Dropbox Sign request ID: ' + eSignResult.signatureRequestId);
   } else {
-    Logger.log('Skipping Dropbox Sign send — signerEmail is placeholder. Update data.signerEmail to send for real.');
+    Logger.log('⚠️  eSign SKIPPED — data.signerEmail is missing or still set to "test@example.com". ' +
+               'Set a real client email in SampleData.gs (or the data object) to trigger signing. ' +
+               'signatureRequestId will be null in the return value.');
   }
 
   return {
