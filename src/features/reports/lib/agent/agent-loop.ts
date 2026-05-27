@@ -25,12 +25,15 @@ import {
 } from "./types";
 
 /**
- * Agent variant — controls which terminal tool the loop expects and which
+ * Agent variant — controls which terminal tool(s) the loop expects and which
  * result variant the loop produces. The default 'reports' preserves the
  * original behavior; 'list-builder' is used by the saved-views AI list
- * builder route.
+ * builder route; 'copilot' is the write-capable cross-app assistant, which is
+ * the one variant with TWO terminal tools — `run_sql` (answer-a-question turns,
+ * reused verbatim from reports) and a custom `propose_actions` terminal (write
+ * proposals). The loop picks the path by the called tool's name, not by variant.
  */
-export type AgentVariant = "reports" | "list-builder";
+export type AgentVariant = "reports" | "list-builder" | "copilot";
 
 /**
  * Generic terminal-tool config. When passed to runAgentLoop, the loop
@@ -193,13 +196,19 @@ export async function runAgentLoop<TTerminal = unknown>(
     terminalTool,
     exploratoryToolHandler,
   } = args;
-  // The variant defines which terminal tool name the loop should detect.
-  // Reports keeps the historical `run_sql`. List-builder uses whatever the
-  // caller passed in (typically `emit_list_spec`).
-  const terminalToolName =
-    agentVariant === "list-builder"
-      ? (terminalTool?.name ?? RUN_SQL_TOOL_NAME)
-      : RUN_SQL_TOOL_NAME;
+  // Which tool name(s) terminate the loop. Reports keeps the historical
+  // `run_sql`. List-builder uses whatever the caller passed in (typically
+  // `emit_list_spec`). Copilot is the only variant with two terminals: the
+  // reused `run_sql` (answers) AND the caller's `terminalTool` (propose_actions).
+  const isTerminalTool = (name: string): boolean => {
+    if (agentVariant === "copilot") {
+      return name === RUN_SQL_TOOL_NAME || name === terminalTool?.name;
+    }
+    if (agentVariant === "list-builder") {
+      return name === (terminalTool?.name ?? RUN_SQL_TOOL_NAME);
+    }
+    return name === RUN_SQL_TOOL_NAME;
+  };
 
   // Replay prior turns as tool_use/tool_result pairs (not Markdown SQL blocks)
   // so the model sees structured execution it can't mimic in plain-text replies.
@@ -398,14 +407,19 @@ export async function runAgentLoop<TTerminal = unknown>(
     // `list-builder` (or any variant with a custom terminalTool) we look for
     // the configured tool name. Both branches share the same retry budget and
     // tool_result emission shape so SSE consumers can render either uniformly.
-    const terminalUse = toolUses.find((t) => t.name === terminalToolName);
+    const terminalUse = toolUses.find((t) => isTerminalTool(t.name));
+    const terminalToolName = terminalUse?.name ?? RUN_SQL_TOOL_NAME;
     let terminalErrShape:
       | { kind: "error"; message: string }
       | { kind: "validation_error"; errors: string[] }
       | null = null;
 
     if (terminalUse) {
-      if (agentVariant === "reports") {
+      // Dispatch by the called tool, not the variant: `run_sql` (reports always,
+      // copilot when answering) runs the reused SQL terminal → `result`;
+      // anything else (list-builder's emit_list_spec, copilot's propose_actions)
+      // runs the custom `terminalTool.handle` → `terminal_result`.
+      if (terminalUse.name === RUN_SQL_TOOL_NAME) {
         // Original run_sql path — preserved verbatim so existing behavior is
         // unchanged for the reports caller.
         const input = terminalUse.input as { sql: string; summary: QuerySummary };
@@ -533,7 +547,7 @@ export async function runAgentLoop<TTerminal = unknown>(
           });
           const text =
             assistantText ||
-            "I couldn't build a valid list spec after retries. Could you rephrase?";
+            "I couldn't complete that after a couple of tries. Could you rephrase?";
           logDiag("sql_retries_exhausted", "surrender", text);
           return {
             kind: "surrender",

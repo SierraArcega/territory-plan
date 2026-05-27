@@ -1,0 +1,106 @@
+import type { TurnEvent } from "@/features/reports/lib/agent/types";
+import type { QuerySummary } from "@/features/reports/lib/agent/types";
+
+/** Object types the copilot can write. Districts ("accounts") are read-only;
+ *  they're touched only via `district_note`. */
+export type CopilotObjectType =
+  | "task"
+  | "activity"
+  | "contact"
+  | "plan"
+  | "district_note";
+
+export type CopilotOperation = "create" | "update";
+
+export interface ActionPreviewRow {
+  label: string;
+  value: string;
+}
+
+/** Human-readable confirm-card contents, built server-side from validated fields. */
+export interface ActionPreview {
+  /** e.g. "Create task". */
+  title: string;
+  /** One-line, rep-friendly description (model-authored when available). */
+  summary: string;
+  rows: ActionPreviewRow[];
+  /** Always false in v1 — no deletes. */
+  destructive: boolean;
+}
+
+/** A validated, previewable action the rep can confirm. Built server-side by
+ *  the `propose_actions` terminal handler; nothing is written yet. */
+export interface ProposedAction {
+  /** Client-side card id (generated server-side). */
+  id: string;
+  objectType: CopilotObjectType;
+  operation: CopilotOperation;
+  /** Required for updates — the id of the record to change. */
+  targetId?: string | number | null;
+  /** Validated field values, sent back verbatim to the execute endpoint. */
+  fields: Record<string, unknown>;
+  preview: ActionPreview;
+}
+
+/** Terminal result payload of the `propose_actions` tool. */
+export interface ProposedActionsResult {
+  proposedActions: ProposedAction[];
+}
+
+/** What the panel sends each turn so the model can resolve "here"/"this". */
+export interface CopilotPageContext {
+  tab?: string;
+  route?: string;
+  openDistrict?: { leaid: string; name?: string } | null;
+  openPlanId?: string | number | null;
+  openEntity?: { type: string; id: string | number; label?: string } | null;
+  /** Capped (≤20) snapshot of the rows currently visible to the rep. */
+  visibleRows?: Array<Record<string, unknown>>;
+  /** Human-readable active filter labels. */
+  activeFilters?: string[];
+}
+
+/** Chat request body for the copilot stream route. */
+export interface CopilotChatRequest {
+  message: string;
+  conversationId?: string;
+  pageContext?: CopilotPageContext;
+}
+
+/** Wire shape for one confirmed action sent to the execute endpoint. */
+export interface ExecuteActionRequest {
+  objectType: CopilotObjectType;
+  operation: CopilotOperation;
+  targetId?: string | number | null;
+  fields: Record<string, unknown>;
+  conversationId?: string;
+}
+
+/** Terminal `result` SSE payload the copilot stream emits. */
+export type CopilotTurnResult =
+  | {
+      kind: "answer";
+      conversationId: string;
+      assistantText: string;
+      result: {
+        sql: string;
+        summary: QuerySummary;
+        columns: string[];
+        rows: Array<Record<string, unknown>>;
+        rowCount: number;
+        executionTimeMs: number;
+      };
+    }
+  | {
+      kind: "actions";
+      conversationId: string;
+      assistantText: string;
+      proposedActions: ProposedAction[];
+    }
+  | {
+      kind: "clarifying";
+      conversationId: string;
+      assistantText: string;
+    };
+
+export type { TurnEvent };

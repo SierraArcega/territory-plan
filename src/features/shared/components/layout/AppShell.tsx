@@ -4,6 +4,7 @@ import Sidebar, { TabId } from "@/features/shared/components/navigation/Sidebar"
 import BottomNav from "@/features/shared/components/navigation/BottomNav";
 import FilterBar from "@/features/shared/components/filters/FilterBar";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
+import CopilotPanel from "@/features/copilot/components/CopilotPanel";
 
 interface AppShellProps {
   // Current active tab - determines which content view to show
@@ -83,6 +84,9 @@ export default function AppShell({
           isAdmin={isAdmin}
         />
       )}
+
+      {/* Cross-app AI Copilot — collapsible right rail, available on every tab */}
+      <CopilotPanel />
     </div>
   );
 }
