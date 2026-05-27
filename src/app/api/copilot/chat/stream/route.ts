@@ -126,7 +126,6 @@ export async function POST(request: NextRequest): Promise<Response> {
           targetId: a.targetId ?? null,
           summary: a.summary,
         }),
-        clientAction: action.clientAction,
       });
     }
     if (errors.length > 0) {

@@ -14,8 +14,6 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { useMapStore } from "@/features/shared/lib/app-store";
-import { useMapV2Store, type MapViewState } from "@/features/map/lib/store";
-import { resolveAndApplyMapView } from "@/features/map/lib/map-view-queries";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
@@ -73,8 +71,6 @@ export default function CopilotPanel() {
   // rail (split view); persisted there like sidebarCollapsed.
   const open = useMapStore((s) => s.copilotOpen);
   const setOpen = useMapStore((s) => s.setCopilotOpen);
-  const setActiveTab = useMapStore((s) => s.setActiveTab);
-  const applyViewSnapshot = useMapV2Store((s) => s.applyViewSnapshot);
   const [view, setView] = useState<"chat" | "log">("chat");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -197,26 +193,7 @@ export default function CopilotPanel() {
     async (action: ProposedAction) => {
       setActionStatus((s) => ({ ...s, [action.id]: "pending" }));
       try {
-        if (action.clientAction) {
-          // Applied in the browser, not via the execute endpoint: switch to the
-          // saved map view and jump to the map tab.
-          await resolveAndApplyMapView(
-            String(action.fields.name ?? ""),
-            applyViewSnapshot,
-          );
-          setActiveTab("map");
-        } else {
-          const { result } = await execute.mutateAsync({ action, conversationId });
-          // Saving a map view should also show it — the rep described a view and
-          // expects to see it on the map, not just have it filed away.
-          if (action.objectType === "map_view" && action.operation === "create") {
-            const state = (result as { state?: unknown } | null)?.state;
-            if (state) {
-              applyViewSnapshot(state as MapViewState);
-              setActiveTab("map");
-            }
-          }
-        }
+        await execute.mutateAsync({ action, conversationId });
         setActionStatus((s) => ({ ...s, [action.id]: "confirmed" }));
         setMessages((m) => [
           ...m,
@@ -230,7 +207,7 @@ export default function CopilotPanel() {
         }));
       }
     },
-    [execute, conversationId, applyViewSnapshot, setActiveTab],
+    [execute, conversationId],
   );
 
   const onDismiss = useCallback((actionId: string) => {

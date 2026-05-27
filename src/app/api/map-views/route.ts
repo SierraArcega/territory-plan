@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { createMapView } from "@/features/map/lib/map-view-service";
-import { isServiceError } from "@/features/shared/lib/service-error";
 
 export const dynamic = "force-dynamic";
 
@@ -60,17 +58,46 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description, isShared, state } = body;
 
-    const view = await createMapView(
-      { name, description, isShared, state },
-      user.id,
-      prisma,
-    );
+    // Validate name
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return NextResponse.json(
+        { error: "name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (name.trim().length > 200) {
+      return NextResponse.json(
+        { error: "name must be 200 characters or fewer" },
+        { status: 400 }
+      );
+    }
+
+    // Validate state
+    if (!state || typeof state !== "object" || Array.isArray(state)) {
+      return NextResponse.json(
+        { error: "state is required and must be an object" },
+        { status: 400 }
+      );
+    }
+
+    const view = await prisma.mapView.create({
+      data: {
+        name: name.trim(),
+        description: description?.trim() || null,
+        isShared: isShared ?? false,
+        state,
+        ownerId: user.id,
+      },
+      include: {
+        owner: {
+          select: { id: true, fullName: true, avatarUrl: true },
+        },
+      },
+    });
 
     return NextResponse.json(view, { status: 201 });
   } catch (error) {
-    if (isServiceError(error)) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
     console.error("Error creating map view:", error);
     return NextResponse.json(
       { error: "Failed to create map view" },

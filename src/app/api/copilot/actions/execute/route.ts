@@ -38,15 +38,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  // Client-applied actions (e.g. map_view.apply) never touch the DB — the panel
-  // applies them in the browser. They must not reach this endpoint.
-  if (action.clientAction) {
-    return NextResponse.json(
-      { error: `${objectType}.${operation} is applied client-side, not via this endpoint.` },
-      { status: 400 },
-    );
-  }
-
   const hasTarget = targetId !== undefined && targetId !== null && targetId !== "";
   if (action.needsTarget && !hasTarget) {
     return NextResponse.json(

@@ -18,12 +18,12 @@ const proposeActions: Anthropic.Tool = {
           properties: {
             objectType: {
               type: "string",
-              enum: ["task", "activity", "contact", "plan", "district_note", "map_view"],
+              enum: ["task", "activity", "contact", "plan", "district_note"],
               description: "Which object the action targets.",
             },
             operation: {
               type: "string",
-              enum: ["create", "update", "add_districts", "apply"],
+              enum: ["create", "update", "add_districts"],
             },
             targetId: {
               type: "string",

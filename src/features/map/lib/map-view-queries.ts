@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
-import type { MapViewState } from "@/features/map/lib/store";
 
 export interface MapViewSummary {
   id: string;
@@ -89,25 +88,4 @@ export function useDeleteMapView() {
       queryClient.invalidateQueries({ queryKey: ["mapViews"] });
     },
   });
-}
-
-/**
- * Resolves a saved view by name (case-insensitive; the list is newest-first, so
- * the first match wins) and applies its state to the live map. Used by the
- * copilot's `map_view.apply` action, which is applied in the browser rather than
- * via the execute endpoint. Throws if no accessible view matches the name.
- */
-export async function resolveAndApplyMapView(
-  name: string,
-  applyViewSnapshot: (state: MapViewState) => void,
-): Promise<string> {
-  const wanted = name.trim().toLowerCase();
-  const views = await fetchJson<MapViewSummary[]>(`${API_BASE}/map-views`);
-  const match = views.find((v) => v.name.trim().toLowerCase() === wanted);
-  if (!match) {
-    throw new Error(`No map view named "${name}".`);
-  }
-  const detail = await fetchJson<MapViewDetail>(`${API_BASE}/map-views/${match.id}`);
-  applyViewSnapshot(detail.state as unknown as MapViewState);
-  return match.name;
 }

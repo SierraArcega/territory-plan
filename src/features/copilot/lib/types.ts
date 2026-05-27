@@ -8,10 +8,9 @@ export type CopilotObjectType =
   | "activity"
   | "contact"
   | "plan"
-  | "district_note"
-  | "map_view";
+  | "district_note";
 
-export type CopilotOperation = "create" | "update" | "add_districts" | "apply";
+export type CopilotOperation = "create" | "update" | "add_districts";
 
 export interface ActionPreviewRow {
   label: string;
@@ -41,9 +40,6 @@ export interface ProposedAction {
   /** Validated field values, sent back verbatim to the execute endpoint. */
   fields: Record<string, unknown>;
   preview: ActionPreview;
-  /** True for actions applied in the browser (e.g. `map_view.apply` switches the
-   *  live map state) rather than written to the DB via the execute endpoint. */
-  clientAction?: boolean;
 }
 
 /** Terminal result payload of the `propose_actions` tool. */
