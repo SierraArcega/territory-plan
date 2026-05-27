@@ -211,8 +211,8 @@ async function submit(page) {
 
   try {
     await loadDocument(page);
-    await openESignPanel(page);
-    await removePlaceholder(page);
+    await removePlaceholder(page);   // BEFORE opening eSign panel — edits made
+    await openESignPanel(page);      // after this point must not change the doc
     await insertSignatureField(page);
     await clickRequestESignature(page);
     await fillSendForm(page, title, email);
