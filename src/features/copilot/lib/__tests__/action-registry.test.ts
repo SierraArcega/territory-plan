@@ -98,3 +98,43 @@ describe("contact actions", () => {
     expect(a.parse({ title: "VP of Curriculum" }).ok).toBe(true);
   });
 });
+
+describe("district_note actions", () => {
+  it("exposes district_note.create and district_note.update", () => {
+    expect(getAction("district_note", "create")).toBeDefined();
+    expect(getAction("district_note", "update")).toBeDefined();
+    expect(getAction("district_note", "delete")).toBeUndefined();
+  });
+
+  it("district_note.create requires leaid and text", () => {
+    const a = getAction("district_note", "create")!;
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ leaid: "0601234" }).ok).toBe(false);
+    expect(a.parse({ text: "Met the super." }).ok).toBe(false);
+    expect(a.parse({ leaid: "0601234", text: "Met the super." }).ok).toBe(true);
+  });
+
+  it("district_note.create rejects an invalid noteType", () => {
+    const a = getAction("district_note", "create")!;
+    expect(a.parse({ leaid: "0601234", text: "hi", noteType: "rumor" }).ok).toBe(false);
+    expect(a.parse({ leaid: "0601234", text: "hi", noteType: "risk_flag" }).ok).toBe(true);
+  });
+
+  it("district_note.create confirm card shows the note, not the raw leaid", () => {
+    const a = getAction("district_note", "create")!;
+    const parsed = a.parse({ leaid: "0601234", text: "Budget approved for FY27." });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, { summary: "Note on Austin ISD" });
+    expect(preview.destructive).toBe(false);
+    expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
+    expect(preview.rows.some((r) => r.value.includes("Budget approved"))).toBe(true);
+  });
+
+  it("district_note.update needs a target plus leaid and text", () => {
+    const a = getAction("district_note", "update")!;
+    expect(a.needsTarget).toBe(true);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ text: "Revised." }).ok).toBe(false);
+    expect(a.parse({ leaid: "0601234", text: "Revised." }).ok).toBe(true);
+  });
+});

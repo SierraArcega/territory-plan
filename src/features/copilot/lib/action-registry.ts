@@ -4,6 +4,10 @@ import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
 import { createTask, updateTask } from "@/features/tasks/lib/service";
 import { createContact, updateContact } from "@/features/contacts/lib/service";
 import { isValidPersona, isValidSeniorityLevel } from "@/features/shared/types/contact-types";
+import { createDistrictNote, updateDistrictNote } from "@/features/districts/lib/note-service";
+import { plainTextToNoteDoc } from "@/features/views/lib/note-doc";
+import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
+import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
   CopilotObjectType,
@@ -102,6 +106,14 @@ const personaField = z
 const seniorityField = z
   .string()
   .refine((s) => isValidSeniorityLevel(s), { message: "invalid seniority level" });
+const noteTypeField = z
+  .string()
+  .refine((s) => isNoteType(s), { message: "invalid note type" });
+
+// Truncate free text for a confirm-card row so a long note doesn't blow out the card.
+function snippet(text: string): string {
+  return text.length > 140 ? `${text.slice(0, 140)}…` : text;
+}
 
 const ACTION_REGISTRY: Record<string, RegisteredAction> = {};
 
@@ -284,5 +296,76 @@ register(
         },
       }),
     execute: (f, { targetId, ctx }) => updateContact(Number(targetId), f, ctx.db),
+  }),
+);
+
+// ===== district_note.create =====
+register(
+  defineAction({
+    objectType: "district_note",
+    operation: "create",
+    fieldsSchema: z.object({
+      // leaid is the district the note is logged against — an internal id, kept
+      // off the confirm card. `text` is plain text; converted to a TipTap doc.
+      leaid: z.string().min(1, "leaid is required"),
+      text: z.string().min(1, "text is required"),
+      noteType: noteTypeField.optional(),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Add district note",
+      summary: summary || snippet(f.text),
+      rows: [
+        { label: "Note", value: snippet(f.text) },
+        ...(f.noteType ? [{ label: "Type", value: NOTE_TYPE_LABELS[f.noteType] ?? f.noteType }] : []),
+      ],
+      destructive: false,
+    }),
+    execute: (f, { ctx }) => {
+      const { bodyJson, bodyText } = plainTextToNoteDoc(f.text);
+      return createDistrictNote(
+        f.leaid,
+        { bodyText, bodyJson, noteType: f.noteType },
+        ctx.userId,
+        ctx.db,
+      );
+    },
+  }),
+);
+
+// ===== district_note.update =====
+register(
+  defineAction({
+    objectType: "district_note",
+    operation: "update",
+    fieldsSchema: z.object({
+      leaid: z.string().min(1, "leaid is required"),
+      text: z.string().min(1, "text is required"),
+      noteType: noteTypeField.optional(),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Update district note",
+      summary: summary || snippet(f.text),
+      rows: [
+        { label: "New text", value: snippet(f.text) },
+        ...(f.noteType ? [{ label: "Type", value: NOTE_TYPE_LABELS[f.noteType] ?? f.noteType }] : []),
+      ],
+      destructive: false,
+    }),
+    snapshot: (targetId, db) =>
+      db.districtNote.findUnique({
+        where: { id: targetId },
+        select: { id: true, bodyText: true, noteType: true },
+      }),
+    execute: (f, { targetId, ctx }) => {
+      const { bodyJson, bodyText } = plainTextToNoteDoc(f.text);
+      return updateDistrictNote(
+        f.leaid,
+        String(targetId),
+        { bodyText, bodyJson, noteType: f.noteType },
+        ctx.userId,
+        () => isAdmin(ctx.userId),
+        ctx.db,
+      );
+    },
   }),
 );
