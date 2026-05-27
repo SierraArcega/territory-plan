@@ -29,7 +29,6 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 const explicitProps = {
   planId: "plan-1",
-  planLeaids: ["A", "B"],
   selection: { mode: "explicit" as const, leaids: new Set(["A"]) },
   layout: { filters: { kind: "and" as const, children: [] }, sort: [], columns: [] },
   onSelectionCleared: vi.fn(),

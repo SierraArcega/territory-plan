@@ -4,7 +4,7 @@ import { ChevronDown, Search, Download, Trash2, Loader2 } from "lucide-react";
 import { AnchoredPopover } from "../AnchoredPopover";
 import { useBulkRemoveDistrictsFromPlan } from "@/features/plans/lib/queries";
 import { FindContactsPopover } from "./FindContactsPopover";
-import { API_BASE } from "@/features/shared/lib/api-client";
+import { fetchExportRows, resolvePlanLeaids, type ExportRow } from "./export-helpers";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 
 export type SelectionState =
@@ -14,8 +14,6 @@ export type SelectionState =
 
 interface BulkActionsMenuProps {
   planId: string;
-  /** All leaids in the plan — used to scope the export endpoint. */
-  planLeaids: string[];
   selection: Exclude<SelectionState, { mode: "none" }>;
   layout: GridViewLayout;
   onSelectionCleared: () => void;
@@ -23,25 +21,8 @@ interface BulkActionsMenuProps {
 
 type Surface = null | "remove" | "find-contacts";
 
-/** Fetch all leaids matching current filters via the export endpoint. */
-async function resolveAllLeaids(
-  planId: string,
-  layout: GridViewLayout
-): Promise<string[]> {
-  const params = new URLSearchParams();
-  if (layout.filters.children.length > 0) {
-    params.set("filters", JSON.stringify(layout.filters));
-  }
-  const url = `${API_BASE}/territory-plans/${planId}/districts/export?${params.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch districts for bulk action");
-  const data = (await res.json()) as { rows: { leaid: string }[] };
-  return data.rows.map((r) => r.leaid);
-}
-
 export function BulkActionsMenu({
   planId,
-  planLeaids: _planLeaids,
   selection,
   layout,
   onSelectionCleared,
@@ -61,7 +42,7 @@ export function BulkActionsMenu({
     }
     setResolving(true);
     try {
-      return await resolveAllLeaids(planId, layout);
+      return await resolvePlanLeaids(planId, layout);
     } finally {
       setResolving(false);
     }
@@ -71,25 +52,13 @@ export function BulkActionsMenu({
     setOpen(false);
     setResolving(true);
     try {
-      let rows: Record<string, unknown>[];
+      let rows: ExportRow[];
+      const allRows = await fetchExportRows(planId, layout);
       if (selection.mode === "explicit") {
-        const params = new URLSearchParams();
-        const res = await fetch(
-          `${API_BASE}/territory-plans/${planId}/districts/export?${params.toString()}`
-        );
-        const data = (await res.json()) as { rows: Record<string, unknown>[] };
         const selectedLeaids = selection.leaids;
-        rows = data.rows.filter((r) => selectedLeaids.has(r.leaid as string));
+        rows = allRows.filter((r) => selectedLeaids.has(r.leaid));
       } else {
-        const params = new URLSearchParams();
-        if (layout.filters.children.length > 0) {
-          params.set("filters", JSON.stringify(layout.filters));
-        }
-        const res = await fetch(
-          `${API_BASE}/territory-plans/${planId}/districts/export?${params.toString()}`
-        );
-        const data = (await res.json()) as { rows: Record<string, unknown>[] };
-        rows = data.rows;
+        rows = allRows;
       }
 
       const headers = [
@@ -116,16 +85,24 @@ export function BulkActionsMenu({
       a.download = `districts-export-${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      // TODO: surface to user via toast if one is available
     } finally {
       setResolving(false);
     }
   }, [selection, planId, layout]);
 
   const handleConfirmRemove = useCallback(async () => {
-    const leaids = await getLeaids();
-    await removeMutation.mutateAsync({ planId, leaids });
-    setSurface(null);
-    onSelectionCleared();
+    try {
+      const leaids = await getLeaids();
+      await removeMutation.mutateAsync({ planId, leaids });
+      setSurface(null);
+      onSelectionCleared();
+    } catch (err) {
+      console.error("Bulk remove failed:", err);
+      // Keep dialog open; mutation isPending state resets automatically
+    }
   }, [getLeaids, removeMutation, planId, onSelectionCleared]);
 
   const item =
