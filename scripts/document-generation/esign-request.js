@@ -148,10 +148,27 @@ async function insertSignatureField(page) {
 
 /**
  * Step 5 — Click "Request eSignature" to open the send form.
+ *
+ * Google may show a "Review changes" blocking dialog when edits were made to
+ * the document (including our [GSIGN_SIG] deletion). Click through it and
+ * re-click "Request eSignature" so the send form appears.
  */
 async function clickRequestESignature(page) {
   console.log('Step 5: Clicking Request eSignature...');
-  await page.getByRole('button', { name: 'Request eSignature' }).click();
+  const requestBtn = page.getByRole('button', { name: 'Request eSignature' });
+  await requestBtn.click();
+
+  // Wait briefly for the "Review changes" dialog to appear
+  await page.waitForTimeout(1500);
+  const reviewBtn = page.getByRole('button', { name: 'Review changes' });
+  if (await reviewBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    console.log('  "Review changes" dialog detected — clicking through...');
+    await reviewBtn.click();
+    await page.waitForTimeout(1500); // wait for dialog to close
+    await requestBtn.click();        // re-click to open the send form
+    console.log('  Re-clicked Request eSignature after review dialog');
+  }
+
   console.log('✓ Step 5: Request eSignature clicked');
 }
 
