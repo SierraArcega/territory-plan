@@ -147,6 +147,7 @@ export const OUTCOMES_BY_CATEGORY: Record<ActivityCategory, OutcomeType[]> = {
   meetings: ["positive_progress", "neutral", "negative", "follow_up_needed"],
   campaigns: ["response_received", "meeting_booked", "no_response"],
   events: ["contacts_made", "meetings_scheduled", "pipeline_generated"],
+  outreach: ["response_received", "meeting_booked", "no_response"],
   gift_drop: ["delivered", "thank_you_received"],
   sponsorships: ["contacts_made", "meetings_scheduled", "pipeline_generated"],
   thought_leadership: ["contacts_made", "meetings_scheduled", "pipeline_generated", "attendees_engaged"],
