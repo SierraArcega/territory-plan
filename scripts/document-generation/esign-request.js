@@ -210,9 +210,13 @@ async function fillSendForm(page, docTitle, signerEmail) {
   await docNameField.selectText();
   await docNameField.fill(docTitle);
 
-  // Signer email field
+  // Signer email field — click to focus, fill, then Tab to commit the value.
+  // Without Tab, Google's form may not register the typed email before submit.
   const signerField = page.getByRole('textbox', { name: 'Signer' });
+  await signerField.click();
   await signerField.fill(signerEmail);
+  await signerField.press('Tab'); // commit value so Google validates it
+  await page.waitForTimeout(300);
 
   console.log('✓ Step 6: Form filled —', docTitle, '/', signerEmail);
 }
@@ -234,8 +238,18 @@ async function submit(page) {
   await submitButton.waitFor({ state: 'visible', timeout: 10000 });
   await submitButton.click();
 
-  // Wait for the confirmation screen to appear
-  await page.waitForTimeout(4000);
+  // Wait for result — either success confirmation or error dialog
+  await page.waitForTimeout(3000);
+
+  // Detect the "Unable to request eSignature" error so we fail loudly
+  const errorText = page.getByText('Unable to request eSignature');
+  if (await errorText.isVisible({ timeout: 1000 }).catch(() => false)) {
+    throw new Error(
+      '"Unable to request eSignature" — Google rejected the submission. ' +
+      'Check: signature field placed correctly, signer email valid, Workspace plan supports eSign.'
+    );
+  }
+
   console.log('✓ Step 7: Request submitted');
 }
 
