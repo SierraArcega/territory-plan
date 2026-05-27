@@ -136,13 +136,38 @@ async function removePlaceholder(page) {
 
 /**
  * Step 4 — Click the Signature field button in the eSign panel.
- * The cursor is already positioned at the deletion site from Step 3, so
- * Docs places the field exactly there.
+ *
+ * Opening the eSign panel via Tools menu steals document focus, so the cursor
+ * position set in Step 3 is no longer active. We restore document focus by
+ * opening and immediately closing the Find bar — this re-focuses the document
+ * without moving the cursor. Then clicking Signature places the field exactly
+ * at the deletion site.
  */
 async function insertSignatureField(page) {
   console.log('Step 4: Inserting Signature field...');
+
+  // Restore document body focus without moving the cursor.
+  // Menu clicks steal focus from the doc; an open+close Find cycle returns it.
+  const docBody = page.frameLocator('.docs-texteventtarget-iframe')
+                      .getByRole('textbox', { name: 'Document content' });
+  await docBody.press('ControlOrMeta+f');
+  const findBar = page.getByRole('searchbox', { name: 'Find in document' });
+  await findBar.waitFor({ state: 'visible', timeout: 5000 });
+  await findBar.press('Escape'); // close immediately — cursor stays at deletion site
+  await page.waitForTimeout(300);
+
+  // Click Signature in the panel — field placed at current cursor position
   await page.getByRole('button', { name: 'Signature', exact: true }).click();
-  await page.waitForTimeout(600); // let the field render in the doc
+  await page.waitForTimeout(500);
+
+  // Dismiss the "Rename" popup that appears after field placement
+  const renameField = page.getByRole('textbox', { name: 'Rename' });
+  if (await renameField.isVisible({ timeout: 1500 }).catch(() => false)) {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    console.log('  Rename dialog dismissed');
+  }
+
   console.log('✓ Step 4: Signature field inserted');
 }
 
