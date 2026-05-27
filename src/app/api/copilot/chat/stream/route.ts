@@ -68,7 +68,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const question = body.message;
   const priorTurns = await loadCopilotPriorTurns(conversationId, userId);
   const userMessage = withPageContext(question, body.pageContext);
-  const systemPrompt = await buildCopilotSystemPrompt();
+  const systemPrompt = await buildCopilotSystemPrompt({ id: userId, email: user.email });
 
   // propose_actions terminal: validate each proposed action against the registry
   // and build confirm cards. Validation errors come back as a structured retry

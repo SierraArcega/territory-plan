@@ -84,14 +84,32 @@ Be concise and rep-friendly. Never show SQL or raw ids unless asked. Add a short
 # Database reference (for the read / answer rail and id lookups)
 `;
 
+export interface CopilotUser {
+  id: string;
+  email?: string | null;
+}
+
+/** Identity block so the copilot can scope "my" questions to the current rep.
+ *  The read-only query role can't see user_profiles, so the rep's id is supplied
+ *  here for direct use in WHERE clauses. */
+function buildIdentitySection(user: CopilotUser): string {
+  return `## Who you're working for
+You are the copilot for ONE specific rep — user id \`${user.id}\`${user.email ? ` (${user.email})` : ""}. When the rep says "my", "me", "I", "mine", or "my plan / tasks / activities", scope to THIS rep's own records by putting that id directly in the WHERE clause:
+- territory_plans → \`owner_id = '${user.id}'\`
+- tasks / activities → \`created_by_user_id = '${user.id}'\`
+The read-only query role cannot see user_profiles, so do NOT try to resolve the rep by name — use the id above. So "details about my plan" means: find the rep's plan in territory_plans (owner_id + name if they named one), then load its districts/targets from territory_plan_districts. Never print this id to the rep.
+`;
+}
+
 /**
- * Copilot system prompt = a copilot-specific preamble (the two rails, the action
- * catalog, the confirm rule, how to read <current_view>) followed by the reports
- * agent's full schema + read-tool guidance, so the read rail and id lookups are
- * just as capable as the reports agent. Cached with a 1h TTL by the agent loop;
- * per-turn page context is injected into the user message, not here.
+ * Copilot system prompt = the current-rep identity block + a copilot-specific
+ * preamble (the two rails, the action catalog, the confirm rule, how to read
+ * <current_view>) followed by the reports agent's full schema + read-tool
+ * guidance, so the read rail and id lookups are just as capable as the reports
+ * agent. Cached with a 1h TTL by the agent loop; per-turn page context is
+ * injected into the user message, not here.
  */
-export async function buildCopilotSystemPrompt(): Promise<string> {
+export async function buildCopilotSystemPrompt(currentUser: CopilotUser): Promise<string> {
   const dbReference = await buildSystemPrompt([]);
-  return `${COPILOT_PREAMBLE}\n${dbReference}`;
+  return `${buildIdentitySection(currentUser)}\n${COPILOT_PREAMBLE}\n${dbReference}`;
 }
