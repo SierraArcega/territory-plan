@@ -411,6 +411,47 @@ export default function GridView(props: GridViewProps) {
     ? SOURCE_COLUMNS[source].find((c) => c.id === groupBy.id) ?? null
     : null;
 
+  /** Toggle a single row's leaid in the selection. */
+  function toggleRowLeaid(leaid: string) {
+    setSelection((prev) => {
+      if (prev.mode === "all-filtered") {
+        // all-filtered: clicking a row is a no-op — user must Clear first.
+        return prev;
+      }
+      const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
+      next.has(leaid) ? next.delete(leaid) : next.add(leaid);
+      return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
+    });
+  }
+
+  function renderCheckboxCell(row: { original: Record<string, unknown> }) {
+    if (!showRowActions) return null;
+    const leaid = typeof row.original.leaid === "string" ? row.original.leaid : null;
+    const name = typeof row.original.name === "string" ? row.original.name : "district";
+    const checked =
+      selection.mode === "all-filtered" ||
+      (selection.mode === "explicit" &&
+        leaid != null &&
+        selection.leaids.has(leaid));
+    return (
+      <td
+        className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (leaid) toggleRowLeaid(leaid);
+        }}
+      >
+        <input
+          type="checkbox"
+          aria-label={`Select ${name}`}
+          className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
+          readOnly
+          checked={checked}
+        />
+      </td>
+    );
+  }
+
   function groupKeyFor(rowData: Record<string, unknown>): string {
     if (!groupColumn) return "";
     const raw = rowData[groupColumn.accessor];
@@ -446,50 +487,12 @@ export default function GridView(props: GridViewProps) {
 
     if (!groupColumn) {
       return tableRows.map((row) => {
-        const original = row.original as Record<string, unknown>;
         return (
           <tr
             key={row.id}
             className="hover:bg-[#F7F5FA] transition-colors duration-100"
           >
-            {showRowActions && (
-              <td
-                className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const leaid = typeof row.original.leaid === "string" ? row.original.leaid : null;
-                  if (!leaid) return;
-                  setSelection((prev) => {
-                    if (prev.mode === "all-filtered") {
-                      const allPageLeaids = new Set(
-                        rows
-                          .map((r) => r.leaid)
-                          .filter((l): l is string => typeof l === "string" && l !== leaid)
-                      );
-                      return allPageLeaids.size === 0
-                        ? { mode: "none" }
-                        : { mode: "explicit", leaids: allPageLeaids };
-                    }
-                    const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
-                    next.has(leaid) ? next.delete(leaid) : next.add(leaid);
-                    return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
-                  });
-                }}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${typeof row.original.name === "string" ? row.original.name : "district"}`}
-                  className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
-                  readOnly
-                  checked={
-                    selection.mode === "all-filtered" ||
-                    (selection.mode === "explicit" &&
-                      typeof row.original.leaid === "string" &&
-                      selection.leaids.has(row.original.leaid))
-                  }
-                />
-              </td>
-            )}
+            {renderCheckboxCell(row)}
             {row.getVisibleCells().map((cell) => (
               <td
                 key={cell.id}
@@ -577,44 +580,7 @@ export default function GridView(props: GridViewProps) {
             key={row.id}
             className="hover:bg-[#F7F5FA] transition-colors duration-100"
           >
-            {showRowActions && (
-              <td
-                className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const leaid = typeof row.original.leaid === "string" ? row.original.leaid : null;
-                  if (!leaid) return;
-                  setSelection((prev) => {
-                    if (prev.mode === "all-filtered") {
-                      const allPageLeaids = new Set(
-                        rows
-                          .map((r) => r.leaid)
-                          .filter((l): l is string => typeof l === "string" && l !== leaid)
-                      );
-                      return allPageLeaids.size === 0
-                        ? { mode: "none" }
-                        : { mode: "explicit", leaids: allPageLeaids };
-                    }
-                    const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
-                    next.has(leaid) ? next.delete(leaid) : next.add(leaid);
-                    return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
-                  });
-                }}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${typeof row.original.name === "string" ? row.original.name : "district"}`}
-                  className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
-                  readOnly
-                  checked={
-                    selection.mode === "all-filtered" ||
-                    (selection.mode === "explicit" &&
-                      typeof row.original.leaid === "string" &&
-                      selection.leaids.has(row.original.leaid))
-                  }
-                />
-              </td>
-            )}
+            {renderCheckboxCell(row)}
             {row.getVisibleCells().map((cell) => (
               <td
                 key={cell.id}
@@ -801,6 +767,11 @@ export default function GridView(props: GridViewProps) {
                       }
                     }}
                     onChange={(e) => {
+                      if (selection.mode === "all-filtered") {
+                        // Exit all-filtered when header checkbox is unchecked
+                        setSelection({ mode: "none" });
+                        return;
+                      }
                       if (e.target.checked) {
                         const pageLeaids = new Set(
                           rows
