@@ -246,8 +246,13 @@ async function submit(page) {
     slowMo:   50      // slight delay between actions (helps with Docs' lazy rendering)
   });
 
+  const recordingsDir = path.join(__dirname, 'recordings');
   const context = await browser.newContext({
-    storageState: path.join(__dirname, '.auth', 'session.json')
+    storageState: path.join(__dirname, '.auth', 'session.json'),
+    recordVideo: {
+      dir:  recordingsDir,
+      size: { width: 1280, height: 720 }
+    }
   });
   const page = await context.newPage();
 
@@ -273,6 +278,12 @@ async function submit(page) {
     process.exit(1);
 
   } finally {
+    // Save video before closing — must close context first, then browser
+    await context.close();
+    const videoPath = await page.video()?.path();
+    if (videoPath) {
+      console.log('  Recording saved to:', videoPath);
+    }
     await browser.close();
   }
 })();
