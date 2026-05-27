@@ -4,7 +4,9 @@ import Sidebar, { TabId } from "@/features/shared/components/navigation/Sidebar"
 import BottomNav from "@/features/shared/components/navigation/BottomNav";
 import FilterBar from "@/features/shared/components/filters/FilterBar";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import CopilotPanel from "@/features/copilot/components/CopilotPanel";
+import { COPILOT_PANEL_WIDTH } from "@/features/copilot/lib/constants";
 
 interface AppShellProps {
   // Current active tab - determines which content view to show
@@ -51,9 +53,16 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const isMobile = useIsMobile();
+  const copilotOpen = useMapStore((s) => s.copilotOpen);
 
   return (
-    <div className="fixed inset-0 h-dvh flex flex-col bg-[#FFFCFA] overflow-hidden overscroll-none">
+    <div
+      className="fixed inset-0 h-dvh flex flex-col bg-[#FFFCFA] overflow-hidden overscroll-none transition-[padding] duration-200"
+      // Reserve space for the fixed Copilot rail so the page shrinks beside it
+      // (split view) instead of being covered. Desktop only — mobile is a
+      // full-screen overlay with no room to split.
+      style={{ paddingRight: copilotOpen && !isMobile ? COPILOT_PANEL_WIDTH : 0 }}
+    >
       {/* Top: FilterBar - adapts based on active tab */}
       {!hideFilterBar && <FilterBar activeTab={activeTab} />}
 

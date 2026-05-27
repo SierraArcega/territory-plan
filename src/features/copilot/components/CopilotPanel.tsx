@@ -13,6 +13,8 @@ import {
   History,
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
+import { useMapStore } from "@/features/shared/lib/app-store";
+import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
 import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
@@ -24,7 +26,6 @@ import type {
   TurnEvent,
 } from "../lib/types";
 
-const STORAGE_KEY = "copilot:open";
 const CONV_KEY = "copilot:conversationId";
 
 type ActionStatus = "idle" | "pending" | "confirmed" | "dismissed" | "error";
@@ -66,7 +67,10 @@ function latestToolLabel(events: TurnEvent[] | undefined): string {
 
 export default function CopilotPanel() {
   const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
+  // Open state lives in the shared store so AppShell can reserve space for the
+  // rail (split view); persisted there like sidebarCollapsed.
+  const open = useMapStore((s) => s.copilotOpen);
+  const setOpen = useMapStore((s) => s.setCopilotOpen);
   const [view, setView] = useState<"chat" | "log">("chat");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -78,22 +82,6 @@ export default function CopilotPanel() {
   const execute = useExecuteCopilotAction();
   const getPageContext = useCopilotPageContext();
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Persist open/closed like the sidebar (self-contained — no AppShell props).
-  useEffect(() => {
-    try {
-      setOpen(localStorage.getItem(STORAGE_KEY) === "1");
-    } catch {
-      // ignore
-    }
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, open ? "1" : "0");
-    } catch {
-      // ignore
-    }
-  }, [open]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -260,9 +248,9 @@ export default function CopilotPanel() {
   return (
     <aside
       className={`panel-v2-enter fixed z-50 flex flex-col bg-white shadow-lg ${
-        isMobile ? "inset-0" : "right-0 top-0 h-dvh w-[380px] border-l border-[#E2DEEC]"
+        isMobile ? "inset-0" : "right-0 top-0 h-dvh border-l border-[#E2DEEC]"
       }`}
-      style={{ touchAction: "pan-y" }}
+      style={{ touchAction: "pan-y", ...(isMobile ? {} : { width: COPILOT_PANEL_WIDTH }) }}
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#E2DEEC] bg-[#F7F5FA] px-4 py-3">

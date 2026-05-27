@@ -96,6 +96,9 @@ interface MapState {
   selectedNcessch: string | null;
   // Snapshot of the active view's visible rows, for the AI copilot's page context
   copilotView: CopilotViewSnapshot | null;
+  // Whether the AI copilot rail is open. Lifted into the store so AppShell can
+  // reserve space for it (split view) — persisted like sidebarCollapsed.
+  copilotOpen: boolean;
 }
 
 interface MapActions {
@@ -142,6 +145,7 @@ interface MapActions {
   // Copilot page-context publishing (views opt in)
   setCopilotView: (view: CopilotViewSnapshot | null) => void;
   clearCopilotView: () => void;
+  setCopilotOpen: (open: boolean) => void;
 }
 
 const initialTooltip: TooltipState = {
@@ -181,6 +185,7 @@ export const useMapStore = create<MapState & MapActions>()(
       charterLayerVisible: false,
       selectedNcessch: null,
       copilotView: null,
+      copilotOpen: false,
 
       // Navigation actions
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -306,12 +311,14 @@ export const useMapStore = create<MapState & MapActions>()(
     }),
   setCopilotView: (view) => set({ copilotView: view }),
   clearCopilotView: () => set({ copilotView: null }),
+  setCopilotOpen: (open) => set({ copilotOpen: open }),
     }),
     {
       name: "territory-plan-storage",
       // Only persist navigation preferences, not transient UI state
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
+        copilotOpen: state.copilotOpen,
         // Don't persist activeTab - we'll sync with URL instead
       }),
     }
