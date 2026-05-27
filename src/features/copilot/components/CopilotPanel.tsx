@@ -193,7 +193,7 @@ export default function CopilotPanel() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open Copilot"
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-[#5B4B8A] px-4 py-3 text-white shadow-lg transition-colors hover:bg-[#4A3D73]"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-[#403770] px-4 py-3 text-white shadow-lg transition-colors hover:bg-[#322a5a]"
       >
         <Sparkles className="h-5 w-5" />
         <span className="text-sm font-medium whitespace-nowrap">Copilot</span>
@@ -203,16 +203,16 @@ export default function CopilotPanel() {
 
   return (
     <aside
-      className={`fixed z-40 flex flex-col bg-white shadow-2xl ${
-        isMobile ? "inset-0" : "right-0 top-0 h-dvh w-[380px] border-l border-[#EFEDF5]"
+      className={`fixed z-50 flex flex-col bg-white shadow-lg ${
+        isMobile ? "inset-0" : "right-0 top-0 h-dvh w-[380px] border-l border-[#E2DEEC]"
       }`}
       style={{ touchAction: "pan-y" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#EFEDF5] bg-[#F7F5FA] px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[#E2DEEC] bg-[#F7F5FA] px-4 py-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#5B4B8A]" />
-          <span className="text-sm font-semibold text-[#2E2A3A] whitespace-nowrap">
+          <Sparkles className="h-5 w-5 text-[#403770]" />
+          <span className="text-sm font-semibold text-[#403770] whitespace-nowrap">
             Copilot
           </span>
         </div>
@@ -220,7 +220,7 @@ export default function CopilotPanel() {
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Close Copilot"
-          className="rounded-md p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
+          className="rounded-lg p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
         >
           <X className="h-5 w-5" />
         </button>
@@ -247,7 +247,7 @@ export default function CopilotPanel() {
       </div>
 
       {/* Composer */}
-      <div className="border-t border-[#EFEDF5] p-3">
+      <div className="border-t border-[#E2DEEC] p-3">
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -260,14 +260,14 @@ export default function CopilotPanel() {
             }}
             rows={2}
             placeholder="Message Copilot…"
-            className="min-h-[44px] flex-1 resize-none rounded-lg border border-[#EFEDF5] bg-[#FFFCFA] px-3 py-2 text-sm text-[#2E2A3A] outline-none focus:border-[#5B4B8A]"
+            className="min-h-[44px] flex-1 resize-none rounded-lg border border-[#E2DEEC] bg-[#FFFCFA] px-3 py-2 text-sm text-[#403770] outline-none focus:border-[#403770]"
           />
           <button
             type="button"
             onClick={handleSend}
             disabled={!input.trim() || stream.isPending}
             aria-label="Send"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#5B4B8A] text-white transition-colors hover:bg-[#4A3D73] disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#403770] text-white transition-colors hover:bg-[#322a5a] disabled:opacity-40"
           >
             {stream.isPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -297,7 +297,7 @@ function MessageBlock({
   if (msg.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[#5B4B8A] px-3 py-2 text-sm text-white whitespace-pre-wrap">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[#403770] px-3 py-2 text-sm text-white whitespace-pre-wrap">
           {msg.text}
         </div>
       </div>
@@ -317,7 +317,7 @@ function MessageBlock({
             className={`max-w-[90%] rounded-2xl rounded-bl-sm px-3 py-2 text-sm whitespace-pre-wrap ${
               msg.error
                 ? "bg-[#FFE0DC] text-[#A8281C]"
-                : "bg-[#EFEDF5] text-[#2E2A3A]"
+                : "bg-[#EFEDF5] text-[#403770]"
             }`}
           >
             {msg.text}
@@ -348,7 +348,7 @@ function AnswerTable({ answer }: { answer: AnswerPayload }) {
     );
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-[#EFEDF5]">
+    <div className="overflow-x-auto rounded-lg border border-[#E2DEEC]">
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr className="bg-[#F7F5FA]">
@@ -364,9 +364,9 @@ function AnswerTable({ answer }: { answer: AnswerPayload }) {
         </thead>
         <tbody>
           {answer.rows.map((row, i) => (
-            <tr key={i} className="border-t border-[#EFEDF5]">
+            <tr key={i} className="border-t border-[#E2DEEC]">
               {answer.columns.map((c) => (
-                <td key={c} className="px-2 py-1 text-[#2E2A3A] whitespace-nowrap">
+                <td key={c} className="px-2 py-1 text-[#403770] whitespace-nowrap">
                   {row[c] == null ? "" : String(row[c])}
                 </td>
               ))}
@@ -375,7 +375,7 @@ function AnswerTable({ answer }: { answer: AnswerPayload }) {
         </tbody>
       </table>
       {answer.rowCount > answer.rows.length && (
-        <p className="px-2 py-1 text-[11px] text-[#6E6390]">
+        <p className="px-2 py-1 text-[10px] text-[#6E6390]">
           Showing {answer.rows.length} of {answer.rowCount} rows.
         </p>
       )}
@@ -398,7 +398,7 @@ function ProposedActionCard({
 }) {
   const settled = status === "confirmed" || status === "dismissed";
   return (
-    <div className="rounded-lg border border-[#EFEDF5] bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-[#E2DEEC] bg-white p-3 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-[#6E6390] whitespace-nowrap">
           {action.preview.title}
@@ -415,14 +415,14 @@ function ProposedActionCard({
         )}
       </div>
 
-      <p className="mt-1 text-sm font-medium text-[#2E2A3A]">{action.preview.summary}</p>
+      <p className="mt-1 text-sm font-medium text-[#403770]">{action.preview.summary}</p>
 
       {action.preview.rows.length > 0 && (
         <dl className="mt-2 space-y-1">
           {action.preview.rows.map((r, i) => (
             <div key={i} className="flex gap-2 text-xs">
               <dt className="shrink-0 text-[#6E6390] whitespace-nowrap">{r.label}</dt>
-              <dd className="text-[#2E2A3A] break-words">{r.value}</dd>
+              <dd className="text-[#403770] break-words">{r.value}</dd>
             </div>
           ))}
         </dl>
@@ -441,7 +441,7 @@ function ProposedActionCard({
             type="button"
             onClick={() => onConfirm(action)}
             disabled={status === "pending"}
-            className="flex flex-1 items-center justify-center gap-1 rounded-md bg-[#5B4B8A] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#4A3D73] disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#403770] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#322a5a] disabled:opacity-50"
           >
             {status === "pending" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -454,7 +454,7 @@ function ProposedActionCard({
             type="button"
             onClick={() => onDismiss(action.id)}
             disabled={status === "pending"}
-            className="flex-1 rounded-md border border-[#EFEDF5] px-3 py-1.5 text-xs font-medium text-[#6E6390] transition-colors hover:bg-[#F7F5FA] disabled:opacity-50"
+            className="flex-1 rounded-lg border border-[#E2DEEC] px-3 py-1.5 text-xs font-medium text-[#6E6390] transition-colors hover:bg-[#F7F5FA] disabled:opacity-50"
           >
             Dismiss
           </button>
