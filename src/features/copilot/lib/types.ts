@@ -59,6 +59,8 @@ export interface CopilotPageContext {
   selectedLeaids?: string[];
   /** Capped (≤20) snapshot of the rows currently visible to the rep. */
   visibleRows?: Array<Record<string, unknown>>;
+  /** What the visible rows are (e.g. "Low-hanging-fruit list"). */
+  visibleRowsLabel?: string;
   /** Human-readable active filter labels. */
   activeFilters?: string[];
 }

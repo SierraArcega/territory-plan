@@ -14,6 +14,7 @@ export function useCopilotPageContext(): () => CopilotPageContext {
   const selectedLeaid = useMapStore((s) => s.selectedLeaid);
   const currentPlanId = useMapStore((s) => s.currentPlanId);
   const selectedLeaids = useMapStore((s) => s.selectedLeaids);
+  const copilotView = useMapStore((s) => s.copilotView);
 
   return useCallback(() => {
     const ctx: CopilotPageContext = { tab: activeTab };
@@ -23,6 +24,13 @@ export function useCopilotPageContext(): () => CopilotPageContext {
     if (selectedLeaids && selectedLeaids.size > 0) {
       ctx.selectedLeaids = Array.from(selectedLeaids);
     }
+    // Rows the active view published (e.g. the low-hanging-fruit list) so the
+    // copilot can reason about "these" / "which of these".
+    if (copilotView && copilotView.rows.length > 0) {
+      ctx.visibleRows = copilotView.rows;
+      ctx.visibleRowsLabel = copilotView.source;
+      if (copilotView.filters?.length) ctx.activeFilters = copilotView.filters;
+    }
     return ctx;
-  }, [activeTab, selectedLeaid, currentPlanId, selectedLeaids]);
+  }, [activeTab, selectedLeaid, currentPlanId, selectedLeaids, copilotView]);
 }

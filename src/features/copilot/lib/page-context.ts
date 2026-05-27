@@ -41,7 +41,8 @@ export function formatPageContextBlock(
       ctx.visibleRows.length > MAX_ROWS
         ? ` of ${ctx.visibleRows.length}, capped`
         : "";
-    lines.push(`Visible rows (${rows.length}${suffix}):`);
+    const label = ctx.visibleRowsLabel ? `${ctx.visibleRowsLabel} — ` : "";
+    lines.push(`Visible rows — ${label}showing ${rows.length}${suffix}:`);
     lines.push(JSON.stringify(rows));
   }
   if (lines.length === 0) return null;
