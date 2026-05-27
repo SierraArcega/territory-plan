@@ -130,6 +130,14 @@ describe("district_note actions", () => {
     expect(preview.rows.some((r) => r.value.includes("Budget approved"))).toBe(true);
   });
 
+  it("district_note.create validate rejects a leaid with no matching district", async () => {
+    const a = getAction("district_note", "create")!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbNone = { district: { findMany: async () => [] } } as any;
+    const errs = await a.validate!({ leaid: "ghost", text: "hi" }, { userId: "u", db: dbNone });
+    expect(errs.length).toBeGreaterThan(0);
+  });
+
   it("district_note.update needs a target plus leaid and text", () => {
     const a = getAction("district_note", "update")!;
     expect(a.needsTarget).toBe(true);
@@ -215,6 +223,19 @@ describe("plan actions", () => {
     expect(a.parse({}).ok).toBe(false);
     expect(a.parse({ leaids: [] }).ok).toBe(false);
     expect(a.parse({ leaids: ["0601234"] }).ok).toBe(true);
+  });
+
+  it("plan.add_districts validate flags leaids that don't exist", async () => {
+    const a = getAction("plan", "add_districts")!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbNone = { district: { findMany: async () => [] } } as any;
+    const errs = await a.validate!({ leaids: ["ghost"] }, { userId: "u", db: dbNone });
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0]).toMatch(/leaid/i);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbOk = { district: { findMany: async () => [{ leaid: "0601234" }] } } as any;
+    const ok = await a.validate!({ leaids: ["0601234"] }, { userId: "u", db: dbOk });
+    expect(ok).toEqual([]);
   });
 
   it("plan.add_districts confirm card shows a count, not raw leaids", () => {

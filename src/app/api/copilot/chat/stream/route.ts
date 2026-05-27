@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
+import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getAnthropic } from "@/features/reports/lib/claude-client";
 import {
@@ -81,8 +82,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
     const proposedActions: ProposedAction[] = [];
     const errors: string[] = [];
-    raw.actions.forEach((entry, i) => {
-      const a = (entry ?? {}) as {
+    for (let i = 0; i < raw.actions.length; i++) {
+      const a = (raw.actions[i] ?? {}) as {
         objectType?: string;
         operation?: string;
         targetId?: string | number | null;
@@ -92,19 +93,28 @@ export async function POST(request: NextRequest): Promise<Response> {
       const action = getAction(a.objectType ?? "", a.operation ?? "");
       if (!action) {
         errors.push(`actions[${i}]: unknown action "${a.objectType}.${a.operation}".`);
-        return;
+        continue;
       }
       const hasTarget = a.targetId !== undefined && a.targetId !== null && a.targetId !== "";
       if (action.needsTarget && !hasTarget) {
         errors.push(
           `actions[${i}]: ${action.objectType}.${action.operation} requires a targetId.`,
         );
-        return;
+        continue;
       }
       const parsed = action.parse(a.fields ?? {});
       if (!parsed.ok) {
         errors.push(...parsed.errors.map((e) => `actions[${i}].${e}`));
-        return;
+        continue;
+      }
+      // Propose-time existence checks (e.g. district leaids actually exist) so a
+      // doomed card never reaches the rep — the model self-corrects on the error.
+      if (action.validate) {
+        const vErrors = await action.validate(parsed.fields, { userId, db: prisma });
+        if (vErrors.length > 0) {
+          errors.push(...vErrors.map((e) => `actions[${i}]: ${e}`));
+          continue;
+        }
       }
       proposedActions.push({
         id: randomUUID(),
@@ -117,7 +127,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           summary: a.summary,
         }),
       });
-    });
+    }
     if (errors.length > 0) {
       return { kind: "validation_error", errors };
     }

@@ -50,6 +50,13 @@ interface ActionDef<S extends z.ZodTypeAny> {
   buildPreview: (fields: z.infer<S>, opts: PreviewOpts) => ActionPreview;
   /** Update-only: capture before-state for the audit log. */
   snapshot?: (targetId: string, db: DbClient) => Promise<unknown>;
+  /**
+   * Optional async existence/permission check run at PROPOSE time (before any
+   * card is shown). Returns human-readable error strings; a non-empty result
+   * becomes a validation_error the agent loop feeds back so the model can
+   * self-correct (e.g. look up the real leaid). Keep it to reads.
+   */
+  validate?: (fields: z.infer<S>, ctx: ActionContext) => Promise<string[]>;
   execute: (fields: z.infer<S>, opts: ExecuteOpts) => Promise<unknown>;
 }
 
@@ -62,6 +69,7 @@ export interface RegisteredAction {
   ) => { ok: true; fields: unknown } | { ok: false; errors: string[] };
   buildPreview: (fields: unknown, opts: PreviewOpts) => ActionPreview;
   snapshot?: (targetId: string, db: DbClient) => Promise<unknown>;
+  validate?: (fields: unknown, ctx: ActionContext) => Promise<string[]>;
   execute: (fields: unknown, opts: ExecuteOpts) => Promise<unknown>;
 }
 
@@ -86,8 +94,36 @@ function defineAction<S extends z.ZodTypeAny>(def: ActionDef<S>): RegisteredActi
     // these are ever called.
     buildPreview: (fields, opts) => def.buildPreview(fields as z.infer<S>, opts),
     snapshot: def.snapshot,
+    validate: def.validate
+      ? (fields, ctx) => def.validate!(fields as z.infer<S>, ctx)
+      : undefined,
     execute: (fields, opts) => def.execute(fields as z.infer<S>, opts),
   };
+}
+
+/** Returns the subset of leaids that don't exist in `districts` (read-only). */
+async function missingLeaids(
+  leaids: ReadonlyArray<string> | undefined,
+  db: DbClient,
+): Promise<string[]> {
+  const list = (leaids ?? []).filter(Boolean);
+  if (list.length === 0) return [];
+  const found = await db.district.findMany({
+    where: { leaid: { in: [...list] } },
+    select: { leaid: true },
+  });
+  const have = new Set(found.map((d) => d.leaid));
+  return list.filter((l) => !have.has(l));
+}
+
+/** Propose-time error guiding the model to look up real leaids, never guess. */
+function leaidErrors(missing: string[]): string[] {
+  if (missing.length === 0) return [];
+  return [
+    `No district found for leaid(s): ${missing.join(", ")}. Look up the correct leaid with ` +
+      `run_sql (e.g. SELECT leaid, name, state FROM districts WHERE name ILIKE '%…%') and use only ` +
+      `a returned value, or tell the rep you couldn't find that district. Do not guess.`,
+  ];
 }
 
 const statusField = z
@@ -175,6 +211,7 @@ register(
       ],
       destructive: false,
     }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
     execute: (f, { ctx }) =>
       // Owner is always the rep (createdByUserId); assignee defaults to the rep
       // per the UX defaults when the model doesn't specify one.
@@ -262,6 +299,7 @@ register(
       ],
       destructive: false,
     }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids([f.leaid], db)),
     execute: (f, { ctx }) => createContact(f, ctx.db),
   }),
 );
@@ -337,6 +375,7 @@ register(
       ],
       destructive: false,
     }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids([f.leaid], db)),
     execute: (f, { ctx }) => {
       const { bodyJson, bodyText } = plainTextToNoteDoc(f.text);
       return createDistrictNote(
@@ -374,6 +413,7 @@ register(
         where: { id: targetId },
         select: { id: true, bodyText: true, noteType: true },
       }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids([f.leaid], db)),
     execute: (f, { targetId, ctx }) => {
       const { bodyJson, bodyText } = plainTextToNoteDoc(f.text);
       return updateDistrictNote(
@@ -419,6 +459,7 @@ register(
       ],
       destructive: false,
     }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
     execute: (f, { ctx }) =>
       createActivity(
         {
@@ -578,6 +619,7 @@ register(
       rows: [{ label: "Districts", value: String(f.leaids.length) }],
       destructive: false,
     }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
     execute: (f, { targetId, ctx }) => addDistrictsToPlan(String(targetId), f.leaids, ctx.db),
   }),
 );
