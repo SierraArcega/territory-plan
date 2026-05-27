@@ -62,6 +62,12 @@ export async function createDistrictNote(
     throw new ServiceError("Invalid noteType", 400);
   }
 
+  // Guard the FK so a bad/guessed leaid is a clean 404, not a raw constraint 500.
+  const district = await db.district.findUnique({ where: { leaid }, select: { leaid: true } });
+  if (!district) {
+    throw new ServiceError("District not found", 404);
+  }
+
   const note = await db.districtNote.create({
     data: {
       districtLeaid: leaid,

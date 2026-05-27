@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   default: {
     districtNote: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    district: { findUnique: vi.fn() },
   },
 }));
 
@@ -50,7 +51,16 @@ describe("createDistrictNote", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it("404s when the district does not exist (clean error, not a raw FK 500)", async () => {
+    mockPrisma.district.findUnique.mockResolvedValue(null);
+    await expect(
+      createDistrictNote("ghost", { bodyText: "hi", bodyJson: doc }, "user-1"),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(mockPrisma.districtNote.create).not.toHaveBeenCalled();
+  });
+
   it("defaults the noteType and stamps the author", async () => {
+    mockPrisma.district.findUnique.mockResolvedValue({ leaid: "0601234" });
     mockPrisma.districtNote.create.mockResolvedValue(noteRow);
     const result = await createDistrictNote("0601234", { bodyText: "hi", bodyJson: doc }, "user-1");
     expect(result.id).toBe("note-1");
