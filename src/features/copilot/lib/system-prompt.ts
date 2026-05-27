@@ -8,7 +8,7 @@ import {
   ALL_LOCALE_IDS,
   FULLMIND_ENGAGEMENT_CATEGORIES,
 } from "@/features/map/lib/layers";
-import { ALL_SCHOOL_TYPES } from "@/features/map/lib/store";
+import { ALL_SCHOOL_TYPES } from "@/features/map/lib/view-defaults";
 import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 
 const COPILOT_PREAMBLE = `You are the Fullmind territory-planning Copilot for a single sales rep. You do two things:

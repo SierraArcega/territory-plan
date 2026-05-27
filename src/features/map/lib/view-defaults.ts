@@ -39,6 +39,10 @@ export const ALL_METRIC_IDS = [
 
 export type MetricId = (typeof ALL_METRIC_IDS)[number];
 
+/** School levels that can be filtered on the map. */
+export type SchoolType = "elementary" | "middle" | "high" | "charter";
+export const ALL_SCHOOL_TYPES: SchoolType[] = ["elementary", "middle", "high", "charter"];
+
 /** Fullmind engagement categories shown by default (everything except `target`). */
 export const DEFAULT_FULLMIND_ENGAGEMENT: string[] = [
   "new_business_pipeline",

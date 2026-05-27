@@ -11,7 +11,7 @@ import { createActivity, updateActivity } from "@/features/activities/lib/servic
 import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
 import { createPlan, updatePlan, addDistrictsToPlan } from "@/features/plans/lib/service";
 import { createMapView } from "@/features/map/lib/map-view-service";
-import { DEFAULT_MAP_VIEW_STATE } from "@/features/map/lib/view-defaults";
+import { DEFAULT_MAP_VIEW_STATE, ALL_SCHOOL_TYPES } from "@/features/map/lib/view-defaults";
 import {
   VENDOR_IDS,
   VENDOR_CONFIGS,
@@ -19,7 +19,9 @@ import {
   ALL_LOCALE_IDS,
   FULLMIND_ENGAGEMENT_CATEGORIES,
 } from "@/features/map/lib/layers";
-import { ALL_SCHOOL_TYPES, type MapViewState } from "@/features/map/lib/store";
+// Type-only: erased at build, so the client map store is NOT pulled into the
+// copilot API-route bundle.
+import type { MapViewState } from "@/features/map/lib/store";
 import { ACCOUNT_TYPES, getAccountTypeLabel } from "@/features/shared/types/account-types";
 import { isAdmin } from "@/lib/supabase/server";
 import type {

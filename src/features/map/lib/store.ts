@@ -10,12 +10,18 @@ import {
   ALL_METRIC_IDS,
   DEFAULT_FULLMIND_ENGAGEMENT,
   DEFAULT_VENDOR_OPACITIES,
+  type SchoolType,
 } from "@/features/map/lib/view-defaults";
 
-// Re-exported for existing importers (MapSummaryBar, ViewActionsBar); the
-// canonical definitions live in view-defaults.ts so server-side view creation
-// can share them without pulling in this client store.
-export { ALL_METRIC_IDS, type MetricId } from "@/features/map/lib/view-defaults";
+// Re-exported for existing importers (MapSummaryBar, ViewActionsBar, etc.); the
+// canonical definitions live in the server-safe view-defaults.ts so server-side
+// view creation can share them without pulling in this client store.
+export {
+  ALL_METRIC_IDS,
+  ALL_SCHOOL_TYPES,
+  type MetricId,
+  type SchoolType,
+} from "@/features/map/lib/view-defaults";
 
 export type FiscalYear = "fy24" | "fy25" | "fy26" | "fy27";
 export type CompareView = "side_by_side" | "changes";
@@ -69,8 +75,6 @@ export interface DateRange {
 }
 
 // School type toggles: level 1-3 + charter
-export type SchoolType = "elementary" | "middle" | "high" | "charter";
-export const ALL_SCHOOL_TYPES: SchoolType[] = ["elementary", "middle", "high", "charter"];
 
 // Panel state machine
 export type PanelState =
