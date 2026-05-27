@@ -6,6 +6,8 @@ import pool from "@/lib/db";
 import { getUser } from "@/lib/supabase/server";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { NEWS_CONFIDENCE_LEVELS } from "@/lib/signals/sql";
+import { createPlan } from "@/features/plans/lib/service";
+import { isServiceError } from "@/features/shared/lib/service-error";
 export const dynamic = "force-dynamic";
 
 /**
@@ -431,74 +433,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, ownerId, color, status, fiscalYear, startDate, endDate, stateFips, collaboratorIds } = body;
-
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: "name is required" },
-        { status: 400 }
-      );
-    }
-
-    // Validate fiscal year is required and valid
-    if (!fiscalYear || typeof fiscalYear !== "number" || fiscalYear < 2024 || fiscalYear > 2030) {
-      return NextResponse.json(
-        { error: "fiscalYear is required and must be between 2024 and 2030" },
-        { status: 400 }
-      );
-    }
-
-    // Validate color format if provided
-    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-      return NextResponse.json(
-        { error: "color must be a valid hex color (e.g., #403770)" },
-        { status: 400 }
-      );
-    }
-
-    // Validate status if provided
-    const validStatuses = ["planning", "working", "stale", "archived"];
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: `status must be one of: ${validStatuses.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    const plan = await prisma.territoryPlan.create({
-      data: {
-        name: name.trim(),
-        description: description?.trim() || null,
-        ownerId: ownerId || user.id,
-        color: color || "#403770",
-        status: status || "planning",
-        fiscalYear,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        userId: user.id,
-        ...(Array.isArray(stateFips) && stateFips.length > 0 && {
-          states: {
-            createMany: {
-              data: stateFips.map((fips: string) => ({ stateFips: fips })),
-              skipDuplicates: true,
-            },
-          },
-        }),
-        ...(Array.isArray(collaboratorIds) && collaboratorIds.length > 0 && {
-          collaborators: {
-            createMany: {
-              data: collaboratorIds.map((uid: string) => ({ userId: uid })),
-              skipDuplicates: true,
-            },
-          },
-        }),
-      },
-      include: {
-        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
-        states: { select: { state: { select: { fips: true, abbrev: true, name: true } } } },
-        collaborators: { select: { user: { select: { id: true, fullName: true, avatarUrl: true } } } },
-      },
-    });
+    const plan = await createPlan(body, user.id);
 
     return NextResponse.json(
       {
@@ -533,6 +468,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error creating territory plan:", error);
     return NextResponse.json(
       { error: "Failed to create territory plan" },

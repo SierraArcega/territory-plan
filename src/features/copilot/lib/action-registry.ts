@@ -9,6 +9,7 @@ import { plainTextToNoteDoc } from "@/features/views/lib/note-doc";
 import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
 import { createActivity, updateActivity } from "@/features/activities/lib/service";
 import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
+import { createPlan, updatePlan } from "@/features/plans/lib/service";
 import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
@@ -117,6 +118,13 @@ const activityTypeField = z
 const activityStatusField = z
   .string()
   .refine((s) => (VALID_ACTIVITY_STATUSES as readonly string[]).includes(s), { message: "invalid activity status" });
+const planStatusField = z
+  .string()
+  .refine((s) => ["planning", "working", "stale", "archived"].includes(s), { message: "invalid plan status" });
+const hexColorField = z
+  .string()
+  .refine((s) => /^#[0-9A-Fa-f]{6}$/.test(s), { message: "must be a hex color like #403770" });
+const fiscalYearField = z.number().int().min(2024).max(2030);
 
 // Truncate free text for a confirm-card row so a long note doesn't blow out the card.
 function snippet(text: string): string {
@@ -475,5 +483,79 @@ register(
       }),
     execute: (f, { targetId, ctx }) =>
       updateActivity(String(targetId), f, ctx.userId, () => isAdmin(ctx.userId), ctx.db),
+  }),
+);
+
+// ===== plan.create =====
+register(
+  defineAction({
+    objectType: "plan",
+    operation: "create",
+    fieldsSchema: z.object({
+      name: z.string().min(1, "name is required"),
+      fiscalYear: fiscalYearField,
+      description: z.string().optional(),
+      status: planStatusField.optional(),
+      color: hexColorField.optional(),
+      startDate: dateField.optional(),
+      endDate: dateField.optional(),
+      stateFips: z.array(z.string()).optional(),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Create territory plan",
+      summary: summary || f.name,
+      rows: [
+        { label: "Name", value: f.name },
+        { label: "Fiscal year", value: String(f.fiscalYear) },
+        ...(f.status ? [{ label: "Status", value: f.status }] : []),
+      ],
+      destructive: false,
+    }),
+    execute: (f, { ctx }) => createPlan(f, ctx.userId, ctx.db),
+  }),
+);
+
+// ===== plan.update =====
+register(
+  defineAction({
+    objectType: "plan",
+    operation: "update",
+    fieldsSchema: z
+      .object({
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+        status: planStatusField.optional(),
+        color: hexColorField.optional(),
+        fiscalYear: fiscalYearField.optional(),
+        startDate: dateField.nullable().optional(),
+        endDate: dateField.nullable().optional(),
+      })
+      .refine((o) => Object.keys(o).length > 0, {
+        message: "provide at least one field to update",
+      }),
+    buildPreview: (f, { targetId, summary }) => ({
+      title: "Update territory plan",
+      summary: summary || `Update plan ${targetId ?? ""}`.trim(),
+      rows: Object.entries(f).map(([label, value]) => ({
+        label,
+        value: value === null ? "(cleared)" : String(value),
+      })),
+      destructive: false,
+    }),
+    snapshot: (targetId, db) =>
+      db.territoryPlan.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          color: true,
+          fiscalYear: true,
+          startDate: true,
+          endDate: true,
+        },
+      }),
+    execute: (f, { targetId, ctx }) => updatePlan(String(targetId), f, ctx.db),
   }),
 );

@@ -178,3 +178,33 @@ describe("activity actions", () => {
     expect(a.parse({ status: "bogus" }).ok).toBe(false);
   });
 });
+
+describe("plan actions", () => {
+  it("exposes plan.create and plan.update", () => {
+    expect(getAction("plan", "create")).toBeDefined();
+    expect(getAction("plan", "update")).toBeDefined();
+    expect(getAction("plan", "delete")).toBeUndefined();
+  });
+
+  it("plan.create requires a name and a valid fiscalYear", () => {
+    const a = getAction("plan", "create")!;
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ name: "Texas FY26" }).ok).toBe(false);
+    expect(a.parse({ name: "Texas FY26", fiscalYear: 1999 }).ok).toBe(false);
+    expect(a.parse({ name: "Texas FY26", fiscalYear: 2026 }).ok).toBe(true);
+  });
+
+  it("plan.create rejects a bad status and a bad color", () => {
+    const a = getAction("plan", "create")!;
+    expect(a.parse({ name: "P", fiscalYear: 2026, status: "nope" }).ok).toBe(false);
+    expect(a.parse({ name: "P", fiscalYear: 2026, color: "red" }).ok).toBe(false);
+    expect(a.parse({ name: "P", fiscalYear: 2026, color: "#403770", status: "working" }).ok).toBe(true);
+  });
+
+  it("plan.update needs a target and at least one field", () => {
+    const a = getAction("plan", "update")!;
+    expect(a.needsTarget).toBe(true);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ status: "working" }).ok).toBe(true);
+  });
+});
