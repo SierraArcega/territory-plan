@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { useMapStore } from "@/features/shared/lib/app-store";
+import { useMapV2Store } from "@/features/map/lib/store";
+import { resolveAndApplyMapView } from "@/features/map/lib/map-view-queries";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
@@ -71,6 +73,8 @@ export default function CopilotPanel() {
   // rail (split view); persisted there like sidebarCollapsed.
   const open = useMapStore((s) => s.copilotOpen);
   const setOpen = useMapStore((s) => s.setCopilotOpen);
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const applyViewSnapshot = useMapV2Store((s) => s.applyViewSnapshot);
   const [view, setView] = useState<"chat" | "log">("chat");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -193,7 +197,17 @@ export default function CopilotPanel() {
     async (action: ProposedAction) => {
       setActionStatus((s) => ({ ...s, [action.id]: "pending" }));
       try {
-        await execute.mutateAsync({ action, conversationId });
+        if (action.clientAction) {
+          // Applied in the browser, not via the execute endpoint: switch to the
+          // saved map view and jump to the map tab.
+          await resolveAndApplyMapView(
+            String(action.fields.name ?? ""),
+            applyViewSnapshot,
+          );
+          setActiveTab("map");
+        } else {
+          await execute.mutateAsync({ action, conversationId });
+        }
         setActionStatus((s) => ({ ...s, [action.id]: "confirmed" }));
         setMessages((m) => [
           ...m,
@@ -207,7 +221,7 @@ export default function CopilotPanel() {
         }));
       }
     },
-    [execute, conversationId],
+    [execute, conversationId, applyViewSnapshot, setActiveTab],
   );
 
   const onDismiss = useCallback((actionId: string) => {

@@ -96,6 +96,11 @@ A map view is a saved snapshot of the map screen's filters and layers. Use when 
 - selectedFiscalYear (fy24 | fy25 | fy26 | fy27)
 Owned by the current rep by default.
 
+### map_view.apply — load / switch to a saved map view
+Use when the rep asks to open, load, switch to, or show a view they saved or that was shared with them ("open my Texas charters view", "switch to the FY26 pipeline view"). This applies the saved view to the live map.
+- name (required) — the saved view's name, as the rep refers to it
+Set \`operation\` to "apply". If you're unsure a view by that name exists, propose it anyway — it's validated before the rep sees the card, and you'll be told if there's no match so you can tell the rep.
+
 ## Style
 Be concise and rep-friendly. Never show SQL or raw ids unless asked. Add a short, plain-language \`summary\` to every proposed action.
 

@@ -327,4 +327,40 @@ describe("map_view actions", () => {
       expect(key in state).toBe(true);
     }
   });
+
+  it("map_view.create is not a client action", () => {
+    expect(getAction("map_view", "create")!.clientAction).toBe(false);
+  });
+
+  it("map_view.apply requires a name and is flagged as a client action", () => {
+    const a = getAction("map_view", "apply")!;
+    expect(a).toBeDefined();
+    expect(a.clientAction).toBe(true);
+    expect(a.needsTarget).toBe(false);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ name: "Texas charters" }).ok).toBe(true);
+  });
+
+  it("map_view.apply validate confirms the view exists (owned or shared)", async () => {
+    const a = getAction("map_view", "apply")!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbNone = { mapView: { findFirst: async () => null } } as any;
+    const errs = await a.validate!({ name: "ghost" }, { userId: "u", db: dbNone });
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0]).toMatch(/no map view named/i);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbOk = { mapView: { findFirst: async () => ({ id: "v1" }) } } as any;
+    const ok = await a.validate!({ name: "TX charters" }, { userId: "u", db: dbOk });
+    expect(ok).toEqual([]);
+  });
+
+  it("map_view.apply preview shows the view name", () => {
+    const a = getAction("map_view", "apply")!;
+    const parsed = a.parse({ name: "Texas charters" });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, {});
+    expect(preview.title).toBe("Switch map view");
+    expect(preview.destructive).toBe(false);
+    expect(preview.rows.some((r) => r.value === "Texas charters")).toBe(true);
+  });
 });

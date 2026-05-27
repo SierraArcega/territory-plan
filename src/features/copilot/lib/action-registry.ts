@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DbClient } from "@/features/shared/lib/service-error";
+import { ServiceError, type DbClient } from "@/features/shared/lib/service-error";
 import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
 import { createTask, updateTask } from "@/features/tasks/lib/service";
 import { createContact, updateContact } from "@/features/contacts/lib/service";
@@ -57,6 +57,9 @@ interface ActionDef<S extends z.ZodTypeAny> {
   operation: CopilotOperation;
   /** Defaults to true for `update`. */
   needsTarget?: boolean;
+  /** True when the action is applied in the browser (not written via the execute
+   *  endpoint) — e.g. `map_view.apply`, which switches the live map state. */
+  clientAction?: boolean;
   fieldsSchema: S;
   buildPreview: (fields: z.infer<S>, opts: PreviewOpts) => ActionPreview;
   /** Update-only: capture before-state for the audit log. */
@@ -75,6 +78,7 @@ export interface RegisteredAction {
   objectType: CopilotObjectType;
   operation: CopilotOperation;
   needsTarget: boolean;
+  clientAction: boolean;
   parse: (
     raw: unknown,
   ) => { ok: true; fields: unknown } | { ok: false; errors: string[] };
@@ -89,6 +93,7 @@ function defineAction<S extends z.ZodTypeAny>(def: ActionDef<S>): RegisteredActi
     objectType: def.objectType,
     operation: def.operation,
     needsTarget: def.needsTarget ?? def.operation === "update",
+    clientAction: def.clientAction ?? false,
     parse: (raw) => {
       const r = def.fieldsSchema.safeParse(raw);
       if (!r.success) {
@@ -748,5 +753,45 @@ register(
         ctx.userId,
         ctx.db,
       ),
+  }),
+);
+
+// ===== map_view.apply — load/switch to a saved map view by name =====
+// Applying a view mutates the live client map state, not the DB, so it's a
+// clientAction: the panel resolves the view and calls applyViewSnapshot on
+// confirm instead of hitting the execute endpoint. validate confirms the view
+// exists (owned or shared) at propose time so a bad name never reaches the rep.
+register(
+  defineAction({
+    objectType: "map_view",
+    operation: "apply",
+    clientAction: true,
+    fieldsSchema: z.object({
+      name: z.string().min(1, "name is required"),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Switch map view",
+      summary: summary || `Open "${f.name}"`,
+      rows: [{ label: "View", value: f.name }],
+      destructive: false,
+    }),
+    validate: async (f, { userId, db }) => {
+      const match = await db.mapView.findFirst({
+        where: {
+          name: { equals: f.name, mode: "insensitive" },
+          OR: [{ ownerId: userId }, { isShared: true }],
+        },
+        select: { id: true },
+      });
+      return match
+        ? []
+        : [
+            `No map view named "${f.name}". The rep's views are ones they saved or that were shared with them — check the name, or tell the rep you couldn't find it. Do not guess.`,
+          ];
+    },
+    // Never invoked server-side; the panel applies it client-side. Guard anyway.
+    execute: () => {
+      throw new ServiceError("map_view.apply is applied client-side");
+    },
   }),
 );

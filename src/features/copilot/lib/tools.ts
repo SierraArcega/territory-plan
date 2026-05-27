@@ -23,7 +23,7 @@ const proposeActions: Anthropic.Tool = {
             },
             operation: {
               type: "string",
-              enum: ["create", "update", "add_districts"],
+              enum: ["create", "update", "add_districts", "apply"],
             },
             targetId: {
               type: "string",
