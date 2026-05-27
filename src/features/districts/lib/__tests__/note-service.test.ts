@@ -11,7 +11,6 @@ import prisma from "@/lib/prisma";
 const mockPrisma = vi.mocked(prisma) as any;
 
 import { createDistrictNote, updateDistrictNote } from "../note-service";
-import { ServiceError } from "@/features/shared/lib/service-error";
 
 const author = { id: "user-1", fullName: "Rep One", email: "rep@x.com", avatarUrl: null };
 const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }] };
