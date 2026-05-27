@@ -160,12 +160,13 @@ async function insertSignatureField(page) {
   await page.getByRole('button', { name: 'Signature', exact: true }).click();
   await page.waitForTimeout(500);
 
-  // Dismiss the "Rename" popup that appears after field placement
+  // Accept the "Rename" popup that appears after field placement.
+  // Pressing Escape cancels the field — press Enter to keep the default name.
   const renameField = page.getByRole('textbox', { name: 'Rename' });
   if (await renameField.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await page.keyboard.press('Escape');
+    await page.keyboard.press('Enter');
     await page.waitForTimeout(300);
-    console.log('  Rename dialog dismissed');
+    console.log('  Rename dialog accepted (field confirmed)');
   }
 
   console.log('✓ Step 4: Signature field inserted');
