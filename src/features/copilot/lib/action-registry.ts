@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { DbClient } from "@/features/shared/lib/service-error";
 import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
 import { createTask, updateTask } from "@/features/tasks/lib/service";
+import { createContact, updateContact } from "@/features/contacts/lib/service";
+import { isValidPersona, isValidSeniorityLevel } from "@/features/shared/types/contact-types";
 import type {
   ActionPreview,
   CopilotObjectType,
@@ -94,6 +96,12 @@ const priorityField = z
 const dateField = z
   .string()
   .refine((s) => !Number.isNaN(Date.parse(s)), { message: "must be a parseable date" });
+const personaField = z
+  .string()
+  .refine((s) => isValidPersona(s), { message: "invalid persona" });
+const seniorityField = z
+  .string()
+  .refine((s) => isValidSeniorityLevel(s), { message: "invalid seniority level" });
 
 const ACTION_REGISTRY: Record<string, RegisteredAction> = {};
 
@@ -191,5 +199,90 @@ register(
       }),
     execute: (f, { targetId, ctx }) =>
       updateTask(String(targetId), f, ctx.userId, ctx.db),
+  }),
+);
+
+// ===== contact.create =====
+register(
+  defineAction({
+    objectType: "contact",
+    operation: "create",
+    fieldsSchema: z.object({
+      // leaid links the contact to a district; it's an internal id, so it's
+      // never shown on the confirm card (the model names the district in the
+      // summary instead).
+      leaid: z.string().min(1, "leaid is required"),
+      name: z.string().min(1, "name is required"),
+      title: z.string().optional(),
+      email: z.string().optional(),
+      phone: z.string().optional(),
+      salutation: z.string().optional(),
+      isPrimary: z.boolean().optional(),
+      linkedinUrl: z.string().optional(),
+      persona: personaField.optional(),
+      seniorityLevel: seniorityField.optional(),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Create contact",
+      summary: summary || `${f.name}${f.title ? ` — ${f.title}` : ""}`,
+      rows: [
+        { label: "Name", value: f.name },
+        ...(f.title ? [{ label: "Title", value: f.title }] : []),
+        ...(f.email ? [{ label: "Email", value: f.email }] : []),
+        ...(f.phone ? [{ label: "Phone", value: f.phone }] : []),
+        ...(f.isPrimary ? [{ label: "Primary contact", value: "yes" }] : []),
+      ],
+      destructive: false,
+    }),
+    execute: (f, { ctx }) => createContact(f, ctx.db),
+  }),
+);
+
+// ===== contact.update =====
+register(
+  defineAction({
+    objectType: "contact",
+    operation: "update",
+    fieldsSchema: z
+      .object({
+        name: z.string().min(1).optional(),
+        title: z.string().nullable().optional(),
+        email: z.string().nullable().optional(),
+        phone: z.string().nullable().optional(),
+        salutation: z.string().nullable().optional(),
+        isPrimary: z.boolean().optional(),
+        linkedinUrl: z.string().nullable().optional(),
+        persona: personaField.optional(),
+        seniorityLevel: seniorityField.optional(),
+      })
+      .refine((o) => Object.keys(o).length > 0, {
+        message: "provide at least one field to update",
+      }),
+    buildPreview: (f, { targetId, summary }) => ({
+      title: "Update contact",
+      summary: summary || `Update contact ${targetId ?? ""}`.trim(),
+      rows: Object.entries(f).map(([label, value]) => ({
+        label,
+        value: value === null ? "(cleared)" : String(value),
+      })),
+      destructive: false,
+    }),
+    snapshot: (targetId, db) =>
+      db.contact.findUnique({
+        where: { id: Number(targetId) },
+        select: {
+          id: true,
+          name: true,
+          title: true,
+          email: true,
+          phone: true,
+          salutation: true,
+          isPrimary: true,
+          linkedinUrl: true,
+          persona: true,
+          seniorityLevel: true,
+        },
+      }),
+    execute: (f, { targetId, ctx }) => updateContact(Number(targetId), f, ctx.db),
   }),
 );

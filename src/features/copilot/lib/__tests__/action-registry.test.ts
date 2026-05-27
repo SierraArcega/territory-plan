@@ -58,3 +58,43 @@ describe("copilot action registry", () => {
     expect(preview.summary).toBe("Email superintendent");
   });
 });
+
+describe("contact actions", () => {
+  it("exposes contact.create and contact.update", () => {
+    expect(getAction("contact", "create")).toBeDefined();
+    expect(getAction("contact", "update")).toBeDefined();
+    expect(getAction("contact", "delete")).toBeUndefined();
+  });
+
+  it("contact.create requires leaid and name", () => {
+    const a = getAction("contact", "create")!;
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ name: "Jane Doe" }).ok).toBe(false);
+    expect(a.parse({ leaid: "0601234" }).ok).toBe(false);
+    expect(a.parse({ leaid: "0601234", name: "Jane Doe" }).ok).toBe(true);
+  });
+
+  it("contact.create rejects an invalid persona", () => {
+    const a = getAction("contact", "create")!;
+    expect(a.parse({ leaid: "0601234", name: "Jane", persona: "not-a-persona" }).ok).toBe(false);
+  });
+
+  it("contact.create confirm card never exposes the raw leaid", () => {
+    const a = getAction("contact", "create")!;
+    const parsed = a.parse({ leaid: "0601234", name: "Jane Doe", title: "Superintendent" });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, { summary: "Add Jane Doe at Austin ISD" });
+    expect(preview.title).toBe("Create contact");
+    expect(preview.destructive).toBe(false);
+    // The leaid is an internal id — it must not appear as a confirm-card value.
+    expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
+    expect(preview.rows.some((r) => r.label === "Name")).toBe(true);
+  });
+
+  it("contact.update needs a target and at least one field", () => {
+    const a = getAction("contact", "update")!;
+    expect(a.needsTarget).toBe(true);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ title: "VP of Curriculum" }).ok).toBe(true);
+  });
+});
