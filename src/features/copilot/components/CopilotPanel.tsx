@@ -198,7 +198,7 @@ export default function CopilotPanel() {
                   {
                     id: uid(),
                     role: "assistant",
-                    text: `Showing the first ${leaids.length} on the map.`,
+                    text: `Showing the first ${leaids.length} of ${res.result.rowCount} on the map.`,
                   },
                 ]);
               }
@@ -452,9 +452,14 @@ function MessageBlock({
 
 function AnswerTable({ answer }: { answer: AnswerPayload }) {
   const visibleColumns = answer.columns.filter((c) => !isIdColumn(c));
-  if (visibleColumns.length === 0) {
+  if (answer.rows.length === 0) {
     return (
       <p className="text-sm text-[#6E6390]">No rows.</p>
+    );
+  }
+  if (visibleColumns.length === 0) {
+    return (
+      <p className="text-sm text-[#6E6390]">Plotted on the map — open the Map tab to see them.</p>
     );
   }
   return (
