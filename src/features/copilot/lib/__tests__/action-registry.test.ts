@@ -138,3 +138,43 @@ describe("district_note actions", () => {
     expect(a.parse({ leaid: "0601234", text: "Revised." }).ok).toBe(true);
   });
 });
+
+describe("activity actions", () => {
+  it("exposes activity.create and activity.update", () => {
+    expect(getAction("activity", "create")).toBeDefined();
+    expect(getAction("activity", "update")).toBeDefined();
+    expect(getAction("activity", "delete")).toBeUndefined();
+  });
+
+  it("activity.create requires a valid type and a title", () => {
+    const a = getAction("activity", "create")!;
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ title: "Demo" }).ok).toBe(false);
+    expect(a.parse({ type: "discovery_call" }).ok).toBe(false);
+    expect(a.parse({ type: "not_a_type", title: "Demo" }).ok).toBe(false);
+    expect(a.parse({ type: "discovery_call", title: "Demo" }).ok).toBe(true);
+  });
+
+  it("activity.create rejects an invalid status", () => {
+    const a = getAction("activity", "create")!;
+    expect(a.parse({ type: "discovery_call", title: "Demo", status: "bogus" }).ok).toBe(false);
+    expect(a.parse({ type: "discovery_call", title: "Demo", status: "completed" }).ok).toBe(true);
+  });
+
+  it("activity.create confirm card does not expose linked district leaids", () => {
+    const a = getAction("activity", "create")!;
+    const parsed = a.parse({ type: "discovery_call", title: "Demo", leaids: ["0601234"] });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, { summary: "Demo call with Austin ISD" });
+    expect(preview.destructive).toBe(false);
+    expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
+  });
+
+  it("activity.update needs a target and at least one field", () => {
+    const a = getAction("activity", "update")!;
+    expect(a.needsTarget).toBe(true);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ status: "completed" }).ok).toBe(true);
+    expect(a.parse({ status: "bogus" }).ok).toBe(false);
+  });
+});

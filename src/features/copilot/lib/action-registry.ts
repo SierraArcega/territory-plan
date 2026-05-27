@@ -7,6 +7,8 @@ import { isValidPersona, isValidSeniorityLevel } from "@/features/shared/types/c
 import { createDistrictNote, updateDistrictNote } from "@/features/districts/lib/note-service";
 import { plainTextToNoteDoc } from "@/features/views/lib/note-doc";
 import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
+import { createActivity, updateActivity } from "@/features/activities/lib/service";
+import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
 import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
@@ -109,6 +111,12 @@ const seniorityField = z
 const noteTypeField = z
   .string()
   .refine((s) => isNoteType(s), { message: "invalid note type" });
+const activityTypeField = z
+  .string()
+  .refine((s) => (ALL_ACTIVITY_TYPES as readonly string[]).includes(s), { message: "invalid activity type" });
+const activityStatusField = z
+  .string()
+  .refine((s) => (VALID_ACTIVITY_STATUSES as readonly string[]).includes(s), { message: "invalid activity status" });
 
 // Truncate free text for a confirm-card row so a long note doesn't blow out the card.
 function snippet(text: string): string {
@@ -367,5 +375,105 @@ register(
         ctx.db,
       );
     },
+  }),
+);
+
+// ===== activity.create =====
+register(
+  defineAction({
+    objectType: "activity",
+    operation: "create",
+    fieldsSchema: z.object({
+      type: activityTypeField,
+      title: z.string().min(1, "title is required"),
+      notes: z.string().optional(),
+      startDate: dateField.optional(),
+      endDate: dateField.optional(),
+      status: activityStatusField.optional(),
+      outcome: z.string().optional(),
+      leaids: z.array(z.string()).optional(),
+      planIds: z.array(z.string()).optional(),
+      contactIds: z.array(z.number()).optional(),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Log activity",
+      summary: summary || f.title,
+      rows: [
+        { label: "Type", value: f.type },
+        { label: "Title", value: f.title },
+        ...(f.startDate ? [{ label: "When", value: f.startDate }] : []),
+        ...(f.status ? [{ label: "Status", value: f.status }] : []),
+        ...(f.leaids?.length
+          ? [{ label: "Linked districts", value: String(f.leaids.length) }]
+          : []),
+      ],
+      destructive: false,
+    }),
+    execute: (f, { ctx }) =>
+      createActivity(
+        {
+          type: f.type,
+          title: f.title,
+          notes: f.notes,
+          startDate: f.startDate,
+          endDate: f.endDate,
+          status: f.status,
+          outcome: f.outcome,
+          districtLeaids: f.leaids,
+          planIds: f.planIds,
+          contactIds: f.contactIds,
+        },
+        ctx.userId,
+        ctx.db,
+      ),
+  }),
+);
+
+// ===== activity.update =====
+register(
+  defineAction({
+    objectType: "activity",
+    operation: "update",
+    fieldsSchema: z
+      .object({
+        title: z.string().min(1).optional(),
+        type: activityTypeField.optional(),
+        status: activityStatusField.optional(),
+        notes: z.string().nullable().optional(),
+        startDate: dateField.nullable().optional(),
+        endDate: dateField.nullable().optional(),
+        outcome: z.string().nullable().optional(),
+        nextStep: z.string().nullable().optional(),
+        followUpDate: dateField.nullable().optional(),
+        rating: z.number().int().min(1).max(5).optional(),
+      })
+      .refine((o) => Object.keys(o).length > 0, {
+        message: "provide at least one field to update",
+      }),
+    buildPreview: (f, { targetId, summary }) => ({
+      title: "Update activity",
+      summary: summary || `Update activity ${targetId ?? ""}`.trim(),
+      rows: Object.entries(f).map(([label, value]) => ({
+        label,
+        value: value === null ? "(cleared)" : String(value),
+      })),
+      destructive: false,
+    }),
+    snapshot: (targetId, db) =>
+      db.activity.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          status: true,
+          notes: true,
+          startDate: true,
+          endDate: true,
+          outcome: true,
+        },
+      }),
+    execute: (f, { targetId, ctx }) =>
+      updateActivity(String(targetId), f, ctx.userId, () => isAdmin(ctx.userId), ctx.db),
   }),
 );
