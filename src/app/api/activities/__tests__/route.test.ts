@@ -607,6 +607,88 @@ describe("POST /api/activities", () => {
     );
   });
 
+  it("accepts the email outreach type", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.create.mockResolvedValue({
+      id: "email-1",
+      type: "email",
+      title: "Intro email to principal",
+      notes: null,
+      startDate: new Date("2026-06-01T00:00:00Z"),
+      endDate: null,
+      status: "planned",
+      metadata: { subject: "Hello", direction: "outbound" },
+      createdByUserId: "user-1",
+      createdAt: new Date("2026-05-26T00:00:00Z"),
+      updatedAt: new Date("2026-05-26T00:00:00Z"),
+      plans: [],
+      districts: [],
+      contacts: [],
+      states: [],
+      expenses: [],
+      attendees: [],
+      relations: [],
+      relatedTo: [],
+    } as never);
+
+    const req = makeRequest("/api/activities", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "email",
+        title: "Intro email to principal",
+        startDate: "2026-06-01T00:00:00Z",
+        metadata: { subject: "Hello", direction: "outbound" },
+      }),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.type).toBe("email");
+    expect(body.category).toBe("outreach");
+  });
+
+  it("accepts the cold_call outreach type", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.create.mockResolvedValue({
+      id: "call-1",
+      type: "cold_call",
+      title: "Cold call: Lincoln HS",
+      notes: null,
+      startDate: new Date("2026-06-01T00:00:00Z"),
+      endDate: null,
+      status: "planned",
+      metadata: { callResult: "voicemail" },
+      createdByUserId: "user-1",
+      createdAt: new Date("2026-05-26T00:00:00Z"),
+      updatedAt: new Date("2026-05-26T00:00:00Z"),
+      plans: [],
+      districts: [],
+      contacts: [],
+      states: [],
+      expenses: [],
+      attendees: [],
+      relations: [],
+      relatedTo: [],
+    } as never);
+
+    const req = makeRequest("/api/activities", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "cold_call",
+        title: "Cold call: Lincoln HS",
+        startDate: "2026-06-01T00:00:00Z",
+        metadata: { callResult: "voicemail" },
+      }),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.type).toBe("cold_call");
+    expect(body.category).toBe("outreach");
+  });
+
   it("returns 500 on error", async () => {
     mockGetUser.mockResolvedValue(TEST_USER);
     mockPrisma.activity.create.mockRejectedValue(new Error("DB error"));
