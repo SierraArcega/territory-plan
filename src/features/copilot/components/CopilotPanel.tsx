@@ -10,8 +10,10 @@ import {
   Ban,
   AlertTriangle,
   SquarePen,
+  History,
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
+import { CopilotActivityLog } from "./CopilotActivityLog";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
 import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
 import { useExecuteCopilotAction } from "../hooks/useExecuteCopilotAction";
@@ -65,6 +67,7 @@ function latestToolLabel(events: TurnEvent[] | undefined): string {
 export default function CopilotPanel() {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"chat" | "log">("chat");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
@@ -272,6 +275,17 @@ export default function CopilotPanel() {
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={() => setView((v) => (v === "chat" ? "log" : "chat"))}
+            aria-label={view === "log" ? "Back to chat" : "Activity log"}
+            aria-pressed={view === "log"}
+            className={`rounded-lg p-1 transition-colors hover:bg-[#EFEDF5] ${
+              view === "log" ? "text-[#403770]" : "text-[#6E6390]"
+            }`}
+          >
+            <History className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
             onClick={onNewChat}
             aria-label="New chat"
             className="rounded-lg p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
@@ -289,6 +303,12 @@ export default function CopilotPanel() {
         </div>
       </div>
 
+      {view === "log" ? (
+        <div className="flex-1 overflow-y-auto">
+          <CopilotActivityLog />
+        </div>
+      ) : (
+        <>
       {/* Messages */}
       <div
         ref={scrollRef}
@@ -343,6 +363,8 @@ export default function CopilotPanel() {
           </button>
         </div>
       </div>
+        </>
+      )}
     </aside>
   );
 }
