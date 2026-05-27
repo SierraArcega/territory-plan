@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { useMapStore } from "@/features/shared/lib/app-store";
-import { useMapV2Store } from "@/features/map/lib/store";
+import { useMapV2Store, type MapViewState } from "@/features/map/lib/store";
 import { resolveAndApplyMapView } from "@/features/map/lib/map-view-queries";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
@@ -206,7 +206,16 @@ export default function CopilotPanel() {
           );
           setActiveTab("map");
         } else {
-          await execute.mutateAsync({ action, conversationId });
+          const { result } = await execute.mutateAsync({ action, conversationId });
+          // Saving a map view should also show it — the rep described a view and
+          // expects to see it on the map, not just have it filed away.
+          if (action.objectType === "map_view" && action.operation === "create") {
+            const state = (result as { state?: unknown } | null)?.state;
+            if (state) {
+              applyViewSnapshot(state as MapViewState);
+              setActiveTab("map");
+            }
+          }
         }
         setActionStatus((s) => ({ ...s, [action.id]: "confirmed" }));
         setMessages((m) => [
