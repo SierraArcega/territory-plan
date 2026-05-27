@@ -163,3 +163,31 @@ export async function addDistrictsToPlan(
   });
   return { added: result.count, planId };
 }
+
+/**
+ * Remove districts from a plan (the plan↔district junction) — the counterpart to
+ * addDistrictsToPlan. Validates the plan, then deletes the junction rows for the
+ * given leaids; removing a leaid that isn't in the plan is a harmless no-op.
+ * Lean and transaction-safe like the add core: no inline rollup/tag sync —
+ * districtCount + target rollups self-heal from current membership on the plan's
+ * next GET. Junction target-service rows clear via the existing onDelete: Cascade.
+ */
+export async function removeDistrictsFromPlan(
+  planId: string,
+  leaids: string[],
+  db: DbClient = prisma,
+): Promise<{ removed: number; planId: string }> {
+  if (!Array.isArray(leaids) || leaids.length === 0) {
+    throw new ServiceError("provide at least one district", 400);
+  }
+
+  const plan = await db.territoryPlan.findUnique({ where: { id: planId } });
+  if (!plan) {
+    throw new ServiceError("Territory plan not found", 404);
+  }
+
+  const result = await db.territoryPlanDistrict.deleteMany({
+    where: { planId, districtLeaid: { in: leaids } },
+  });
+  return { removed: result.count, planId };
+}

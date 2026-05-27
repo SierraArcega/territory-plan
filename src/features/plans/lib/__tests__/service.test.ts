@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   default: {
     territoryPlan: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
-    territoryPlanDistrict: { createMany: vi.fn() },
+    territoryPlanDistrict: { createMany: vi.fn(), deleteMany: vi.fn() },
     district: { findMany: vi.fn() },
   },
 }));
@@ -12,7 +12,7 @@ import prisma from "@/lib/prisma";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockPrisma = vi.mocked(prisma) as any;
 
-import { createPlan, updatePlan, addDistrictsToPlan } from "../service";
+import { createPlan, updatePlan, addDistrictsToPlan, removeDistrictsFromPlan } from "../service";
 import { ServiceError } from "@/features/shared/lib/service-error";
 
 beforeEach(() => vi.clearAllMocks());
@@ -98,5 +98,33 @@ describe("addDistrictsToPlan", () => {
       { planId: "plan-1", districtLeaid: "0601234" },
       { planId: "plan-1", districtLeaid: "4800001" },
     ]);
+  });
+});
+
+describe("removeDistrictsFromPlan", () => {
+  it("rejects an empty district list", async () => {
+    await expect(removeDistrictsFromPlan("plan-1", [])).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("404s when the plan is missing", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue(null);
+    await expect(removeDistrictsFromPlan("plan-x", ["0601234"])).rejects.toMatchObject({ status: 404 });
+    expect(mockPrisma.territoryPlanDistrict.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("deletes the matching junction rows and returns the removed count", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.territoryPlanDistrict.deleteMany.mockResolvedValue({ count: 2 });
+    const result = await removeDistrictsFromPlan("plan-1", ["0601234", "4800001"]);
+    expect(result).toEqual({ removed: 2, planId: "plan-1" });
+    const arg = mockPrisma.territoryPlanDistrict.deleteMany.mock.calls[0][0];
+    expect(arg.where).toEqual({ planId: "plan-1", districtLeaid: { in: ["0601234", "4800001"] } });
+  });
+
+  it("no-ops (removed: 0) when no leaid is a member", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.territoryPlanDistrict.deleteMany.mockResolvedValue({ count: 0 });
+    const result = await removeDistrictsFromPlan("plan-1", ["ghost"]);
+    expect(result.removed).toBe(0);
   });
 });
