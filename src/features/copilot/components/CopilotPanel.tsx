@@ -14,6 +14,11 @@ import {
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { useMapStore } from "@/features/shared/lib/app-store";
+import { useMapV2Store } from "@/features/map/lib/store";
+import { boundsForLeaids } from "@/features/map/lib/views-plan-bounds";
+import { STATE_BBOX } from "@/features/map/lib/state-bbox";
+import { extractDistrictLeaids, statesForLeaids } from "@/features/copilot/lib/plot-districts";
+import { isIdColumn } from "@/features/reports/lib/result-columns";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
@@ -71,6 +76,8 @@ export default function CopilotPanel() {
   // rail (split view); persisted there like sidebarCollapsed.
   const open = useMapStore((s) => s.copilotOpen);
   const setOpen = useMapStore((s) => s.setCopilotOpen);
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const focusDistricts = useMapV2Store((s) => s.focusDistricts);
   const [view, setView] = useState<"chat" | "log">("chat");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -176,6 +183,27 @@ export default function CopilotPanel() {
           setMessages((m) =>
             m.map((msg) => (msg.id === assistantId ? applyResult(msg, res) : msg)),
           );
+          // If the answer carries district leaids, show them on the map.
+          if (res.kind === "answer") {
+            const { leaids, truncated } = extractDistrictLeaids(
+              res.result.columns,
+              res.result.rows,
+            );
+            if (leaids.length > 0) {
+              focusDistricts(leaids, statesForLeaids(leaids), boundsForLeaids(leaids, STATE_BBOX));
+              setActiveTab("map");
+              if (truncated) {
+                setMessages((m) => [
+                  ...m,
+                  {
+                    id: uid(),
+                    role: "assistant",
+                    text: `Showing the first ${leaids.length} on the map.`,
+                  },
+                ]);
+              }
+            }
+          }
         },
         onError: (err) =>
           setMessages((m) =>
@@ -187,7 +215,7 @@ export default function CopilotPanel() {
           ),
       },
     );
-  }, [input, stream, conversationId, getPageContext, applyResult]);
+  }, [input, stream, conversationId, getPageContext, applyResult, focusDistricts, setActiveTab]);
 
   const onConfirm = useCallback(
     async (action: ProposedAction) => {
@@ -423,7 +451,8 @@ function MessageBlock({
 }
 
 function AnswerTable({ answer }: { answer: AnswerPayload }) {
-  if (answer.columns.length === 0) {
+  const visibleColumns = answer.columns.filter((c) => !isIdColumn(c));
+  if (visibleColumns.length === 0) {
     return (
       <p className="text-sm text-[#6E6390]">No rows.</p>
     );
@@ -433,7 +462,7 @@ function AnswerTable({ answer }: { answer: AnswerPayload }) {
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr className="bg-[#F7F5FA]">
-            {answer.columns.map((c) => (
+            {visibleColumns.map((c) => (
               <th
                 key={c}
                 className="px-2 py-1 text-left font-semibold text-[#6E6390] whitespace-nowrap"
@@ -446,7 +475,7 @@ function AnswerTable({ answer }: { answer: AnswerPayload }) {
         <tbody>
           {answer.rows.map((row, i) => (
             <tr key={i} className="border-t border-[#E2DEEC]">
-              {answer.columns.map((c) => (
+              {visibleColumns.map((c) => (
                 <td key={c} className="px-2 py-1 text-[#403770] whitespace-nowrap">
                   {row[c] == null ? "" : String(row[c])}
                 </td>
