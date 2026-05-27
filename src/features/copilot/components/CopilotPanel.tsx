@@ -219,6 +219,9 @@ export default function CopilotPanel() {
     setConversationId(undefined);
     setActionStatus({});
     setActionError({});
+    // Return to the chat view — "new chat" from the activity log should land
+    // the rep in a fresh chat, not leave them staring at the (unchanged) log.
+    setView("chat");
     try {
       localStorage.removeItem(CONV_KEY);
     } catch {
