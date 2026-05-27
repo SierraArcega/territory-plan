@@ -33,12 +33,30 @@ const NOUN: Record<string, string> = {
 };
 
 export function formatActionLogEntry(row: ActionLogRow): ActionLogEntry {
-  const verb = VERB[row.operation] ?? row.operation;
-  const noun = NOUN[row.objectType] ?? row.objectType;
   const after =
     row.afterJson && typeof row.afterJson === "object" && !Array.isArray(row.afterJson)
       ? (row.afterJson as Record<string, unknown>)
       : null;
+
+  // The plan↔district link isn't a record create/update, so it gets its own label.
+  if (row.operation === "add_districts") {
+    const added = after && typeof after.added === "number" ? after.added : null;
+    const label =
+      added != null
+        ? `Added ${added} district${added === 1 ? "" : "s"} to plan`
+        : "Added districts to plan";
+    return {
+      id: row.id,
+      objectType: row.objectType,
+      operation: row.operation,
+      status: row.status,
+      label,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  const verb = VERB[row.operation] ?? row.operation;
+  const noun = NOUN[row.objectType] ?? row.objectType;
   const name =
     after && typeof after.title === "string"
       ? after.title

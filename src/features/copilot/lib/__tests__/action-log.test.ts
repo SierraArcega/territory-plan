@@ -36,6 +36,17 @@ describe("formatActionLogEntry", () => {
     );
   });
 
+  it("labels a plan add_districts action with its count", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "add_districts",
+      afterJson: { added: 3, planId: "p1" },
+    });
+    expect(e.label).toBe("Added 3 districts to plan");
+    expect(e.label).not.toContain("p1");
+  });
+
   it("serializes createdAt and carries status through", () => {
     const e = formatActionLogEntry({ ...base, status: "error" });
     expect(e.status).toBe("error");

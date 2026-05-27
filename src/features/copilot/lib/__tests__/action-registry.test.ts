@@ -207,4 +207,23 @@ describe("plan actions", () => {
     expect(a.parse({}).ok).toBe(false);
     expect(a.parse({ status: "working" }).ok).toBe(true);
   });
+
+  it("plan.add_districts needs a target plan and a non-empty leaid list", () => {
+    const a = getAction("plan", "add_districts")!;
+    expect(a).toBeDefined();
+    expect(a.needsTarget).toBe(true);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ leaids: [] }).ok).toBe(false);
+    expect(a.parse({ leaids: ["0601234"] }).ok).toBe(true);
+  });
+
+  it("plan.add_districts confirm card shows a count, not raw leaids", () => {
+    const a = getAction("plan", "add_districts")!;
+    const parsed = a.parse({ leaids: ["0601234", "4800001"] });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, { targetId: "plan-1", summary: "Add 2 districts to Texas FY26" });
+    expect(preview.destructive).toBe(false);
+    expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
+    expect(preview.rows.some((r) => r.value === "2")).toBe(true);
+  });
 });

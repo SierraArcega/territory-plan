@@ -123,3 +123,43 @@ export async function updatePlan(id: string, input: UpdatePlanInput, db: DbClien
 
   return db.territoryPlan.update({ where: { id }, data: updateData });
 }
+
+/**
+ * Add districts to a plan (the plan↔district junction). Focused core for the
+ * copilot: validates the plan + that every leaid is a real district, then
+ * inserts junction rows with skipDuplicates. The rich route additionally sets
+ * per-district targets/services and syncs auto-tags + rollup totals; those are
+ * intentionally omitted here — rollup totals and the no-rollup-leaid invariant
+ * self-heal on the plan's next GET (expandPlanRollups), so the core add stays
+ * transaction-safe for the audit log.
+ */
+export async function addDistrictsToPlan(
+  planId: string,
+  leaids: string[],
+  db: DbClient = prisma,
+): Promise<{ added: number; planId: string }> {
+  if (!Array.isArray(leaids) || leaids.length === 0) {
+    throw new ServiceError("provide at least one district", 400);
+  }
+
+  const plan = await db.territoryPlan.findUnique({ where: { id: planId } });
+  if (!plan) {
+    throw new ServiceError("Territory plan not found", 404);
+  }
+
+  const existing = await db.district.findMany({
+    where: { leaid: { in: leaids } },
+    select: { leaid: true },
+  });
+  const existingSet = new Set(existing.map((d) => d.leaid));
+  const invalid = leaids.filter((l) => !existingSet.has(l));
+  if (invalid.length > 0) {
+    throw new ServiceError(`Districts not found: ${invalid.join(", ")}`, 400);
+  }
+
+  const result = await db.territoryPlanDistrict.createMany({
+    data: leaids.map((leaid) => ({ planId, districtLeaid: leaid })),
+    skipDuplicates: true,
+  });
+  return { added: result.count, planId };
+}

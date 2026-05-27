@@ -9,7 +9,7 @@ import { plainTextToNoteDoc } from "@/features/views/lib/note-doc";
 import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
 import { createActivity, updateActivity } from "@/features/activities/lib/service";
 import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
-import { createPlan, updatePlan } from "@/features/plans/lib/service";
+import { createPlan, updatePlan, addDistrictsToPlan } from "@/features/plans/lib/service";
 import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
@@ -557,5 +557,25 @@ register(
         },
       }),
     execute: (f, { targetId, ctx }) => updatePlan(String(targetId), f, ctx.db),
+  }),
+);
+
+// ===== plan.add_districts — link existing districts to a plan =====
+register(
+  defineAction({
+    objectType: "plan",
+    operation: "add_districts",
+    needsTarget: true,
+    fieldsSchema: z.object({
+      leaids: z.array(z.string().min(1)).min(1, "provide at least one district"),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Add districts to plan",
+      summary:
+        summary || `Add ${f.leaids.length} district${f.leaids.length === 1 ? "" : "s"} to the plan`,
+      rows: [{ label: "Districts", value: String(f.leaids.length) }],
+      destructive: false,
+    }),
+    execute: (f, { targetId, ctx }) => addDistrictsToPlan(String(targetId), f.leaids, ctx.db),
   }),
 );

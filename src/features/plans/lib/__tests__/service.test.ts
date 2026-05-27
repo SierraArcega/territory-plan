@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   default: {
     territoryPlan: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    territoryPlanDistrict: { createMany: vi.fn() },
+    district: { findMany: vi.fn() },
   },
 }));
 
@@ -10,7 +12,7 @@ import prisma from "@/lib/prisma";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockPrisma = vi.mocked(prisma) as any;
 
-import { createPlan, updatePlan } from "../service";
+import { createPlan, updatePlan, addDistrictsToPlan } from "../service";
 import { ServiceError } from "@/features/shared/lib/service-error";
 
 beforeEach(() => vi.clearAllMocks());
@@ -62,5 +64,39 @@ describe("updatePlan", () => {
     expect(arg.where).toEqual({ id: "plan-1" });
     expect(arg.data.status).toBe("working");
     expect(arg.data.name).toBeUndefined();
+  });
+});
+
+describe("addDistrictsToPlan", () => {
+  it("rejects an empty district list", async () => {
+    await expect(addDistrictsToPlan("plan-1", [])).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("404s when the plan is missing", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue(null);
+    await expect(addDistrictsToPlan("plan-x", ["0601234"])).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("400s when a district does not exist", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.district.findMany.mockResolvedValue([{ leaid: "0601234" }]);
+    await expect(
+      addDistrictsToPlan("plan-1", ["0601234", "ghost"]),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(mockPrisma.territoryPlanDistrict.createMany).not.toHaveBeenCalled();
+  });
+
+  it("inserts junction rows (skipDuplicates) and returns the added count", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.district.findMany.mockResolvedValue([{ leaid: "0601234" }, { leaid: "4800001" }]);
+    mockPrisma.territoryPlanDistrict.createMany.mockResolvedValue({ count: 2 });
+    const result = await addDistrictsToPlan("plan-1", ["0601234", "4800001"]);
+    expect(result.added).toBe(2);
+    const arg = mockPrisma.territoryPlanDistrict.createMany.mock.calls[0][0];
+    expect(arg.skipDuplicates).toBe(true);
+    expect(arg.data).toEqual([
+      { planId: "plan-1", districtLeaid: "0601234" },
+      { planId: "plan-1", districtLeaid: "4800001" },
+    ]);
   });
 });
