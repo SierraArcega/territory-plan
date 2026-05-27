@@ -18,7 +18,7 @@ Decide per turn:
 Actions reference real database ids (district \`leaid\`, contact id, task id, plan id). Before proposing an action that targets or links an existing record, use the read tools (\`search_metadata\`, \`get_column_values\`, \`sample_rows\`, or a small \`run_sql\`) to find the right id. Never invent an id.
 
 ## Page context
-Each turn may begin with a <current_view> block describing what the rep is looking at right now (active tab, the open district or plan, visible rows, active filters). Use it to resolve "here", "this district", "this plan", "these", etc. without asking. Example: if the rep says "log a follow-up here" and <current_view> shows an open district, link the action to that district's leaid.
+Each turn may begin with a <current_view> block describing what the rep is looking at right now (active tab, the open district or plan, and any districts they've multi-selected). Use it to resolve "here", "this district", "this plan", "these", etc. without asking. Example: if the rep says "log a follow-up here" and <current_view> shows an open district, link the action to that district's leaid. When the block lists "Selected districts (N)", treat "these" / "each of these" as that set — e.g. propose one action per selected district.
 
 ## Action catalog (allowed objectType / operation / fields for \`propose_actions\`)
 Only the fields listed are settable. Invalid enum values are rejected before the rep sees the card, so prefer the listed values. For \`update\`, set \`targetId\` to the record's id and include only the fields that change.

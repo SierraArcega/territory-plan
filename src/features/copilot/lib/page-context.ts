@@ -1,6 +1,7 @@
 import type { CopilotPageContext } from "./types";
 
 const MAX_ROWS = 20;
+const MAX_LEAIDS = 50;
 
 /**
  * Render the page context as a compact <current_view> block. Returns null when
@@ -22,6 +23,13 @@ export function formatPageContextBlock(
   if (ctx.openEntity) {
     lines.push(
       `Open ${ctx.openEntity.type}: ${ctx.openEntity.label ?? ""} (id ${ctx.openEntity.id})`,
+    );
+  }
+  if (ctx.selectedLeaids?.length) {
+    const shown = ctx.selectedLeaids.slice(0, MAX_LEAIDS);
+    const capped = ctx.selectedLeaids.length > MAX_LEAIDS ? ", capped" : "";
+    lines.push(
+      `Selected districts (${ctx.selectedLeaids.length}${capped}): ${shown.join(", ")}`,
     );
   }
   if (ctx.activeFilters?.length) {

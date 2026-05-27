@@ -54,6 +54,9 @@ export interface CopilotPageContext {
   openDistrict?: { leaid: string; name?: string } | null;
   openPlanId?: string | number | null;
   openEntity?: { type: string; id: string | number; label?: string } | null;
+  /** Multi-selected district leaids (map shift-select / list checkboxes), so the
+   *  copilot can act on "these districts" / "each of these". */
+  selectedLeaids?: string[];
   /** Capped (≤20) snapshot of the rows currently visible to the rep. */
   visibleRows?: Array<Record<string, unknown>>;
   /** Human-readable active filter labels. */
