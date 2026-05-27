@@ -331,7 +331,8 @@ register(
       title: "Add district note",
       summary: summary || snippet(f.text),
       rows: [
-        { label: "Note", value: snippet(f.text) },
+        // Full note text (not truncated) — the rep must read it to approve it.
+        { label: "Note", value: f.text },
         ...(f.noteType ? [{ label: "Type", value: NOTE_TYPE_LABELS[f.noteType] ?? f.noteType }] : []),
       ],
       destructive: false,
@@ -362,7 +363,8 @@ register(
       title: "Update district note",
       summary: summary || snippet(f.text),
       rows: [
-        { label: "New text", value: snippet(f.text) },
+        // Full note text (not truncated) — the rep must read it to approve it.
+        { label: "New text", value: f.text },
         ...(f.noteType ? [{ label: "Type", value: NOTE_TYPE_LABELS[f.noteType] ?? f.noteType }] : []),
       ],
       destructive: false,

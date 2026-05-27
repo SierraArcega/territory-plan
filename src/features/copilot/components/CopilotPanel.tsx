@@ -512,7 +512,7 @@ function ProposedActionCard({
           {action.preview.rows.map((r, i) => (
             <div key={i} className="flex gap-2 text-xs">
               <dt className="shrink-0 text-[#6E6390] whitespace-nowrap">{r.label}</dt>
-              <dd className="text-[#403770] break-words">{r.value}</dd>
+              <dd className="whitespace-pre-wrap break-words text-[#403770]">{r.value}</dd>
             </div>
           ))}
         </dl>
