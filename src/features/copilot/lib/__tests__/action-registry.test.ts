@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getAction } from "../action-registry";
+import { getAction, buildMapViewState } from "../action-registry";
+import { DEFAULT_MAP_VIEW_STATE } from "@/features/map/lib/view-defaults";
 
 describe("copilot action registry", () => {
   it("exposes task.create and task.update, not unknown actions", () => {
@@ -246,5 +247,84 @@ describe("plan actions", () => {
     expect(preview.destructive).toBe(false);
     expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
     expect(preview.rows.some((r) => r.value === "2")).toBe(true);
+  });
+});
+
+describe("map_view actions", () => {
+  it("exposes map_view.create as a non-target create", () => {
+    const a = getAction("map_view", "create")!;
+    expect(a).toBeDefined();
+    expect(a.needsTarget).toBe(false);
+    expect(getAction("map_view", "delete")).toBeUndefined();
+  });
+
+  it("map_view.create requires a name", () => {
+    const a = getAction("map_view", "create")!;
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ name: "" }).ok).toBe(false);
+    expect(a.parse({ name: "Texas customers" }).ok).toBe(true);
+  });
+
+  it("map_view.create rejects out-of-vocabulary filter values", () => {
+    const a = getAction("map_view", "create")!;
+    expect(a.parse({ name: "v", activeVendors: ["nope"] }).ok).toBe(false);
+    expect(a.parse({ name: "v", activeSignal: "vibes" }).ok).toBe(false);
+    expect(a.parse({ name: "v", selectedFiscalYear: "fy99" }).ok).toBe(false);
+    expect(a.parse({ name: "v", filterAccountTypes: ["spaceship"] }).ok).toBe(false);
+    expect(a.parse({ name: "v", visibleLocales: ["moon"] }).ok).toBe(false);
+    expect(a.parse({ name: "v", visibleSchoolTypes: ["preschool"] }).ok).toBe(false);
+    // state codes must be 2-letter, not full names
+    expect(a.parse({ name: "v", filterStates: ["Texas"] }).ok).toBe(false);
+  });
+
+  it("map_view.create accepts a fully described view", () => {
+    const a = getAction("map_view", "create")!;
+    const parsed = a.parse({
+      name: "TX charters",
+      isShared: true,
+      filterStates: ["TX"],
+      activeVendors: ["fullmind"],
+      filterAccountTypes: ["cmo"],
+      activeSignal: "enrollment",
+      selectedFiscalYear: "fy26",
+      visibleSchoolTypes: ["charter"],
+    });
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("map_view.create preview summarizes filters and flags sharing", () => {
+    const a = getAction("map_view", "create")!;
+    const parsed = a.parse({
+      name: "TX charters",
+      isShared: true,
+      filterStates: ["TX"],
+      visibleSchoolTypes: ["charter"],
+    });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, {});
+    expect(preview.title).toBe("Create map view");
+    expect(preview.destructive).toBe(false);
+    expect(preview.rows.some((r) => r.label === "Name" && r.value === "TX charters")).toBe(true);
+    expect(preview.rows.some((r) => r.value === "Shared with team")).toBe(true);
+    const filters = preview.rows.find((r) => r.label === "Filters")!.value;
+    expect(filters).toContain("TX");
+    expect(filters).toContain("Charter");
+  });
+
+  it("buildMapViewState layers described fields over the defaults", () => {
+    const state = buildMapViewState({
+      name: "X",
+      filterStates: ["TX"],
+      activeSignal: "enrollment",
+    });
+    expect(state.filterStates).toEqual(["TX"]);
+    expect(state.activeSignal).toBe("enrollment");
+    // Untouched fields fall back to the app defaults.
+    expect(state.activeVendors).toEqual(DEFAULT_MAP_VIEW_STATE.activeVendors);
+    expect(state.visibleMetrics).toEqual(DEFAULT_MAP_VIEW_STATE.visibleMetrics);
+    // Every MapViewState key is present so the saved view loads cleanly.
+    for (const key of Object.keys(DEFAULT_MAP_VIEW_STATE)) {
+      expect(key in state).toBe(true);
+    }
   });
 });

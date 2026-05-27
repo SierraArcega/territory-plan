@@ -8,7 +8,8 @@ export type CopilotObjectType =
   | "activity"
   | "contact"
   | "plan"
-  | "district_note";
+  | "district_note"
+  | "map_view";
 
 export type CopilotOperation = "create" | "update" | "add_districts";
 

@@ -2,6 +2,14 @@ import { buildSystemPrompt } from "@/features/reports/lib/agent/system-prompt";
 import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
 import { VALID_ACTIVITY_STATUSES, ALL_ACTIVITY_TYPES } from "@/features/activities/types";
 import { NOTE_TYPE_VALUES } from "@/features/views/lib/note-types";
+import {
+  VENDOR_IDS,
+  SIGNAL_IDS,
+  ALL_LOCALE_IDS,
+  FULLMIND_ENGAGEMENT_CATEGORIES,
+} from "@/features/map/lib/layers";
+import { ALL_SCHOOL_TYPES } from "@/features/map/lib/store";
+import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 
 const COPILOT_PREAMBLE = `You are the Fullmind territory-planning Copilot for a single sales rep. You do two things:
 
@@ -75,6 +83,18 @@ Owned by the current rep by default.
 ### plan.add_districts — link existing districts to a plan
 Use this when the rep says "add [district] to [plan]" / "add these districts to my plan". Set \`targetId\` to the plan id; look up each district's leaid with the read tools first.
 - leaids (string[], required) — the districts to add
+
+### map_view.create — save a named view of the map (filters, layers, styling)
+A map view is a saved snapshot of the map screen's filters and layers. Use when the rep asks to save/snapshot the map as a view ("save a view of Texas charter schools", "save this as a view called …"). Build it from the rep's description — these are filters, NOT records, so no leaid/id lookups are needed. Only the fields below are settable; everything else uses standard styling. Omit any field the rep didn't mention.
+- name (required); description; isShared (boolean — set true when the rep says "share with the team")
+- filterStates (string[] of 2-letter state codes, e.g. ["TX","CA"])
+- activeVendors (${VENDOR_IDS.join(" | ")}) — vendor layers to show; default is fullmind only
+- filterAccountTypes (${ACCOUNT_TYPES.map((t) => t.value).join(" | ")})
+- fullmindEngagement (${Object.keys(FULLMIND_ENGAGEMENT_CATEGORIES).join(" | ")})
+- activeSignal (${SIGNAL_IDS.join(" | ")}) — a single heat-map signal
+- visibleLocales (${ALL_LOCALE_IDS.join(" | ")}); visibleSchoolTypes (${ALL_SCHOOL_TYPES.join(" | ")})
+- selectedFiscalYear (fy24 | fy25 | fy26 | fy27)
+Owned by the current rep by default.
 
 ## Style
 Be concise and rep-friendly. Never show SQL or raw ids unless asked. Add a short, plain-language \`summary\` to every proposed action.

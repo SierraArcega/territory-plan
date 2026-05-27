@@ -6,6 +6,16 @@ import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import type { TransitionBucket } from "@/features/map/lib/comparison";
 import { getDefaultFiscalYearKey } from "@/features/shared/lib/fiscal-year";
+import {
+  ALL_METRIC_IDS,
+  DEFAULT_FULLMIND_ENGAGEMENT,
+  DEFAULT_VENDOR_OPACITIES,
+} from "@/features/map/lib/view-defaults";
+
+// Re-exported for existing importers (MapSummaryBar, ViewActionsBar); the
+// canonical definitions live in view-defaults.ts so server-side view creation
+// can share them without pulling in this client store.
+export { ALL_METRIC_IDS, type MetricId } from "@/features/map/lib/view-defaults";
 
 export type FiscalYear = "fy24" | "fy25" | "fy26" | "fy27";
 export type CompareView = "side_by_side" | "changes";
@@ -486,24 +496,6 @@ const initialTooltip: V2TooltipState = {
   data: null,
 };
 
-/** All metric IDs shown in the summary bar, in display order */
-export const ALL_METRIC_IDS = [
-  "districts",
-  "enrollment",
-  "pipeline",
-  "bookings",
-  "invoicing",
-  "scheduledRevenue",
-  "completedRevenue",
-  "deferredRevenue",
-  "totalRevenue",
-  "completedTake",
-  "scheduledTake",
-  "totalTake",
-] as const;
-
-export type MetricId = (typeof ALL_METRIC_IDS)[number];
-
 function serializeMapState(s: MapV2State & MapV2Actions): string {
   return JSON.stringify({
     activeVendors: [...s.activeVendors].sort(),
@@ -553,17 +545,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   activeSignal: null,
   visibleLocales: new Set<LocaleId>(),
   filterAccountTypes: [],
-  fullmindEngagement: [
-    "new_business_pipeline",
-    "winback_pipeline",
-    "renewal_pipeline",
-    "expansion_pipeline",
-    "first_year",
-    "multi_year_growing",
-    "multi_year_flat",
-    "multi_year_shrinking",
-    "lapsed",
-  ],
+  fullmindEngagement: [...DEFAULT_FULLMIND_ENGAGEMENT],
   competitorEngagement: {},
   selectedFiscalYear: getDefaultFiscalYearKey(),
 
@@ -574,7 +556,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   compareFyB: getDefaultFiscalYearKey(),
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
   signalPalette: DEFAULT_SIGNAL_PALETTE,
-  vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75, educere: 0.75 },
+  vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES },
   categoryColors: { ...DEFAULT_CATEGORY_COLORS },
   categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
   summaryBarVisible: true,

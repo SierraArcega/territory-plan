@@ -21,6 +21,8 @@ function invalidationKeysFor(action: ProposedAction): unknown[][] {
       return [["contacts"]];
     case "plan":
       return [["territory-plans"], ["plans"]];
+    case "map_view":
+      return [["mapViews"]];
     case "district_note": {
       const leaid =
         (action.fields.leaid as string | undefined) ??

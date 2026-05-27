@@ -10,6 +10,17 @@ import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
 import { createActivity, updateActivity } from "@/features/activities/lib/service";
 import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
 import { createPlan, updatePlan, addDistrictsToPlan } from "@/features/plans/lib/service";
+import { createMapView } from "@/features/map/lib/map-view-service";
+import { DEFAULT_MAP_VIEW_STATE } from "@/features/map/lib/view-defaults";
+import {
+  VENDOR_IDS,
+  VENDOR_CONFIGS,
+  SIGNAL_IDS,
+  ALL_LOCALE_IDS,
+  FULLMIND_ENGAGEMENT_CATEGORIES,
+} from "@/features/map/lib/layers";
+import { ALL_SCHOOL_TYPES, type MapViewState } from "@/features/map/lib/store";
+import { ACCOUNT_TYPES, getAccountTypeLabel } from "@/features/shared/types/account-types";
 import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
@@ -621,5 +632,121 @@ register(
     }),
     validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
     execute: (f, { targetId, ctx }) => addDistrictsToPlan(String(targetId), f.leaids, ctx.db),
+  }),
+);
+
+// ===== map_view.create — save a named map view built from a description =====
+// The model describes filters; the rest of the MapViewState (palettes, colors,
+// metrics) comes from DEFAULT_MAP_VIEW_STATE so the saved view uses standard
+// styling. State is constructed server-side, like every other create action.
+
+const ACCOUNT_TYPE_VALUES = ACCOUNT_TYPES.map((t) => t.value);
+const ENGAGEMENT_VALUES = Object.keys(FULLMIND_ENGAGEMENT_CATEGORIES);
+const FISCAL_YEAR_VALUES = ["fy24", "fy25", "fy26", "fy27"];
+
+/** Array field whose every element must be one of `allowed`. */
+function subsetField(allowed: readonly string[], label: string) {
+  return z
+    .array(z.string())
+    .refine((arr) => arr.every((v) => allowed.includes(v)), {
+      message: `each ${label} must be one of: ${allowed.join(", ")}`,
+    });
+}
+
+const mapViewCreateSchema = z.object({
+  name: z.string().min(1, "name is required"),
+  description: z.string().optional(),
+  isShared: z.boolean().optional(),
+  filterStates: z
+    .array(z.string().regex(/^[A-Z]{2}$/, "use 2-letter state codes like TX"))
+    .optional(),
+  activeVendors: subsetField(VENDOR_IDS, "vendor").optional(),
+  filterAccountTypes: subsetField(ACCOUNT_TYPE_VALUES, "account type").optional(),
+  fullmindEngagement: subsetField(ENGAGEMENT_VALUES, "engagement category").optional(),
+  activeSignal: z
+    .string()
+    .refine((s) => (SIGNAL_IDS as readonly string[]).includes(s), {
+      message: `must be one of: ${SIGNAL_IDS.join(", ")}`,
+    })
+    .optional(),
+  selectedFiscalYear: z
+    .string()
+    .refine((s) => FISCAL_YEAR_VALUES.includes(s), {
+      message: `must be one of: ${FISCAL_YEAR_VALUES.join(", ")}`,
+    })
+    .optional(),
+  visibleLocales: subsetField(ALL_LOCALE_IDS, "locale").optional(),
+  visibleSchoolTypes: subsetField(ALL_SCHOOL_TYPES, "school type").optional(),
+});
+
+export type MapViewCreateFields = z.infer<typeof mapViewCreateSchema>;
+
+/** Layer the described fields over the app defaults to get a full MapViewState. */
+export function buildMapViewState(f: MapViewCreateFields): MapViewState {
+  const o: Partial<MapViewState> = {};
+  if (f.filterStates) o.filterStates = f.filterStates;
+  if (f.activeVendors) o.activeVendors = f.activeVendors;
+  if (f.filterAccountTypes) o.filterAccountTypes = f.filterAccountTypes;
+  if (f.fullmindEngagement) o.fullmindEngagement = f.fullmindEngagement;
+  if (f.activeSignal !== undefined) o.activeSignal = f.activeSignal;
+  if (f.selectedFiscalYear) o.selectedFiscalYear = f.selectedFiscalYear;
+  if (f.visibleLocales) o.visibleLocales = f.visibleLocales;
+  if (f.visibleSchoolTypes) o.visibleSchoolTypes = f.visibleSchoolTypes;
+  return { ...DEFAULT_MAP_VIEW_STATE, ...o };
+}
+
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Short, rep-friendly summary of the filters captured in a proposed view. */
+function summarizeViewFilters(f: MapViewCreateFields): string {
+  const parts: string[] = [];
+  if (f.filterStates?.length) parts.push(`States: ${f.filterStates.join(", ")}`);
+  if (f.activeVendors?.length)
+    parts.push(
+      `Vendors: ${f.activeVendors
+        .map((v) => VENDOR_CONFIGS[v as keyof typeof VENDOR_CONFIGS]?.label ?? v)
+        .join(", ")}`,
+    );
+  if (f.filterAccountTypes?.length)
+    parts.push(`Types: ${f.filterAccountTypes.map(getAccountTypeLabel).join(", ")}`);
+  if (f.visibleSchoolTypes?.length)
+    parts.push(`Schools: ${f.visibleSchoolTypes.map(titleCase).join(", ")}`);
+  if (f.visibleLocales?.length)
+    parts.push(`Locales: ${f.visibleLocales.map(titleCase).join(", ")}`);
+  if (f.activeSignal) parts.push(`Signal: ${titleCase(f.activeSignal)}`);
+  if (f.selectedFiscalYear)
+    parts.push(`FY: ${f.selectedFiscalYear.replace("fy", "FY")}`);
+  return parts.length ? parts.join(" · ") : "Current map defaults (no filters)";
+}
+
+register(
+  defineAction({
+    objectType: "map_view",
+    operation: "create",
+    fieldsSchema: mapViewCreateSchema,
+    buildPreview: (f, { summary }) => ({
+      title: "Create map view",
+      summary: summary || f.name,
+      rows: [
+        { label: "Name", value: f.name },
+        ...(f.description ? [{ label: "Description", value: f.description }] : []),
+        ...(f.isShared ? [{ label: "Sharing", value: "Shared with team" }] : []),
+        { label: "Filters", value: summarizeViewFilters(f) },
+      ],
+      destructive: false,
+    }),
+    execute: (f, { ctx }) =>
+      createMapView(
+        {
+          name: f.name,
+          description: f.description,
+          isShared: f.isShared,
+          // MapViewState is a fixed-shape interface; the service stores it as an
+          // opaque JSON object.
+          state: buildMapViewState(f) as unknown as Record<string, unknown>,
+        },
+        ctx.userId,
+        ctx.db,
+      ),
   }),
 );
