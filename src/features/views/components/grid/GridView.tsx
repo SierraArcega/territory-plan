@@ -25,6 +25,7 @@ import { GridSortChips } from "./GridSortChips";
 import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
 import { RowActionsMenu } from "./actions/RowActionsMenu";
+import { BulkActionsMenu, type SelectionState } from "./actions/BulkActionsMenu";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
@@ -192,6 +193,7 @@ export default function GridView(props: GridViewProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
+  const [selection, setSelection] = useState<SelectionState>({ mode: "none" });
 
   // When the grid lives inside a plan, forward the planId so virtual fields
   // like `has_target` can compile their EXISTS subquery on the backend.
@@ -218,6 +220,17 @@ export default function GridView(props: GridViewProps) {
     setPrevQuerySig(querySig);
     setPage(1);
     effectivePage = 1;
+    setSelection({ mode: "none" });
+  }
+
+  // Reset explicit selection when the user navigates to a different page.
+  // (all-filtered stays valid across pages since it's server-resolved.)
+  const [prevPageForSel, setPrevPageForSel] = useState(effectivePage);
+  if (prevPageForSel !== effectivePage) {
+    setPrevPageForSel(effectivePage);
+    if (selection.mode === "explicit") {
+      setSelection({ mode: "none" });
+    }
   }
 
   // One fixed-size window per fetch (offset paging), so we never exceed the
@@ -426,7 +439,7 @@ export default function GridView(props: GridViewProps) {
     });
   }
 
-  const colCount = visibleCols.length + 1;
+  const colCount = visibleCols.length + 1 + (showRowActions ? 1 : 0);
 
   function renderBody() {
     const tableRows = table.getRowModel().rows;
@@ -439,6 +452,44 @@ export default function GridView(props: GridViewProps) {
             key={row.id}
             className="hover:bg-[#F7F5FA] transition-colors duration-100"
           >
+            {showRowActions && (
+              <td
+                className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const leaid = typeof row.original.leaid === "string" ? row.original.leaid : null;
+                  if (!leaid) return;
+                  setSelection((prev) => {
+                    if (prev.mode === "all-filtered") {
+                      const allPageLeaids = new Set(
+                        rows
+                          .map((r) => r.leaid)
+                          .filter((l): l is string => typeof l === "string" && l !== leaid)
+                      );
+                      return allPageLeaids.size === 0
+                        ? { mode: "none" }
+                        : { mode: "explicit", leaids: allPageLeaids };
+                    }
+                    const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
+                    next.has(leaid) ? next.delete(leaid) : next.add(leaid);
+                    return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
+                  });
+                }}
+              >
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${typeof row.original.name === "string" ? row.original.name : "district"}`}
+                  className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
+                  readOnly
+                  checked={
+                    selection.mode === "all-filtered" ||
+                    (selection.mode === "explicit" &&
+                      typeof row.original.leaid === "string" &&
+                      selection.leaids.has(row.original.leaid))
+                  }
+                />
+              </td>
+            )}
             {row.getVisibleCells().map((cell) => (
               <td
                 key={cell.id}
@@ -526,6 +577,44 @@ export default function GridView(props: GridViewProps) {
             key={row.id}
             className="hover:bg-[#F7F5FA] transition-colors duration-100"
           >
+            {showRowActions && (
+              <td
+                className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const leaid = typeof row.original.leaid === "string" ? row.original.leaid : null;
+                  if (!leaid) return;
+                  setSelection((prev) => {
+                    if (prev.mode === "all-filtered") {
+                      const allPageLeaids = new Set(
+                        rows
+                          .map((r) => r.leaid)
+                          .filter((l): l is string => typeof l === "string" && l !== leaid)
+                      );
+                      return allPageLeaids.size === 0
+                        ? { mode: "none" }
+                        : { mode: "explicit", leaids: allPageLeaids };
+                    }
+                    const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
+                    next.has(leaid) ? next.delete(leaid) : next.add(leaid);
+                    return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
+                  });
+                }}
+              >
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${typeof row.original.name === "string" ? row.original.name : "district"}`}
+                  className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
+                  readOnly
+                  checked={
+                    selection.mode === "all-filtered" ||
+                    (selection.mode === "explicit" &&
+                      typeof row.original.leaid === "string" &&
+                      selection.leaids.has(row.original.leaid))
+                  }
+                />
+              </td>
+            )}
             {row.getVisibleCells().map((cell) => (
               <td
                 key={cell.id}
@@ -582,6 +671,74 @@ export default function GridView(props: GridViewProps) {
           />
         </div>
       </div>
+      {/* Selection bar — shown when rows are selected in plan/districts context */}
+      {showRowActions && selection.mode !== "none" && (
+        <div
+          className={`shrink-0 flex items-center gap-2 px-3 py-2 text-[12px] border-b ${
+            selection.mode === "all-filtered"
+              ? "bg-[#403770] border-[#322a5a] text-white"
+              : "bg-[#EFEDF5] border-[#D4CFE2] text-[#403770]"
+          }`}
+        >
+          {selection.mode === "all-filtered" ? (
+            <>
+              <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5" />
+              </svg>
+              <span className="font-semibold whitespace-nowrap">
+                All {selection.total} filtered districts selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelection({ mode: "none" })}
+                className="ml-auto text-white/70 hover:text-white transition-colors whitespace-nowrap"
+                aria-label="Clear selection"
+              >
+                ✕ Clear
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="font-semibold whitespace-nowrap">
+                {selection.leaids.size} of {rows.length} on this page selected
+              </span>
+              {/* Show "Select all N" promote link only when all page rows checked AND more exist */}
+              {rows.every(
+                (r) => typeof r.leaid === "string" && selection.leaids.has(r.leaid)
+              ) && total > rows.length && (
+                <>
+                  <span className="text-[#A69DC0]">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelection({ mode: "all-filtered", total })}
+                    className="font-semibold text-[#403770] underline underline-offset-2 whitespace-nowrap"
+                  >
+                    Select all {total}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelection({ mode: "none" })}
+                className="ml-2 text-[#A69DC0] hover:text-[#403770] transition-colors"
+                aria-label="Clear selection"
+              >
+                ✕
+              </button>
+            </>
+          )}
+
+          {/* Bulk Actions button — right-aligned */}
+          <div className={selection.mode === "all-filtered" ? "ml-0" : "ml-auto"}>
+            <BulkActionsMenu
+              planId={planId!}
+              selection={selection as Exclude<SelectionState, { mode: "none" }>}
+              layout={layout}
+              onSelectionCleared={() => setSelection({ mode: "none" })}
+            />
+          </div>
+        </div>
+      )}
       {truncated && <TruncatedBanner />}
       {/* Single scroll context for the whole table — both axes. The thead's
           `sticky top-0` keeps headers pinned while the body scrolls
@@ -594,6 +751,7 @@ export default function GridView(props: GridViewProps) {
           <thead className="sticky top-0 z-[1]">
             {hasGroups && (
               <tr className="bg-[#F7F5FA]">
+                {showRowActions && <th aria-hidden style={{ width: 36 }} className="py-1.5 border-b border-[#EFEDF5]" />}
                 {groupSpans.map((span, i) =>
                   span.group ? (
                     <th
@@ -616,6 +774,47 @@ export default function GridView(props: GridViewProps) {
               </tr>
             )}
             <tr className="bg-[#F7F5FA]">
+              {showRowActions && rows.length > 0 && (
+                <th
+                  style={{ width: 36 }}
+                  className="py-2.5 px-2.5 border-b border-[#D4CFE2] bg-[#F7F5FA]"
+                >
+                  <input
+                    type="checkbox"
+                    aria-label="Select all on page"
+                    className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
+                    checked={
+                      selection.mode === "all-filtered" ||
+                      (selection.mode === "explicit" &&
+                        rows.every(
+                          (r) => typeof r.leaid === "string" && selection.leaids.has(r.leaid)
+                        ))
+                    }
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate =
+                          selection.mode === "explicit" &&
+                          selection.leaids.size > 0 &&
+                          !rows.every(
+                            (r) => typeof r.leaid === "string" && selection.leaids.has(r.leaid)
+                          );
+                      }
+                    }}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        const pageLeaids = new Set(
+                          rows
+                            .map((r) => r.leaid)
+                            .filter((l): l is string => typeof l === "string")
+                        );
+                        setSelection({ mode: "explicit", leaids: pageLeaids });
+                      } else {
+                        setSelection({ mode: "none" });
+                      }
+                    }}
+                  />
+                </th>
+              )}
               {table.getHeaderGroups()[0].headers.map((h) => {
                 const colDef = SOURCE_COLUMNS[source].find((c) => c.id === h.column.id);
                 const sortIndexInStack = layout.sort.findIndex((s) => s.id === h.column.id);
