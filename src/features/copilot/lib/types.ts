@@ -70,6 +70,15 @@ export interface CopilotChatRequest {
   pageContext?: CopilotPageContext;
 }
 
+/** One past message rendered when a prior conversation is replayed read-only.
+ *  Result rows aren't persisted, so answer-turns carry a `note` instead of a
+ *  table, and proposal-turns carry a `note` rather than live (stale) cards. */
+export interface CopilotHistoryMessage {
+  role: "user" | "assistant";
+  text: string;
+  note?: string;
+}
+
 /** Wire shape for one confirmed action sent to the execute endpoint. */
 export interface ExecuteActionRequest {
   objectType: CopilotObjectType;

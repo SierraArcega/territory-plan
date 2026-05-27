@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import type { PriorTurn } from "@/features/reports/lib/agent/conversation";
 import type { QuerySummary, TokenUsage, TurnEvent } from "@/features/reports/lib/agent/types";
-import type { ProposedAction } from "./types";
+import type { ProposedAction, CopilotHistoryMessage } from "./types";
 
 /**
  * Load prior copilot turns in the agent loop's `PriorTurn` shape so they replay
@@ -49,6 +49,43 @@ export async function loadCopilotPriorTurns(
       createdAt: r.createdAt,
     };
   });
+}
+
+/**
+ * Load a conversation as read-only messages for the panel to replay on reopen.
+ * Result rows are not persisted, so an answer-turn becomes its assistant text
+ * plus a "returned a table" note, and a proposal-turn carries a count note
+ * rather than re-mounting live (and now-stale) confirm cards.
+ */
+export async function loadCopilotHistory(
+  conversationId: string | undefined,
+  userId: string,
+): Promise<CopilotHistoryMessage[]> {
+  if (!conversationId) return [];
+
+  const rows = await prisma.copilotTurn.findMany({
+    where: { conversationId, userId },
+    orderBy: { createdAt: "asc" },
+    take: 50,
+    select: { question: true, assistantText: true, sql: true, proposedActions: true },
+  });
+
+  const messages: CopilotHistoryMessage[] = [];
+  for (const r of rows) {
+    messages.push({ role: "user", text: r.question });
+    const proposed = Array.isArray(r.proposedActions)
+      ? (r.proposedActions as unknown[])
+      : null;
+    let note: string | undefined;
+    if (proposed && proposed.length > 0) {
+      note = `Proposed ${proposed.length} action${proposed.length === 1 ? "" : "s"} (confirm again if still needed)`;
+    } else if (r.sql) {
+      note = "Returned a table earlier (not re-shown)";
+    }
+    const text = r.assistantText || (r.sql ? "Returned results." : "");
+    messages.push({ role: "assistant", text, ...(note ? { note } : {}) });
+  }
+  return messages;
 }
 
 export async function saveCopilotTurn(args: {

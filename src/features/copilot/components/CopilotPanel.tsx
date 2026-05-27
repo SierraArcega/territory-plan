@@ -9,6 +9,7 @@ import {
   Loader2,
   Ban,
   AlertTriangle,
+  SquarePen,
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
@@ -16,11 +17,13 @@ import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
 import { useExecuteCopilotAction } from "../hooks/useExecuteCopilotAction";
 import type {
   CopilotTurnResult,
+  CopilotHistoryMessage,
   ProposedAction,
   TurnEvent,
 } from "../lib/types";
 
 const STORAGE_KEY = "copilot:open";
+const CONV_KEY = "copilot:conversationId";
 
 type ActionStatus = "idle" | "pending" | "confirmed" | "dismissed" | "error";
 
@@ -34,6 +37,8 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
+  /** Muted footnote for replayed history (e.g. "returned a table earlier"). */
+  note?: string;
   proposedActions?: ProposedAction[];
   answer?: AnswerPayload;
   events?: TurnEvent[];
@@ -90,6 +95,42 @@ export default function CopilotPanel() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
+
+  // Restore the last conversation id and replay its turns (read-only) on mount.
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(CONV_KEY);
+    } catch {
+      // ignore
+    }
+    if (!stored) return;
+    setConversationId(stored);
+    let cancelled = false;
+    fetch(`/api/copilot/history?conversationId=${encodeURIComponent(stored)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { messages?: CopilotHistoryMessage[] } | null) => {
+        if (cancelled || !data?.messages?.length) return;
+        setMessages(
+          data.messages.map((m) => ({ id: uid(), role: m.role, text: m.text, note: m.note })),
+        );
+      })
+      .catch(() => {
+        // best-effort — a missing history just starts an empty thread
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist the conversation id so the next mount can replay it.
+  useEffect(() => {
+    try {
+      if (conversationId) localStorage.setItem(CONV_KEY, conversationId);
+    } catch {
+      // ignore
+    }
+  }, [conversationId]);
 
   const applyResult = useCallback(
     (prev: ChatMessage, res: CopilotTurnResult): ChatMessage => {
@@ -182,6 +223,18 @@ export default function CopilotPanel() {
     setActionStatus((s) => ({ ...s, [actionId]: "dismissed" }));
   }, []);
 
+  const onNewChat = useCallback(() => {
+    setMessages([]);
+    setConversationId(undefined);
+    setActionStatus({});
+    setActionError({});
+    try {
+      localStorage.removeItem(CONV_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const greeting = useMemo(
     () => "Ask about your data, or tell me what to create or update.",
     [],
@@ -216,14 +269,24 @@ export default function CopilotPanel() {
             Copilot
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          aria-label="Close Copilot"
-          className="rounded-lg p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onNewChat}
+            aria-label="New chat"
+            className="rounded-lg p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
+          >
+            <SquarePen className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close Copilot"
+            className="rounded-lg p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -327,6 +390,8 @@ function MessageBlock({
           </div>
         )
       )}
+
+      {msg.note && <p className="text-xs italic text-[#8A80A8]">{msg.note}</p>}
 
       {msg.answer && <AnswerTable answer={msg.answer} />}
 
