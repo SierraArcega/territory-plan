@@ -5,13 +5,9 @@ import { TARGET_ROLES, type TargetRole } from "@/features/shared/types/contact-t
 import { AnchoredPopover } from "../AnchoredPopover";
 import { useBulkEnrichFlow } from "@/features/plans/lib/enrich-flow";
 import ExistingContactsModal from "@/features/plans/components/ExistingContactsModal";
-import { API_BASE } from "@/features/shared/lib/api-client";
+import { resolvePlanLeaids } from "./export-helpers";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
-
-type SelectionState =
-  | { mode: "none" }
-  | { mode: "explicit"; leaids: Set<string> }
-  | { mode: "all-filtered"; total: number };
+import type { SelectionState } from "./BulkActionsMenu";
 
 interface FindContactsPopoverProps {
   planId: string;
@@ -54,25 +50,22 @@ export function FindContactsPopover({
     if (selection.mode === "explicit") return Array.from(selection.leaids);
     setResolving(true);
     try {
-      const params = new URLSearchParams();
-      if (layout.filters.children.length > 0) {
-        params.set("filters", JSON.stringify(layout.filters));
-      }
-      const res = await fetch(
-        `${API_BASE}/territory-plans/${planId}/districts/export?${params.toString()}`
-      );
-      if (!res.ok) throw new Error("Failed to resolve leaids");
-      const data = (await res.json()) as { rows: { leaid: string }[] };
-      return data.rows.map((r) => r.leaid);
+      return await resolvePlanLeaids(planId, layout);
     } finally {
       setResolving(false);
     }
   }, [selection, planId, layout]);
 
   const handleStart = useCallback(async () => {
-    const leaids = await getLeaids();
-    await handleStartEnrichment({ targetRole: selectedRole, schoolLevels, leaids });
-    onClose();
+    try {
+      const leaids = await getLeaids();
+      await handleStartEnrichment({ targetRole: selectedRole, schoolLevels, leaids });
+      onClose();
+    } catch (err) {
+      console.error("Find contacts failed:", err);
+      // getLeaids error: leave popover open so user can retry
+      // handleStartEnrichment error: the hook's own toast handles it
+    }
   }, [getLeaids, handleStartEnrichment, selectedRole, schoolLevels, onClose]);
 
   const isDisabled =
