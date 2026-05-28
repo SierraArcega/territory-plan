@@ -11,12 +11,14 @@ const CATEGORY_COLORS: Record<string, string> = {
   events: "#6EA3BE",
   campaigns: "#FFCF70",
   gift_drop: "#F37167",
+  outreach: "#E07B4A",
   sponsorships: "#8AA891",
   thought_leadership: "#A78BCA",
 };
 
 const TYPE_LABELS: Record<string, string> = {
   email: "Email",
+  cold_call: "Cold Call",
   call: "Call",
   meeting: "Meeting",
   campaign: "Campaign",

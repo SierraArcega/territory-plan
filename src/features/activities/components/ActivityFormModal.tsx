@@ -275,8 +275,12 @@ export default function ActivityFormModal({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const isEvent = getCategoryForType(type) === "events";
-    const hasMetadata = isEvent && Object.keys(metadata).length > 0;
+    // Persist type-specific metadata only for categories whose fields we save
+    // (events + outreach). Mirrors ActivityViewPanel.handleSave.
+    const submitCategory = getCategoryForType(type);
+    const hasMetadata =
+      (submitCategory === "events" || submitCategory === "outreach") &&
+      Object.keys(metadata).length > 0;
 
     // Address now lives on real columns. The type-specific sub-fields still
     // collect it into the metadata bag for backwards compat — pull it out
@@ -432,6 +436,7 @@ export default function ActivityFormModal({
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
   const typeCategory = getCategoryForType(type);
   const isEventCategory = typeCategory === "events" || typeCategory === "thought_leadership";
+  const showTypeDetails = isEventCategory || typeCategory === "outreach";
 
   if (!isOpen) return null;
 
@@ -720,7 +725,7 @@ export default function ActivityFormModal({
                 <div className="border-t border-[#E2DEEC]" />
 
                 {/* Type-specific details */}
-                {isEventCategory && (
+                {showTypeDetails && (
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
                     <EventTypeFields
