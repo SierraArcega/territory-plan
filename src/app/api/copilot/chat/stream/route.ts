@@ -161,6 +161,9 @@ export async function POST(request: NextRequest): Promise<Response> {
           systemPrompt,
           tools: COPILOT_TOOLS,
           terminalTool: { name: PROPOSE_ACTIONS_TOOL_NAME, handle: proposeHandle },
+          // Copilot turns (id lookup + propose, or a single run_sql) are rarely
+          // reasoning-bound — medium effort trims per-iteration latency.
+          effort: "medium",
         });
 
         // Persist the turn — failures must not block the terminal SSE event.

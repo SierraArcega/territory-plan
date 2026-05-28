@@ -58,6 +58,68 @@ describe("formatActionLogEntry", () => {
     expect(e.label).not.toContain("p1");
   });
 
+  it("labels a plan add_activities action with its count (plural)", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "add_activities",
+      afterJson: { added: 3, planId: "p1" },
+    });
+    expect(e.label).toBe("Added 3 activities to plan");
+    expect(e.label).not.toContain("p1");
+  });
+
+  it("labels a plan add_activities action with its count (singular)", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "add_activities",
+      afterJson: { added: 1, planId: "p1" },
+    });
+    expect(e.label).toBe("Added 1 activity to plan");
+  });
+
+  it("falls back to no-count label for add_activities when count is absent", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "add_activities",
+      afterJson: { planId: "p1" },
+    });
+    expect(e.label).toBe("Added activities to plan");
+  });
+
+  it("labels a plan remove_activities action with its count (plural)", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "remove_activities",
+      afterJson: { removed: 2, planId: "p1" },
+    });
+    expect(e.label).toBe("Removed 2 activities from plan");
+    expect(e.label).not.toContain("p1");
+  });
+
+  it("labels a plan remove_activities action with its count (singular)", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "remove_activities",
+      afterJson: { removed: 1, planId: "p1" },
+    });
+    expect(e.label).toBe("Removed 1 activity from plan");
+  });
+
+  it("falls back to no-count label for remove_activities when count is absent", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "remove_activities",
+      afterJson: { planId: "p1" },
+    });
+    expect(e.label).toBe("Removed activities from plan");
+  });
+
   it("serializes createdAt and carries status through", () => {
     const e = formatActionLogEntry({ ...base, status: "error" });
     expect(e.status).toBe("error");

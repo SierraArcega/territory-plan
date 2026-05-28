@@ -9,7 +9,14 @@ import { plainTextToNoteDoc } from "@/features/views/lib/note-doc";
 import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
 import { createActivity, updateActivity } from "@/features/activities/lib/service";
 import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
-import { createPlan, updatePlan, addDistrictsToPlan, removeDistrictsFromPlan } from "@/features/plans/lib/service";
+import {
+  createPlan,
+  updatePlan,
+  addDistrictsToPlan,
+  removeDistrictsFromPlan,
+  addActivitiesToPlan,
+  removeActivitiesFromPlan,
+} from "@/features/plans/lib/service";
 import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
@@ -123,6 +130,31 @@ function leaidErrors(missing: string[]): string[] {
     `No district found for leaid(s): ${missing.join(", ")}. Look up the correct leaid with ` +
       `run_sql (e.g. SELECT leaid, name, state FROM districts WHERE name ILIKE '%…%') and use only ` +
       `a returned value, or tell the rep you couldn't find that district. Do not guess.`,
+  ];
+}
+
+/** Returns the subset of activity ids that don't exist in `activity` (read-only). */
+async function missingActivityIds(
+  ids: ReadonlyArray<string> | undefined,
+  db: DbClient,
+): Promise<string[]> {
+  const list = (ids ?? []).filter(Boolean);
+  if (list.length === 0) return [];
+  const found = await db.activity.findMany({
+    where: { id: { in: [...list] } },
+    select: { id: true },
+  });
+  const have = new Set(found.map((a) => a.id));
+  return list.filter((id) => !have.has(id));
+}
+
+/** Propose-time error guiding the model to look up real activity ids, never guess. */
+function activityIdErrors(missing: string[]): string[] {
+  if (missing.length === 0) return [];
+  return [
+    `No activity found for id(s): ${missing.join(", ")}. Look up real activity ids with ` +
+      `run_sql (e.g. SELECT id, title FROM activities WHERE …) and use only a returned ` +
+      `value, or tell the rep you couldn't find that activity. Do not guess.`,
   ];
 }
 
@@ -644,5 +676,51 @@ register(
     validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
     execute: (f, { targetId, ctx }) =>
       removeDistrictsFromPlan(String(targetId), f.leaids, ctx.db),
+  }),
+);
+
+// ===== plan.add_activities — link existing activities to a plan =====
+register(
+  defineAction({
+    objectType: "plan",
+    operation: "add_activities",
+    needsTarget: true,
+    fieldsSchema: z.object({
+      activityIds: z.array(z.string().min(1)).min(1, "provide at least one activity"),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Add activities to plan",
+      summary:
+        summary ||
+        `Add ${f.activityIds.length} activit${f.activityIds.length === 1 ? "y" : "ies"} to the plan`,
+      rows: [{ label: "Activities", value: String(f.activityIds.length) }],
+      destructive: false,
+    }),
+    validate: async (f, { db }) => activityIdErrors(await missingActivityIds(f.activityIds, db)),
+    execute: (f, { targetId, ctx }) =>
+      addActivitiesToPlan(String(targetId), f.activityIds, ctx.db),
+  }),
+);
+
+// ===== plan.remove_activities — unlink existing activities from a plan =====
+register(
+  defineAction({
+    objectType: "plan",
+    operation: "remove_activities",
+    needsTarget: true,
+    fieldsSchema: z.object({
+      activityIds: z.array(z.string().min(1)).min(1, "provide at least one activity"),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Remove activities from plan",
+      summary:
+        summary ||
+        `Remove ${f.activityIds.length} activit${f.activityIds.length === 1 ? "y" : "ies"} from the plan`,
+      rows: [{ label: "Activities", value: String(f.activityIds.length) }],
+      destructive: true,
+    }),
+    validate: async (f, { db }) => activityIdErrors(await missingActivityIds(f.activityIds, db)),
+    execute: (f, { targetId, ctx }) =>
+      removeActivitiesFromPlan(String(targetId), f.activityIds, ctx.db),
   }),
 );

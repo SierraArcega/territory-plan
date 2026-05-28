@@ -44,6 +44,16 @@ export interface TokenUsage {
 
 export type TurnEvent =
   | {
+      /**
+       * Incremental assistant-text token, streamed as the model generates it
+       * (before the iteration's terminal `model_call` event). Lets the client
+       * render the reply live instead of waiting for the whole iteration.
+       */
+      kind: "text_delta";
+      iteration: number;
+      delta: string;
+    }
+  | {
       kind: "model_call";
       iteration: number;
       stopReason: string | null;

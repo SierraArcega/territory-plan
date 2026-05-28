@@ -17,7 +17,15 @@ import { runAgentLoop } from "@/features/reports/lib/agent/agent-loop";
 
 function scripted(responses: Array<unknown>) {
   let i = 0;
-  return { messages: { create: vi.fn(async () => responses[i++]) } };
+  // The loop calls messages.stream(...).on("text", …) then awaits finalMessage().
+  return {
+    messages: {
+      stream: vi.fn(() => {
+        const resp = responses[i++];
+        return { on: vi.fn(), finalMessage: vi.fn(async () => resp) };
+      }),
+    },
+  };
 }
 
 const SYS = "copilot system prompt";

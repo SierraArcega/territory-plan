@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { QuerySummary } from "../types";
+import type { QuerySummary, TurnEvent } from "../types";
 
 // Mock handlers
 vi.mock("@/features/reports/lib/tools/list-tables", () => ({
@@ -37,12 +37,45 @@ vi.mock("@/features/reports/lib/tools/saved-reports", () => ({
   handleGetSavedReport: vi.fn(async () => "no report"),
 }));
 
-// Scripted Anthropic mock
+// Scripted Anthropic mock. The loop calls `messages.stream(params)`, registers
+// an `on("text", …)` handler, then awaits `finalMessage()`. Each stream() call
+// captures params (inspectable via `.mock.calls`) and resolves to the next
+// scripted response. `on` is a noop here — tests that exercise text streaming
+// use `streamingAnthropic` below.
 function makeScriptedAnthropic(responses: Array<unknown>) {
   let i = 0;
   return {
     messages: {
-      create: vi.fn(async () => responses[i++]),
+      stream: vi.fn(() => {
+        const resp = responses[i++];
+        return { on: vi.fn(), finalMessage: vi.fn(async () => resp) };
+      }),
+    },
+  };
+}
+
+// Like makeScriptedAnthropic, but each step can emit text deltas (delivered to
+// the `on("text", …)` handler when finalMessage() is awaited) so tests can
+// assert the loop forwards them as `text_delta` events.
+function streamingAnthropic(
+  script: Array<{ textDeltas?: string[]; response: unknown }>,
+) {
+  let i = 0;
+  return {
+    messages: {
+      stream: vi.fn(() => {
+        const step = script[i++];
+        const handlers: Record<string, (arg: string) => void> = {};
+        return {
+          on: (event: string, cb: (arg: string) => void) => {
+            handlers[event] = cb;
+          },
+          finalMessage: vi.fn(async () => {
+            for (const d of step.textDeltas ?? []) handlers.text?.(d);
+            return step.response;
+          }),
+        };
+      }),
     },
   };
 }
@@ -243,7 +276,7 @@ describe("runAgentLoop", () => {
     expect(result.kind).toBe("result");
     expect(runSqlMod.handleRunSql).toHaveBeenCalledTimes(2);
 
-    const secondCallMessages = (anthropic.messages.create as ReturnType<typeof vi.fn>).mock.calls[1][0].messages as Array<{ role: string; content: unknown }>;
+    const secondCallMessages = (anthropic.messages.stream as ReturnType<typeof vi.fn>).mock.calls[1][0].messages as Array<{ role: string; content: unknown }>;
     const toolResultMsg = secondCallMessages.find(
       (m) => m.role === "user" && Array.isArray(m.content),
     ) as { role: string; content: Array<{ type: string; is_error?: boolean; content?: string }> } | undefined;
@@ -305,7 +338,7 @@ describe("runAgentLoop", () => {
     expect(describeTableMod.handleDescribeTable).toHaveBeenCalledTimes(1);
     expect(describeTableMod.handleDescribeTable).toHaveBeenCalledWith("districts");
     expect(runSqlMod.handleRunSql).toHaveBeenCalledTimes(1);
-    expect(anthropic.messages.create).toHaveBeenCalledTimes(3);
+    expect(anthropic.messages.stream).toHaveBeenCalledTimes(3);
   });
 
   it("exploratory call cap surrenders after MAX_EXPLORATORY_CALLS_PER_TURN", async () => {
@@ -421,7 +454,7 @@ describe("runAgentLoop", () => {
         userId: "u1",
       });
 
-      expect(anthropic.messages.create).toHaveBeenCalledTimes(2);
+      expect(anthropic.messages.stream).toHaveBeenCalledTimes(2);
       expect(result.kind).toBe("result");
       // Telemetry: an event marking the corrective injection
       const correctiveEvent = result.events.find(
@@ -431,7 +464,7 @@ describe("runAgentLoop", () => {
       // Verify the second API call's messages include the corrective user turn.
       // Note: messages is a shared mutable array, so we check via the corrective
       // event's content rather than positional indexing.
-      const secondCallArgs = (anthropic.messages.create as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      const secondCallArgs = (anthropic.messages.stream as ReturnType<typeof vi.fn>).mock.calls[1][0];
       const allMessages = secondCallArgs.messages as Array<{ role: string; content: unknown }>;
       const correctiveUserMsg = allMessages.find(
         (m) => m.role === "user" && typeof m.content === "string" && (m.content as string).includes("run_sql"),
@@ -470,7 +503,7 @@ describe("runAgentLoop", () => {
         userId: "u1",
       });
 
-      expect(anthropic.messages.create).toHaveBeenCalledTimes(2); // initial + 1 corrective retry, then surrender
+      expect(anthropic.messages.stream).toHaveBeenCalledTimes(2); // initial + 1 corrective retry, then surrender
       expect(result.kind).toBe("surrender"); // ghost-retry exhausted — real failure, not a clarifying turn
     });
 
@@ -490,7 +523,7 @@ describe("runAgentLoop", () => {
         userId: "u1",
       });
 
-      expect(anthropic.messages.create).toHaveBeenCalledTimes(1);
+      expect(anthropic.messages.stream).toHaveBeenCalledTimes(1);
       expect(result.kind).toBe("clarifying");
     });
   });
@@ -577,6 +610,160 @@ describe("runAgentLoop", () => {
       });
       expect(result.kind).toBe("clarifying");
       expect(result.events.length).toBe(1);
+    });
+
+    it("forwards model text deltas as text_delta events before the model_call", async () => {
+      const anthropic = streamingAnthropic([
+        {
+          textDeltas: ["Pulling ", "deals."],
+          response: {
+            stop_reason: "end_turn",
+            content: [{ type: "text", text: "Pulling deals." }],
+          },
+        },
+      ]);
+      const events: TurnEvent[] = [];
+      const result = await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me deals",
+        priorTurns: [],
+        userId: "u1",
+        onEvent: (e) => events.push(e),
+      });
+
+      const deltas = events
+        .filter((e): e is Extract<TurnEvent, { kind: "text_delta" }> => e.kind === "text_delta")
+        .map((e) => e.delta);
+      expect(deltas).toEqual(["Pulling ", "deals."]);
+
+      // Deltas must precede the iteration's terminal model_call event.
+      const lastDelta = events.map((e) => e.kind).lastIndexOf("text_delta");
+      const firstModelCall = events.findIndex((e) => e.kind === "model_call");
+      expect(lastDelta).toBeGreaterThanOrEqual(0);
+      expect(lastDelta).toBeLessThan(firstModelCall);
+      expect(result.kind).toBe("clarifying");
+    });
+  });
+
+  describe("effort", () => {
+    it("threads effort into output_config when provided", async () => {
+      const anthropic = makeScriptedAnthropic([
+        { stop_reason: "end_turn", content: [{ type: "text", text: "hi" }] },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "x",
+        priorTurns: [],
+        userId: "u1",
+        effort: "medium",
+      });
+      const params = (anthropic.messages.stream as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(params.output_config).toEqual({ effort: "medium" });
+    });
+
+    it("omits output_config when no effort is set (reports/list-builder default)", async () => {
+      const anthropic = makeScriptedAnthropic([
+        { stop_reason: "end_turn", content: [{ type: "text", text: "hi" }] },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "x",
+        priorTurns: [],
+        userId: "u1",
+      });
+      const params = (anthropic.messages.stream as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(params.output_config).toBeUndefined();
+    });
+  });
+
+  describe("conversation cache breakpoint", () => {
+    const countMessageBreakpoints = (
+      msgs: Array<{ content: unknown }>,
+    ): number =>
+      msgs.reduce((n, m) => {
+        if (!Array.isArray(m.content)) return n;
+        return (
+          n +
+          m.content.filter(
+            (b) =>
+              b &&
+              typeof b === "object" &&
+              (b as { cache_control?: unknown }).cache_control,
+          ).length
+        );
+      }, 0);
+
+    it("anchors exactly one breakpoint on the latest tool_result tail", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "tool_use",
+          content: [{ type: "tool_use", id: "e1", name: "list_tables", input: {} }],
+        },
+        {
+          stop_reason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "e2",
+              name: "run_sql",
+              input: { sql: "SELECT a FROM districts LIMIT 100", summary },
+            },
+          ],
+        },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+      });
+
+      // Second iteration's request: the list_tables tool_result is the
+      // conversation tail and carries the breakpoint. NB `messages` is a shared
+      // mutable array that the loop keeps appending to after the call, so assert
+      // on *where* the breakpoint sits, not on positional "last message".
+      const secondMessages = (anthropic.messages.stream as ReturnType<typeof vi.fn>)
+        .mock.calls[1][0].messages as Array<{ role: string; content: unknown }>;
+      expect(countMessageBreakpoints(secondMessages)).toBe(1);
+
+      const breakpointBlocks = secondMessages.flatMap((m) =>
+        Array.isArray(m.content)
+          ? m.content.filter(
+              (b) =>
+                b &&
+                typeof b === "object" &&
+                (b as { cache_control?: unknown }).cache_control,
+            )
+          : [],
+      ) as Array<{ type?: string; cache_control?: unknown }>;
+      expect(breakpointBlocks).toHaveLength(1);
+      expect(breakpointBlocks[0].type).toBe("tool_result");
+      expect(breakpointBlocks[0].cache_control).toEqual({ type: "ephemeral" });
+    });
+
+    it("does not set a message breakpoint when the only message is the user string", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "run_sql",
+              input: { sql: "SELECT a FROM districts LIMIT 100", summary },
+            },
+          ],
+        },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+      });
+      const firstMessages = (anthropic.messages.stream as ReturnType<typeof vi.fn>)
+        .mock.calls[0][0].messages as Array<{ role: string; content: unknown }>;
+      expect(countMessageBreakpoints(firstMessages)).toBe(0);
     });
   });
 });

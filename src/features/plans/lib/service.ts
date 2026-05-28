@@ -191,3 +191,64 @@ export async function removeDistrictsFromPlan(
   });
   return { removed: result.count, planId };
 }
+
+/**
+ * Link existing activities to a plan (the activity↔plan junction) — the
+ * activity counterpart to addDistrictsToPlan. Validates the plan and that every
+ * activity id exists, then inserts junction rows (skipDuplicates → idempotent).
+ */
+export async function addActivitiesToPlan(
+  planId: string,
+  activityIds: string[],
+  db: DbClient = prisma,
+): Promise<{ added: number; planId: string }> {
+  if (!Array.isArray(activityIds) || activityIds.length === 0) {
+    throw new ServiceError("provide at least one activity", 400);
+  }
+
+  const plan = await db.territoryPlan.findUnique({ where: { id: planId } });
+  if (!plan) {
+    throw new ServiceError("Territory plan not found", 404);
+  }
+
+  const existing = await db.activity.findMany({
+    where: { id: { in: activityIds } },
+    select: { id: true },
+  });
+  const existingSet = new Set(existing.map((a) => a.id));
+  const invalid = activityIds.filter((id) => !existingSet.has(id));
+  if (invalid.length > 0) {
+    throw new ServiceError(`Activities not found: ${invalid.join(", ")}`, 400);
+  }
+
+  const result = await db.activityPlan.createMany({
+    data: activityIds.map((activityId) => ({ planId, activityId })),
+    skipDuplicates: true,
+  });
+  return { added: result.count, planId };
+}
+
+/**
+ * Remove activities from a plan (the activity↔plan junction) — counterpart to
+ * addActivitiesToPlan. Validates the plan, then deletes the junction rows for
+ * the given activity ids; removing one that isn't linked is a harmless no-op.
+ */
+export async function removeActivitiesFromPlan(
+  planId: string,
+  activityIds: string[],
+  db: DbClient = prisma,
+): Promise<{ removed: number; planId: string }> {
+  if (!Array.isArray(activityIds) || activityIds.length === 0) {
+    throw new ServiceError("provide at least one activity", 400);
+  }
+
+  const plan = await db.territoryPlan.findUnique({ where: { id: planId } });
+  if (!plan) {
+    throw new ServiceError("Territory plan not found", 404);
+  }
+
+  const result = await db.activityPlan.deleteMany({
+    where: { planId, activityId: { in: activityIds } },
+  });
+  return { removed: result.count, planId };
+}

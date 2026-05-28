@@ -146,11 +146,16 @@ export default function CopilotPanel() {
       {
         onEvent: (e) =>
           setMessages((m) =>
-            m.map((msg) =>
-              msg.id === assistantId
-                ? { ...msg, events: [...(msg.events ?? []), e] }
-                : msg,
-            ),
+            m.map((msg) => {
+              if (msg.id !== assistantId) return msg;
+              const events = [...(msg.events ?? []), e];
+              // Stream assistant text into the bubble as it arrives; the render
+              // flips from the progress indicator to live text once non-empty.
+              if (e.kind === "text_delta") {
+                return { ...msg, events, text: (msg.text ?? "") + e.delta };
+              }
+              return { ...msg, events };
+            }),
           ),
         onComplete: (res) => {
           setConversationId(res.conversationId);

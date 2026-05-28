@@ -10,7 +10,13 @@ export type CopilotObjectType =
   | "plan"
   | "district_note";
 
-export type CopilotOperation = "create" | "update" | "add_districts" | "remove_districts";
+export type CopilotOperation =
+  | "create"
+  | "update"
+  | "add_districts"
+  | "remove_districts"
+  | "add_activities"
+  | "remove_activities";
 
 export interface ActionPreviewRow {
   label: string;

@@ -72,6 +72,39 @@ export function formatActionLogEntry(row: ActionLogRow): ActionLogEntry {
     };
   }
 
+  // Activity↔plan link/unlink — junction writes, like the district ones above.
+  if (row.operation === "add_activities") {
+    const added = after && typeof after.added === "number" ? after.added : null;
+    const label =
+      added != null
+        ? `Added ${added} activit${added === 1 ? "y" : "ies"} to plan`
+        : "Added activities to plan";
+    return {
+      id: row.id,
+      objectType: row.objectType,
+      operation: row.operation,
+      status: row.status,
+      label,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  if (row.operation === "remove_activities") {
+    const removed = after && typeof after.removed === "number" ? after.removed : null;
+    const label =
+      removed != null
+        ? `Removed ${removed} activit${removed === 1 ? "y" : "ies"} from plan`
+        : "Removed activities from plan";
+    return {
+      id: row.id,
+      objectType: row.objectType,
+      operation: row.operation,
+      status: row.status,
+      label,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
   const verb = VERB[row.operation] ?? row.operation;
   const noun = NOUN[row.objectType] ?? row.objectType;
   const name =
