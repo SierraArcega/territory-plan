@@ -52,7 +52,7 @@ export function CopilotHomeState({ firstName, nudges, recent, onSeed, onResume }
                 className="flex items-start gap-2.5 rounded-[10px] border border-[#E2DEEC] bg-[#FBFAFD] px-3 py-2.5 text-left transition-colors hover:border-[#403770] hover:bg-[#F7F5FA]"
               >
                 <span className={`mt-0.5 shrink-0 ${n.severity === "risk" ? "text-[#F37167]" : "text-[#403770]"}`}>
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <span className="flex-1">
                   <span className="block text-sm font-semibold text-[#403770]">{n.headline}</span>
@@ -91,7 +91,7 @@ export function CopilotHomeState({ firstName, nudges, recent, onSeed, onResume }
                 onClick={() => onResume(c.conversationId)}
                 className="flex items-center gap-2 border-t border-[#F0EDF6] py-2 text-left text-[13px] text-[#6E6390] transition-colors hover:text-[#403770]"
               >
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#A89FC4]" />
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#A89FC4]" aria-hidden="true" />
                 <span className="truncate">{c.title}</span>
               </button>
             ))}
