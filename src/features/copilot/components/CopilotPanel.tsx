@@ -21,6 +21,7 @@ import { CopilotActivityLog } from "./CopilotActivityLog";
 import { CopilotHomeState } from "./CopilotHomeState";
 import { CopilotProgress } from "./CopilotProgress";
 import { ProposedActionCard, type ActionStatus } from "./ProposedActionCard";
+import { BatchActionCard } from "./BatchActionCard";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
 import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
 import { useExecuteCopilotAction } from "../hooks/useExecuteCopilotAction";
@@ -251,6 +252,10 @@ export default function CopilotPanel() {
     setActionStatus((s) => ({ ...s, [actionId]: "dismissed" }));
   }, []);
 
+  const onConfirmMany = useCallback(async (selected: ProposedAction[]) => {
+    for (const a of selected) await onConfirm(a);
+  }, [onConfirm]);
+
   const onNewChat = useCallback(() => {
     setMessages([]);
     setConversationId(undefined);
@@ -354,6 +359,7 @@ export default function CopilotPanel() {
             actionError={actionError}
             onConfirm={onConfirm}
             onDismiss={onDismiss}
+            onConfirmMany={onConfirmMany}
             onViewOnMap={(a) => plotLeaids(a.columns, a.rows)}
           />
         ))}
@@ -405,6 +411,7 @@ function MessageBlock({
   actionError,
   onConfirm,
   onDismiss,
+  onConfirmMany,
   onViewOnMap,
 }: {
   msg: ChatMessage;
@@ -412,6 +419,7 @@ function MessageBlock({
   actionError: Record<string, string>;
   onConfirm: (a: ProposedAction) => void;
   onDismiss: (id: string) => void;
+  onConfirmMany: (selected: ProposedAction[]) => void;
   onViewOnMap?: (answer: AnswerPayload) => void;
 }) {
   if (msg.role === "user") {
@@ -448,16 +456,35 @@ function MessageBlock({
         <AnswerBlock answer={msg.answer} onViewOnMap={() => onViewOnMap?.(msg.answer!)} />
       )}
 
-      {msg.proposedActions?.map((action) => (
-        <ProposedActionCard
-          key={action.id}
-          action={action}
-          status={actionStatus[action.id] ?? "idle"}
-          error={actionError[action.id]}
-          onConfirm={onConfirm}
-          onDismiss={onDismiss}
-        />
-      ))}
+      {msg.proposedActions && msg.proposedActions.length > 0 && (
+        (() => {
+          const groups = new Map<string, ProposedAction[]>();
+          for (const a of msg.proposedActions) {
+            const key = `${a.objectType}.${a.operation}`;
+            groups.set(key, [...(groups.get(key) ?? []), a]);
+          }
+          return [...groups.values()].map((group, gi) =>
+            group.length === 1 ? (
+              <ProposedActionCard
+                key={group[0]!.id}
+                action={group[0]!}
+                status={actionStatus[group[0]!.id] ?? "idle"}
+                error={actionError[group[0]!.id]}
+                onConfirm={onConfirm}
+                onDismiss={onDismiss}
+              />
+            ) : (
+              <BatchActionCard
+                key={`batch-${gi}`}
+                actions={group}
+                statusById={actionStatus}
+                onConfirmMany={onConfirmMany}
+                onDismissAll={() => group.forEach((a) => onDismiss(a.id))}
+              />
+            ),
+          );
+        })()
+      )}
     </div>
   );
 }
