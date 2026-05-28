@@ -10,6 +10,7 @@ import {
   History,
 } from "lucide-react";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
+import { AssistantMarkdown } from "@/features/shared/components/AssistantMarkdown";
 import { useMapStore } from "@/features/shared/lib/app-store";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { boundsForLeaids } from "@/features/map/lib/views-plan-bounds";
@@ -430,13 +431,13 @@ function MessageBlock({
       ) : (
         msg.text && (
           <div
-            className={`max-w-[90%] rounded-2xl rounded-bl-sm px-3 py-2 text-sm whitespace-pre-wrap ${
+            className={`max-w-[90%] rounded-2xl rounded-bl-sm px-3 py-2 text-sm ${
               msg.error
                 ? "bg-[#FFE0DC] text-[#A8281C]"
                 : "bg-[#EFEDF5] text-[#403770]"
             }`}
           >
-            {msg.text}
+            <AssistantMarkdown text={msg.text} />
           </div>
         )
       )}
