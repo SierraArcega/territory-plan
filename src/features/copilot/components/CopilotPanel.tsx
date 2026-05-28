@@ -56,6 +56,14 @@ const uid = (): string =>
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+async function loadHistoryMessages(conversationId: string): Promise<ChatMessage[] | null> {
+  const r = await fetch(`/api/copilot/history?conversationId=${encodeURIComponent(conversationId)}`);
+  if (!r.ok) return null;
+  const data = (await r.json()) as { messages?: CopilotHistoryMessage[] };
+  if (!data?.messages) return null;
+  return data.messages.map((m) => ({ id: uid(), role: m.role, text: m.text, note: m.note }));
+}
+
 export default function CopilotPanel() {
   const isMobile = useIsMobile();
   // Open state lives in the shared store so AppShell can reserve space for the
@@ -96,17 +104,12 @@ export default function CopilotPanel() {
     if (!stored) return;
     setConversationId(stored);
     let cancelled = false;
-    fetch(`/api/copilot/history?conversationId=${encodeURIComponent(stored)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { messages?: CopilotHistoryMessage[] } | null) => {
-        if (cancelled || !data?.messages?.length) return;
-        setMessages(
-          data.messages.map((m) => ({ id: uid(), role: m.role, text: m.text, note: m.note })),
-        );
-      })
-      .catch(() => {
-        // best-effort — a missing history just starts an empty thread
-      });
+    loadHistoryMessages(stored).then((msgs) => {
+      if (cancelled || !msgs) return;
+      setMessages(msgs);
+    }).catch(() => {
+      // best-effort — a missing history just starts an empty thread
+    });
     return () => {
       cancelled = true;
     };
@@ -219,13 +222,9 @@ export default function CopilotPanel() {
 
   const handleResume = useCallback((id: string) => {
     setConversationId(id);
-    fetch(`/api/copilot/history?conversationId=${encodeURIComponent(id)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { messages?: CopilotHistoryMessage[] } | null) => {
-        if (!data?.messages) return;
-        setMessages(data.messages.map((m) => ({ id: uid(), role: m.role, text: m.text, note: m.note })));
-      })
-      .catch(() => {});
+    loadHistoryMessages(id).then((msgs) => {
+      if (msgs) setMessages(msgs);
+    }).catch(() => {});
   }, []);
 
   const onConfirm = useCallback(
