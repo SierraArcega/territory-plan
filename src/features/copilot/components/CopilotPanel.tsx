@@ -5,10 +5,7 @@ import {
   Sparkles,
   Send,
   X,
-  Check,
   Loader2,
-  Ban,
-  AlertTriangle,
   SquarePen,
   History,
 } from "lucide-react";
@@ -23,6 +20,7 @@ import { AnswerBlock, type AnswerPayload } from "./AnswerBlock";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { CopilotHomeState } from "./CopilotHomeState";
 import { CopilotProgress } from "./CopilotProgress";
+import { ProposedActionCard, type ActionStatus } from "./ProposedActionCard";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
 import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
 import { useExecuteCopilotAction } from "../hooks/useExecuteCopilotAction";
@@ -37,8 +35,6 @@ import type {
 } from "../lib/types";
 
 const CONV_KEY = "copilot:conversationId";
-
-type ActionStatus = "idle" | "pending" | "confirmed" | "dismissed" | "error";
 
 interface ChatMessage {
   id: string;
@@ -462,93 +458,6 @@ function MessageBlock({
           onDismiss={onDismiss}
         />
       ))}
-    </div>
-  );
-}
-
-function ProposedActionCard({
-  action,
-  status,
-  error,
-  onConfirm,
-  onDismiss,
-}: {
-  action: ProposedAction;
-  status: ActionStatus;
-  error?: string;
-  onConfirm: (a: ProposedAction) => void;
-  onDismiss: (id: string) => void;
-}) {
-  const settled = status === "confirmed" || status === "dismissed";
-  return (
-    <div className="rounded-lg border border-[#E2DEEC] bg-white p-3 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-[#6E6390] whitespace-nowrap">
-          {action.preview.title}
-        </span>
-        {status === "confirmed" && (
-          <span className="flex items-center gap-1 text-xs text-[#1F7A3F] whitespace-nowrap">
-            <Check className="h-3.5 w-3.5" /> Done
-          </span>
-        )}
-        {status === "dismissed" && (
-          <span className="flex items-center gap-1 text-xs text-[#6E6390] whitespace-nowrap">
-            <Ban className="h-3.5 w-3.5" /> Dismissed
-          </span>
-        )}
-      </div>
-
-      <p className="mt-1 text-sm font-medium text-[#403770]">{action.preview.summary}</p>
-
-      {action.preview.rows.length > 0 && (
-        <dl className="mt-2 space-y-1">
-          {action.preview.rows.map((r, i) => (
-            <div key={i} className="flex gap-2 text-xs">
-              <dt className="shrink-0 text-[#6E6390] whitespace-nowrap">{r.label}</dt>
-              <dd className="whitespace-pre-wrap break-words text-[#403770]">{r.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-
-      {status === "error" && (
-        <p className="mt-2 flex items-center gap-1 text-xs text-[#A8281C]">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {error ?? "Something went wrong."}
-        </p>
-      )}
-
-      {!settled && (
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => onConfirm(action)}
-            disabled={status === "pending"}
-            className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 ${
-              action.preview.destructive
-                ? "bg-[#F37167] hover:bg-[#E0605A]"
-                : "bg-[#403770] hover:bg-[#322a5a]"
-            }`}
-          >
-            {status === "pending" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : action.preview.destructive ? (
-              <AlertTriangle className="h-3.5 w-3.5" />
-            ) : (
-              <Check className="h-3.5 w-3.5" />
-            )}
-            Confirm
-          </button>
-          <button
-            type="button"
-            onClick={() => onDismiss(action.id)}
-            disabled={status === "pending"}
-            className="flex-1 rounded-lg border border-[#E2DEEC] px-3 py-1.5 text-xs font-medium text-[#6E6390] transition-colors hover:bg-[#F7F5FA] disabled:opacity-50"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
     </div>
   );
 }
