@@ -9,6 +9,11 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const conversations = await loadRecentConversations(prisma, user.id, 5);
-  return NextResponse.json({ conversations });
+  try {
+    const conversations = await loadRecentConversations(prisma, user.id, 5);
+    return NextResponse.json({ conversations });
+  } catch (error) {
+    console.error("[copilot/conversations] failed", error);
+    return NextResponse.json({ conversations: [] });
+  }
 }
