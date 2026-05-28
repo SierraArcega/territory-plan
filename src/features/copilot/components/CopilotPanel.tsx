@@ -558,7 +558,7 @@ function ProposedActionCard({
             disabled={status === "pending"}
             className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 ${
               action.preview.destructive
-                ? "bg-[#F37167] hover:bg-[#D9584E]"
+                ? "bg-[#F37167] hover:bg-[#E0605A]"
                 : "bg-[#403770] hover:bg-[#322a5a]"
             }`}
           >
