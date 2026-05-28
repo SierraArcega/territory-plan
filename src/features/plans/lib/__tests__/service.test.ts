@@ -5,6 +5,8 @@ vi.mock("@/lib/prisma", () => ({
     territoryPlan: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     territoryPlanDistrict: { createMany: vi.fn(), deleteMany: vi.fn() },
     district: { findMany: vi.fn() },
+    activity: { findMany: vi.fn() },
+    activityPlan: { createMany: vi.fn(), deleteMany: vi.fn() },
   },
 }));
 
@@ -12,7 +14,14 @@ import prisma from "@/lib/prisma";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockPrisma = vi.mocked(prisma) as any;
 
-import { createPlan, updatePlan, addDistrictsToPlan, removeDistrictsFromPlan } from "../service";
+import {
+  createPlan,
+  updatePlan,
+  addDistrictsToPlan,
+  removeDistrictsFromPlan,
+  addActivitiesToPlan,
+  removeActivitiesFromPlan,
+} from "../service";
 import { ServiceError } from "@/features/shared/lib/service-error";
 
 beforeEach(() => vi.clearAllMocks());
@@ -125,6 +134,68 @@ describe("removeDistrictsFromPlan", () => {
     mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
     mockPrisma.territoryPlanDistrict.deleteMany.mockResolvedValue({ count: 0 });
     const result = await removeDistrictsFromPlan("plan-1", ["ghost"]);
+    expect(result.removed).toBe(0);
+  });
+});
+
+describe("addActivitiesToPlan", () => {
+  it("rejects an empty activity list", async () => {
+    await expect(addActivitiesToPlan("plan-1", [])).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("404s when the plan is missing", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue(null);
+    await expect(addActivitiesToPlan("plan-x", ["act-1"])).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("400s when an activity does not exist", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.activity.findMany.mockResolvedValue([{ id: "act-1" }]);
+    await expect(
+      addActivitiesToPlan("plan-1", ["act-1", "ghost"]),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(mockPrisma.activityPlan.createMany).not.toHaveBeenCalled();
+  });
+
+  it("inserts junction rows (skipDuplicates) and returns the added count", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.activity.findMany.mockResolvedValue([{ id: "act-1" }, { id: "act-2" }]);
+    mockPrisma.activityPlan.createMany.mockResolvedValue({ count: 2 });
+    const result = await addActivitiesToPlan("plan-1", ["act-1", "act-2"]);
+    expect(result.added).toBe(2);
+    const arg = mockPrisma.activityPlan.createMany.mock.calls[0][0];
+    expect(arg.skipDuplicates).toBe(true);
+    expect(arg.data).toEqual([
+      { planId: "plan-1", activityId: "act-1" },
+      { planId: "plan-1", activityId: "act-2" },
+    ]);
+  });
+});
+
+describe("removeActivitiesFromPlan", () => {
+  it("rejects an empty activity list", async () => {
+    await expect(removeActivitiesFromPlan("plan-1", [])).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("404s when the plan is missing", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue(null);
+    await expect(removeActivitiesFromPlan("plan-x", ["act-1"])).rejects.toMatchObject({ status: 404 });
+    expect(mockPrisma.activityPlan.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("deletes the matching junction rows and returns the removed count", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.activityPlan.deleteMany.mockResolvedValue({ count: 2 });
+    const result = await removeActivitiesFromPlan("plan-1", ["act-1", "act-2"]);
+    expect(result).toEqual({ removed: 2, planId: "plan-1" });
+    const arg = mockPrisma.activityPlan.deleteMany.mock.calls[0][0];
+    expect(arg.where).toEqual({ planId: "plan-1", activityId: { in: ["act-1", "act-2"] } });
+  });
+
+  it("no-ops (removed: 0) when no activity is a member", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.activityPlan.deleteMany.mockResolvedValue({ count: 0 });
+    const result = await removeActivitiesFromPlan("plan-1", ["ghost"]);
     expect(result.removed).toBe(0);
   });
 });
