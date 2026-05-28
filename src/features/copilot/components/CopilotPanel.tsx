@@ -16,6 +16,7 @@ import { boundsForLeaids } from "@/features/map/lib/views-plan-bounds";
 import { STATE_BBOX } from "@/features/map/lib/state-bbox";
 import { extractDistrictLeaids, statesForLeaids } from "@/features/copilot/lib/plot-districts";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
+import { CopilotLauncher } from "./CopilotLauncher";
 import { AnswerBlock, type AnswerPayload } from "./AnswerBlock";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { CopilotHomeState } from "./CopilotHomeState";
@@ -272,17 +273,7 @@ export default function CopilotPanel() {
   }, []);
 
   if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Open Copilot"
-        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-[#403770] px-4 py-3 text-white shadow-lg transition-colors hover:bg-[#322a5a]"
-      >
-        <Sparkles className="h-5 w-5" />
-        <span className="text-sm font-medium whitespace-nowrap">Copilot</span>
-      </button>
-    );
+    return <CopilotLauncher onOpen={() => setOpen(true)} />;
   }
 
   return (
