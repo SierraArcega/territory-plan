@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getRepActualsBatch } from "@/lib/opportunity-actuals";
+import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +20,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "fy must be 'current' or 'next'" }, { status: 400 });
   }
 
-  const now = new Date();
-  const currentFY = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
-  const currentSchoolYr = `${currentFY - 1}-${String(currentFY).slice(-2)}`;
-  const nextSchoolYr = `${currentFY}-${String(currentFY + 1).slice(-2)}`;
-  const schoolYear = fyParam === "current" ? currentSchoolYr : nextSchoolYr;
+  const currentFY = getCurrentFY();
+  const schoolYear = schoolYearForFY(fyParam === "current" ? currentFY : currentFY + 1);
 
   const profiles = await prisma.userProfile.findMany({
     where: { role: { in: ["rep", "manager"] } },
