@@ -26,24 +26,33 @@ import {
 import { createPortal } from "react-dom";
 
 interface AnchoredPopoverProps {
-  /** Element the popover anchors beneath (its bottom-left corner). */
+  /** Element the popover anchors beneath. */
   anchorRef: RefObject<HTMLElement | null>;
   /** Whether the popover is shown. */
   open: boolean;
   /** Fired on outside-click or Escape. */
   onDismiss: () => void;
+  /**
+   * Horizontal alignment of the panel relative to the anchor.
+   * - `"left"` (default): panel's left edge aligns with anchor's left edge.
+   * - `"right"`: panel's right edge aligns with anchor's right edge (use when
+   *   the trigger is near the right side of the viewport to avoid overflow).
+   */
+  align?: "left" | "right";
   children: ReactNode;
 }
 
 interface Position {
   top: number;
-  left: number;
+  left?: number;
+  right?: number;
 }
 
 export function AnchoredPopover({
   anchorRef,
   open,
   onDismiss,
+  align = "left",
   children,
 }: AnchoredPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -61,7 +70,11 @@ export function AnchoredPopover({
       if (!anchor) return;
       const rect = anchor.getBoundingClientRect();
       // +4px gap matches the prior `mt-1` spacing.
-      setPos({ top: rect.bottom + 4, left: rect.left });
+      if (align === "right") {
+        setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      } else {
+        setPos({ top: rect.bottom + 4, left: rect.left });
+      }
     };
     measure();
     window.addEventListener("resize", measure);
@@ -103,7 +116,7 @@ export function AnchoredPopover({
     <div
       ref={panelRef}
       className="fixed z-50"
-      style={{ top: pos.top, left: pos.left }}
+      style={{ top: pos.top, left: pos.left, right: pos.right }}
     >
       {children}
     </div>,

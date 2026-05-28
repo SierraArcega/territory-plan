@@ -76,7 +76,7 @@ export function FindContactsPopover({
 
   return (
     <>
-      <AnchoredPopover anchorRef={anchorRef} open={open} onDismiss={onClose}>
+      <AnchoredPopover anchorRef={anchorRef} open={open} onDismiss={onClose} align="right">
         <div
           style={{ width: 230 }}
           className="rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
