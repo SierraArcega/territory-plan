@@ -25,4 +25,8 @@ describe("friendlyProgressLabel", () => {
     expect(label).toBe("Working…");
     expect(label).not.toContain("some_internal_tool");
   });
+  it("maps a real exploration tool to a friendly phrase (not Working…)", () => {
+    const label = friendlyProgressLabel([modelCall("sample_rows")]);
+    expect(label).toBe("Looking through records…");
+  });
 });

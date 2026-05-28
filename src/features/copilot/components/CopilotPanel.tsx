@@ -64,7 +64,6 @@ const uid = (): string =>
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-
 export default function CopilotPanel() {
   const isMobile = useIsMobile();
   // Open state lives in the shared store so AppShell can reserve space for the
