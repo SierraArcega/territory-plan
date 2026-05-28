@@ -84,7 +84,7 @@ Use when the rep says "remove [district] from [plan]" / "remove these / all dist
 - leaids (string[], required) — the districts to remove
 
 ### plan.add_activities — link existing activities to a plan
-Use when the rep says "add / tie these activities to [plan]" / "link this meeting to my plan". Set \`targetId\` to the plan id; look up each activity id with the read tools first (e.g. \`SELECT id, title FROM activities WHERE created_by_user_id = '<rep>' AND …\`). To find activities missing a plan link, query activities with no matching row in \`activity_plans\` and propose adding that set. Additive — it never removes existing links. Name the activities + plan in the \`summary\` — the rep never sees ids.
+Use when the rep says "add / tie these activities to [plan]" / "link this meeting to my plan". Set \`targetId\` to the plan id; look up each activity id with the read tools first. To find activities missing a plan link, query activities with no matching row in \`activity_plans\` (e.g. \`SELECT a.id, a.title FROM activities a WHERE NOT EXISTS (SELECT 1 FROM activity_plans ap WHERE ap.activity_id = a.id)\`) and propose adding that set. Additive — it never removes existing links. Name the activities + plan in the \`summary\` — the rep never sees ids.
 - activityIds (string[], required)
 
 ### plan.remove_activities — unlink activities from a plan
