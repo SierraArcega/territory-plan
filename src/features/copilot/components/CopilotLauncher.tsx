@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Sparkles, X } from "lucide-react";
 
 export const COACHMARK_KEY = "copilot:coachmark-dismissed";
 
 export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
-  const [showCoach, setShowCoach] = useState(false);
-
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(COACHMARK_KEY)) setShowCoach(true);
-    } catch {
-      // ignore
-    }
-  }, []);
+  const [showCoach, setShowCoach] = useState(() => {
+    try { return !localStorage.getItem(COACHMARK_KEY); }
+    catch { return false; }
+  });
 
   function dismissCoach() {
     setShowCoach(false);
@@ -24,7 +19,7 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
   return (
     <>
       {showCoach && (
-        <div className="fixed bottom-20 right-5 z-50 max-w-[200px] rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-lg">
+        <div className="fixed bottom-20 right-5 z-[51] max-w-[200px] rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-lg">
           <button
             type="button"
             onClick={dismissCoach}
