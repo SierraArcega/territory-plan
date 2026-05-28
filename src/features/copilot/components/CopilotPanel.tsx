@@ -37,8 +37,6 @@ import type {
   TurnEvent,
 } from "../lib/types";
 
-const CONV_KEY = "copilot:conversationId";
-
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -94,36 +92,9 @@ export default function CopilotPanel() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  // Restore the last conversation id and replay its turns (read-only) on mount.
-  useEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(CONV_KEY);
-    } catch {
-      // ignore
-    }
-    if (!stored) return;
-    setConversationId(stored);
-    let cancelled = false;
-    loadHistoryMessages(stored).then((msgs) => {
-      if (cancelled || !msgs) return;
-      setMessages(msgs);
-    }).catch(() => {
-      // best-effort — a missing history just starts an empty thread
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Persist the conversation id so the next mount can replay it.
-  useEffect(() => {
-    try {
-      if (conversationId) localStorage.setItem(CONV_KEY, conversationId);
-    } catch {
-      // ignore
-    }
-  }, [conversationId]);
+  // The rail opens to the home state by default (greeting + nudges + recent
+  // threads). Past conversations are reachable from "Recent"; we intentionally
+  // do NOT auto-replay the last thread on mount or persist a "last open" id.
 
   const plotLeaids = useCallback((columns: string[], rows: Array<Record<string, unknown>>) => {
     const { leaids, truncated } = extractDistrictLeaids(columns, rows);
@@ -265,11 +236,6 @@ export default function CopilotPanel() {
     // Return to the chat view — "new chat" from the activity log should land
     // the rep in a fresh chat, not leave them staring at the (unchanged) log.
     setView("chat");
-    try {
-      localStorage.removeItem(CONV_KEY);
-    } catch {
-      // ignore
-    }
   }, []);
 
   if (!open) {

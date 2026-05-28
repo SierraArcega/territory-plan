@@ -53,4 +53,29 @@ describe("CopilotPanel — New chat", () => {
     expect(screen.queryByTestId("activity-log")).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Message Copilot/)).toBeInTheDocument();
   });
+
+  it("opens to the home state and does not auto-replay the last conversation", () => {
+    // A previous session may have left a stored conversation id behind.
+    localStorage.setItem("copilot:conversationId", "prev-convo");
+    const fetchSpy = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({ messages: [{ role: "assistant", text: "REPLAYED LAST CHAT" }] }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy as unknown as typeof fetch);
+
+    render(<CopilotPanel />);
+
+    // Home state renders (a suggested-prompt chip), not the replayed thread.
+    expect(screen.getByText("My plan summary")).toBeInTheDocument();
+    expect(screen.queryByText("REPLAYED LAST CHAT")).not.toBeInTheDocument();
+    // The last conversation is NOT auto-fetched/replayed on mount.
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/copilot/history"),
+    );
+
+    vi.unstubAllGlobals();
+  });
 });
