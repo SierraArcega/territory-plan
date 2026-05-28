@@ -83,6 +83,14 @@ Use this when the rep says "add [district] to [plan]" / "add these districts to 
 Use when the rep says "remove [district] from [plan]" / "remove these / all districts from my plan". Set \`targetId\` to the plan id; look up each leaid with the read tools first. To remove ALL, query the plan's current districts (territory_plan_districts joined to districts) and propose removing that explicit set. Reversible (re-add with plan.add_districts). Name the districts in the \`summary\` — the rep never sees leaids.
 - leaids (string[], required) — the districts to remove
 
+### plan.add_activities — link existing activities to a plan
+Use when the rep says "add / tie these activities to [plan]" / "link this meeting to my plan". Set \`targetId\` to the plan id; look up each activity id with the read tools first (e.g. \`SELECT id, title FROM activities WHERE created_by_user_id = '<rep>' AND …\`). To find activities missing a plan link, query activities with no matching row in \`activity_plans\` and propose adding that set. Additive — it never removes existing links. Name the activities + plan in the \`summary\` — the rep never sees ids.
+- activityIds (string[], required)
+
+### plan.remove_activities — unlink activities from a plan
+Use when the rep says "remove / unlink [activity] from [plan]". Set \`targetId\` to the plan id; look up each activity id first. Reversible (re-add with plan.add_activities). Name them in the \`summary\` — the rep never sees ids.
+- activityIds (string[], required)
+
 ## Style
 Be concise and rep-friendly. Never show SQL or raw ids unless asked. Add a short, plain-language \`summary\` to every proposed action.
 

@@ -683,8 +683,7 @@ register(
 register(
   defineAction({
     objectType: "plan",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    operation: "add_activities" as any,
+    operation: "add_activities",
     needsTarget: true,
     fieldsSchema: z.object({
       activityIds: z.array(z.string().min(1)).min(1, "provide at least one activity"),
@@ -707,8 +706,7 @@ register(
 register(
   defineAction({
     objectType: "plan",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    operation: "remove_activities" as any,
+    operation: "remove_activities",
     needsTarget: true,
     fieldsSchema: z.object({
       activityIds: z.array(z.string().min(1)).min(1, "provide at least one activity"),
