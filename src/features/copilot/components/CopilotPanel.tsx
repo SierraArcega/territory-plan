@@ -556,7 +556,11 @@ function ProposedActionCard({
             type="button"
             onClick={() => onConfirm(action)}
             disabled={status === "pending"}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#403770] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#322a5a] disabled:opacity-50"
+            className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 ${
+              action.preview.destructive
+                ? "bg-[#A8281C] hover:bg-[#8C2117]"
+                : "bg-[#403770] hover:bg-[#322a5a]"
+            }`}
           >
             {status === "pending" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
