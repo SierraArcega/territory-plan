@@ -51,33 +51,31 @@ export async function getStalePlans(db: Db, userId: string, since: Date): Promis
   return plans
     .map((plan) => {
       const dates: Date[] = [];
-
       for (const link of plan.activityLinks) {
         dates.push(link.activity.createdAt);
         if (link.activity.startDate) dates.push(link.activity.startDate);
       }
-
       for (const link of plan.taskLinks) {
         dates.push(link.task.createdAt);
         if (link.task.dueDate) dates.push(link.task.dueDate);
       }
-
       const last =
         dates.length > 0
           ? new Date(Math.max(...dates.map((d) => d.getTime())))
           : null;
-
       return {
-        planId: plan.id,
-        planName: plan.name,
-        planColor: plan.color,
-        districtCount: plan.districtCount,
-        lastActivityDate: last?.toISOString() ?? null,
-        _stale: isPlanStale(dates, since),
+        dates,
+        summary: {
+          planId: plan.id,
+          planName: plan.name,
+          planColor: plan.color,
+          districtCount: plan.districtCount,
+          lastActivityDate: last?.toISOString() ?? null,
+        },
       };
     })
-    .filter((p) => p._stale)
-    .map(({ _stale, ...rest }) => rest);
+    .filter((p) => isPlanStale(p.dates, since))
+    .map((p) => p.summary);
 }
 
 export interface DistrictWithoutContacts {
