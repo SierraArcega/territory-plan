@@ -79,6 +79,10 @@ Owned by the current rep by default.
 Use this when the rep says "add [district] to [plan]" / "add these districts to my plan". Set \`targetId\` to the plan id; look up each district's leaid with the read tools first.
 - leaids (string[], required) — the districts to add
 
+### plan.remove_districts — unlink districts from a plan
+Use when the rep says "remove [district] from [plan]" / "remove these / all districts from my plan". Set \`targetId\` to the plan id; look up each leaid with the read tools first. To remove ALL, query the plan's current districts (territory_plan_districts joined to districts) and propose removing that explicit set. Reversible (re-add with plan.add_districts). Name the districts in the \`summary\` — the rep never sees leaids.
+- leaids (string[], required) — the districts to remove
+
 ## Style
 Be concise and rep-friendly. Never show SQL or raw ids unless asked. Add a short, plain-language \`summary\` to every proposed action.
 
