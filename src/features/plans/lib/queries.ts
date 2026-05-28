@@ -206,6 +206,28 @@ export function useRemoveDistrictFromPlan() {
   });
 }
 
+export function useBulkRemoveDistrictsFromPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, leaids }: { planId: string; leaids: string[] }) =>
+      fetchJson<{ removed: number }>(
+        `${API_BASE}/territory-plans/${planId}/districts`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({ leaids }),
+        }
+      ),
+    onSuccess: (_, { planId }) => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", planId] });
+      queryClient.invalidateQueries({ queryKey: ["views", "data"] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
+      queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+}
+
 export function usePlanOpportunities(planId: string | null) {
   return useQuery({
     queryKey: ["planOpportunities", planId],
@@ -290,10 +312,12 @@ export function useBulkEnrich() {
       planId,
       targetRole,
       schoolLevels,
+      leaids,
     }: {
       planId: string;
       targetRole: string;
       schoolLevels?: number[];
+      leaids?: string[];
     }) => {
       // Custom fetch (not fetchJson) so we can attach the parsed response body
       // to thrown errors. The rollup-district 400 response carries structured
@@ -306,6 +330,7 @@ export function useBulkEnrich() {
           body: JSON.stringify({
             targetRole,
             ...(schoolLevels ? { schoolLevels } : {}),
+            ...(leaids ? { leaids } : {}),
           }),
         }
       );

@@ -12,6 +12,41 @@ vi.mock("@/features/views/hooks/useViewsData", () => ({
   useViewsData: (...args: unknown[]) => mockUseViewsData(...args),
 }));
 
+// Stub plans/lib/queries so RowActionsMenu and BulkActionsMenu render without side effects.
+vi.mock("@/features/plans/lib/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/plans/lib/queries")>();
+  return {
+    ...actual,
+    useBulkRemoveDistrictsFromPlan: () => ({
+      mutateAsync: vi.fn().mockResolvedValue({ removed: 0 }),
+      isPending: false,
+    }),
+    useRemoveDistrictFromPlan: () => ({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    }),
+    useUpdateDistrictTargets: () => ({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    }),
+    usePlanDistrictDetail: () => ({
+      isLoading: false,
+      data: null,
+    }),
+  };
+});
+vi.mock("../actions/FindContactsPopover", () => ({
+  FindContactsPopover: () => null,
+}));
+vi.mock("../actions/export-helpers", () => ({
+  fetchExportRows: vi.fn().mockResolvedValue([]),
+  resolvePlanLeaids: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("../AnchoredPopover", () => ({
+  AnchoredPopover: ({ children, open }: { children: import("react").ReactNode; open: boolean }) =>
+    open ? <div>{children}</div> : null,
+}));
+
 function makeWrapper() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -773,5 +808,180 @@ describe("GridView — group rendering", () => {
 
     expect(container.querySelectorAll("tr[data-group-key]").length).toBe(0);
     expect(container.querySelectorAll("tbody tr:not([data-group-key])").length).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bulk selection (plan/districts context)
+// ---------------------------------------------------------------------------
+describe("GridView — bulk selection (plan/districts context)", () => {
+  /** Three rows with leaid fields — the minimum for meaningful selection tests. */
+  function threeDistrictRows() {
+    return [
+      { leaid: "1111", name: "Alpha USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 0, stage: "Prospect" },
+      { leaid: "2222", name: "Beta USD",  stateAbbrev: "CA", tier: "Tier 2", metricValue: 0, stage: "Prospect" },
+      { leaid: "3333", name: "Gamma USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 0, stage: "Prospect" },
+    ];
+  }
+
+  /** Render GridView in the plan/districts context that activates bulk selection. */
+  function renderBulkContext(overrideLayout?: GridViewLayout) {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: threeDistrictRows(), total: 3 },
+    });
+
+    const layout = overrideLayout ?? emptyLayout();
+    const Wrapper = makeWrapper();
+    return render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111", "2222", "3333"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={layout}
+          onLayoutChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+  }
+
+  it("renders checkbox column when showRowActions is enabled", () => {
+    const { container } = renderBulkContext();
+
+    // Header checkbox
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]');
+    expect(headerCheckbox).not.toBeNull();
+
+    // Body checkboxes — one per row
+    const bodyCheckboxes = container.querySelectorAll('tbody input[type="checkbox"]');
+    expect(bodyCheckboxes.length).toBe(3);
+  });
+
+  it("header checkbox selects all page rows", () => {
+    const { container } = renderBulkContext();
+
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+
+    // Selection bar should appear with count text
+    expect(screen.getByText(/3 of 3 on this page selected/)).toBeTruthy();
+  });
+
+  it("clicking a row checkbox selects that row", () => {
+    const { container } = renderBulkContext();
+
+    const bodyCheckboxes = container.querySelectorAll('tbody input[type="checkbox"]');
+    fireEvent.click(bodyCheckboxes[0].parentElement!); // click the <td>
+
+    // Selection bar should appear showing 1 row selected
+    expect(screen.getByText(/1 of 3 on this page selected/)).toBeTruthy();
+  });
+
+  it("clicking the ✕ clear button resets selection", () => {
+    const { container } = renderBulkContext();
+
+    // First select all via header checkbox
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+
+    // Selection bar should be visible
+    expect(screen.getByText(/3 of 3 on this page selected/)).toBeTruthy();
+
+    // Click the clear (✕) button
+    const clearBtn = screen.getByRole("button", { name: /clear selection/i });
+    fireEvent.click(clearBtn);
+
+    // Selection bar should disappear
+    expect(screen.queryByText(/on this page selected/)).toBeNull();
+  });
+
+  it("querySig change (filter change) resets selection to none", () => {
+    const onChange = vi.fn();
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: threeDistrictRows(), total: 3 },
+    });
+
+    const initialLayout = emptyLayout();
+    let currentLayout = initialLayout;
+    const Wrapper = makeWrapper();
+    const { container, rerender } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111", "2222", "3333"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={currentLayout}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+
+    // Select all rows
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    expect(screen.getByText(/3 of 3 on this page selected/)).toBeTruthy();
+
+    // Change layout filters (simulates a filter change that changes querySig)
+    currentLayout = {
+      ...emptyLayout(),
+      filters: {
+        kind: "and",
+        children: [{ kind: "rule", fieldId: "state", op: "eq", value: "NY" }],
+      },
+    };
+
+    rerender(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111", "2222", "3333"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={currentLayout}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+
+    // Selection bar should be gone after query sig change
+    expect(screen.queryByText(/on this page selected/)).toBeNull();
+  });
+
+  it("does NOT render checkbox column when source is not districts", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [{ id: "opp-1", stage: "Proposal", netBookingAmount: 50000, closeDate: "2026-06-01", ownerName: "Sierra" }],
+        total: 1,
+      },
+    });
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="opps"
+          leaids={["0100005"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={emptyLayout()}
+          onLayoutChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+
+    // No checkboxes should appear for opps source
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
   });
 });

@@ -1,15 +1,10 @@
 "use client";
-
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Search, Download, ChevronDown } from "lucide-react";
 import { TARGET_ROLES, type TargetRole } from "@/features/shared/types/contact-types";
-import { SCHOOL_LEVEL_LABELS, SCHOOL_TYPE_LABELS } from "@/features/shared/lib/schoolLabels";
 import type { Contact } from "@/lib/api";
-import {
-  useBulkEnrich,
-  useEnrichProgress,
-  useExpandRollup,
-} from "@/features/plans/lib/queries";
+import { SCHOOL_LEVEL_LABELS, SCHOOL_TYPE_LABELS } from "@/features/shared/lib/schoolLabels";
+import { useBulkEnrichFlow } from "@/features/plans/lib/enrich-flow";
 import ExistingContactsModal from "./ExistingContactsModal";
 
 interface ContactsActionBarProps {
@@ -39,57 +34,27 @@ export default function ContactsActionBar({
   // School-level subfilter (only meaningful when selectedRole === "Principal").
   // Default: all 3 levels checked (1 = Primary/Elementary, 2 = Middle, 3 = High).
   const [schoolLevels, setSchoolLevels] = useState<Set<number>>(new Set([1, 2, 3]));
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "info" | "success" | "warning" | "error";
-    action?: { label: string; onClick: () => void };
-  } | null>(null);
-  const [modalState, setModalState] = useState<
-    { variant: "queued-zero" | "partial"; districtCount: number; newCount?: number } | null
-  >(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastEnrichedRef = useRef<number>(0);
-  const pendingPartialRef = useRef<{ newCount: number; skippedCount: number } | null>(null);
 
-  const bulkEnrich = useBulkEnrich();
-  const expandRollup = useExpandRollup();
-
-  // Fetch progress on mount (cached 30s), fast-poll every 5s when enriching
-  const { data: progress } = useEnrichProgress(planId, isEnriching);
-
-  // On mount, auto-detect if enrichment is already in progress (e.g., after page refresh)
-  const hasCheckedInitial = useRef(false);
-  useEffect(() => {
-    if (hasCheckedInitial.current || isEnriching) return;
-    if (progress && progress.queued > 0 && progress.enriched < progress.queued) {
-      setIsEnriching(true);
-    }
-    if (progress) {
-      hasCheckedInitial.current = true;
-    }
-  }, [progress, isEnriching]);
-
-  // Notify parent of enrichment state changes (for usePlanContacts polling)
-  useEffect(() => {
-    onEnrichingChange?.(isEnriching);
-  }, [isEnriching, onEnrichingChange]);
-
-  // Auto-dismiss toast after 5 seconds — unless it carries an action (e.g.
-  // "Expand to N districts"), which must stay until the user clicks or
-  // dismisses manually.
-  useEffect(() => {
-    if (!toast || toast.action) return;
-    const timer = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(timer);
-  }, [toast]);
+  const {
+    isEnriching,
+    toast,
+    setToast,
+    modalState,
+    setModalState,
+    progressPercent,
+    progress,
+    handleStartEnrichment,
+    bulkEnrich,
+    expandRollup,
+  } = useBulkEnrichFlow({ planId, onEnrichingChange });
 
   // Close popover on outside click
   useEffect(() => {
     if (!showPopover) return;
     const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const popover = document.querySelector("[data-contacts-popover]");
+      if (popover && !popover.contains(target)) {
         setShowPopover(false);
       }
     };
@@ -97,157 +62,7 @@ export default function ContactsActionBar({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showPopover]);
 
-  // Track enrichment completion and stall detection
-  useEffect(() => {
-    if (!isEnriching || !progress) return;
-
-    // Completion check
-    if (progress.queued > 0 && progress.enriched >= progress.queued) {
-      setIsEnriching(false);
-      setToast({ message: `Contact enrichment complete — ${progress.enriched} contact${progress.enriched !== 1 ? "s" : ""} found`, type: "success" });
-      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
-      if (pendingPartialRef.current) {
-        setModalState({
-          variant: "partial",
-          districtCount: pendingPartialRef.current.skippedCount,
-          newCount: pendingPartialRef.current.newCount,
-        });
-        pendingPartialRef.current = null;
-      }
-      return;
-    }
-
-    // Stall detection: if progress hasn't changed in 2 minutes
-    if (progress.enriched !== lastEnrichedRef.current) {
-      lastEnrichedRef.current = progress.enriched;
-      // Reset stall timer
-      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
-      stallTimerRef.current = setTimeout(() => {
-        setIsEnriching(false);
-        setToast({ message: "Enrichment may be stalled — some contacts may not have results", type: "warning" });
-      }, 2 * 60 * 1000);
-    }
-  }, [isEnriching, progress]);
-
-  // Cleanup stall timer on unmount
-  useEffect(() => {
-    return () => {
-      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
-    };
-  }, []);
-
-  // Stable ref so the "Expand" toast action can re-trigger enrichment after
-  // rollup expansion without being captured against a stale closure.
-  const handleStartEnrichmentRef = useRef<() => Promise<void>>(() => Promise.resolve());
-
-  const handleStartEnrichment = useCallback(async () => {
-    setShowPopover(false);
-
-    try {
-      const result = await bulkEnrich.mutateAsync({
-        planId,
-        targetRole: selectedRole,
-        ...(selectedRole === "Principal"
-          ? { schoolLevels: Array.from(schoolLevels).sort() }
-          : {}),
-      });
-
-      if (result.queued === 0) {
-        if (result.skipped > 0) {
-          setModalState({ variant: "queued-zero", districtCount: result.skipped });
-        } else {
-          let message: string;
-          if (result.reason === "no-districts") {
-            message = "No districts to enrich — add districts to this plan first";
-          } else if (result.reason === "no-schools-in-district") {
-            message = "No schools on record for this district";
-          } else if (result.reason === "no-schools-at-levels") {
-            message = "No schools at the selected levels";
-          } else {
-            message =
-              selectedRole === "Principal"
-                ? "No schools to enrich"
-                : "No contacts to enrich";
-          }
-          setToast({ message, type: "info" });
-        }
-        return;
-      }
-
-      if (result.skipped > 0) {
-        pendingPartialRef.current = { newCount: result.queued, skippedCount: result.skipped };
-      }
-
-      setIsEnriching(true);
-      lastEnrichedRef.current = 0;
-
-      // Start stall timer
-      stallTimerRef.current = setTimeout(() => {
-        setIsEnriching(false);
-        setToast({ message: "Enrichment may be stalled — some contacts may not have results", type: "warning" });
-      }, 2 * 60 * 1000);
-
-      setToast({ message: `Looking for ${result.queued} contact${result.queued !== 1 ? "s" : ""}`, type: "info" });
-    } catch (error) {
-      // Rollup-district detection: bulk-enrich returns HTTP 400 with a structured
-      // body when the plan still contains parent-district rollup leaids.
-      // useBulkEnrich preserves that body on `error.body`.
-      const body = (error as { body?: unknown })?.body;
-      if (
-        body &&
-        typeof body === "object" &&
-        (body as { reason?: unknown }).reason === "rollup-district"
-      ) {
-        const b = body as { childLeaids?: string[]; rollupLeaids?: string[] };
-        const count = b.childLeaids?.length ?? 0;
-        const rollupCount = b.rollupLeaids?.length ?? 0;
-        if (rollupCount === 0 || count === 0) {
-          setToast({
-            message: "Plan contains a rollup district; cannot expand automatically.",
-            type: "error",
-          });
-          return;
-        }
-        setToast({
-          message: `This plan contains ${count.toLocaleString()} child districts rolled up under a parent.`,
-          type: "warning",
-          action: {
-            label: `Expand to ${count.toLocaleString()} districts`,
-            onClick: async () => {
-              try {
-                await expandRollup.mutateAsync({ planId });
-                setToast(null);
-                // Re-trigger the enrichment now that the plan is expanded.
-                await handleStartEnrichmentRef.current();
-              } catch {
-                setToast({
-                  message: "Failed to expand rollup; please refresh and try again.",
-                  type: "error",
-                });
-              }
-            },
-          },
-        });
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : "Failed to start contact enrichment";
-      if (message.includes("409") || message.includes("already in progress")) {
-        setToast({ message: "Enrichment already in progress", type: "info" });
-        setIsEnriching(true);
-      } else {
-        setToast({ message, type: "error" });
-      }
-    }
-  }, [planId, selectedRole, schoolLevels, bulkEnrich, expandRollup]);
-
-  // Keep the ref pointing at the latest callback so the toast action closure
-  // always retries with fresh state (selectedRole, schoolLevels).
-  useEffect(() => {
-    handleStartEnrichmentRef.current = handleStartEnrichment;
-  }, [handleStartEnrichment]);
-
-  const handleExportCsv = useCallback(() => {
+  const handleExportCsv = () => {
     const headers = [
       "District Name",
       "Website",
@@ -307,27 +122,22 @@ export default function ContactsActionBar({
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
+    const a = document.createElement("a");
+    a.href = url;
     const safeName = planName.replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-").toLowerCase();
-    link.download = `${safeName}-contacts-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
+    a.download = `${safeName}-contacts-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
-  }, [contacts, allDistrictLeaids, districtNameMap, districtWebsiteMap, planName]);
-
-  const progressPercent =
-    progress && progress.queued > 0
-      ? Math.round((progress.enriched / progress.queued) * 100)
-      : 0;
+  };
 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-y-2 px-4 py-2.5 border-b border-[#EFEDF5]">
         <div className="flex items-center gap-2">
           {/* Find Contacts */}
-          <div className="relative" ref={popoverRef}>
+          <div className="relative">
             <button
-              onClick={() => setShowPopover(!showPopover)}
+              onClick={() => setShowPopover((p) => !p)}
               disabled={isEnriching || bulkEnrich.isPending}
               className="inline-flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
             >
@@ -337,6 +147,7 @@ export default function ContactsActionBar({
 
             {showPopover && (
               <div
+                data-contacts-popover
                 className="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-[#EFEDF5] p-3 z-50"
                 style={{ animation: "tooltipEnter 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
               >
@@ -394,7 +205,13 @@ export default function ContactsActionBar({
                 )}
 
                 <button
-                  onClick={handleStartEnrichment}
+                  onClick={() => {
+                    setShowPopover(false);
+                    handleStartEnrichment({
+                      targetRole: selectedRole,
+                      ...(selectedRole === "Principal" ? { schoolLevels } : {}),
+                    });
+                  }}
                   disabled={
                     bulkEnrich.isPending ||
                     (selectedRole === "Principal" && schoolLevels.size === 0)

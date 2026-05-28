@@ -215,6 +215,41 @@ describe("POST /bulk-enrich — empty-plan edge case", () => {
   });
 });
 
+describe("POST /bulk-enrich — leaids scoping", () => {
+  it("restricts enrichment to provided leaids when leaids body field is given", async () => {
+    // Plan has 3 districts A, B, C but request only asks to enrich A
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({
+      id: "plan-1",
+      enrichmentStartedAt: null,
+      enrichmentQueued: null,
+      enrichmentActivityId: null,
+      districts: [
+        { districtLeaid: "0100001" },
+        { districtLeaid: "0100002" },
+        { districtLeaid: "0100003" },
+      ],
+    } as never);
+    // No contacts for 0100001 → should be queued
+    mockPrisma.contact.groupBy.mockResolvedValue([]);
+    setDistrictFindMany([
+      { leaid: "0100001", name: "Alpha SD", stateAbbrev: "AL", cityLocation: "City", streetLocation: "St", zipLocation: "35004", websiteUrl: null },
+    ]);
+    mockPrisma.activity.create.mockResolvedValue({ id: "act-1" } as never);
+    mockPrisma.territoryPlan.update.mockResolvedValue({} as never);
+
+    const req = buildRequest({ targetRole: "Superintendent", leaids: ["0100001"] });
+    const res = await POST(req, { params: Promise.resolve({ id: "plan-1" }) });
+    const body = await res.json();
+
+    // Only district 0100001 should be queued (1), not the other two
+    expect(body.queued).toBe(1);
+    // contact.groupBy should have been called with only ["0100001"], not all 3
+    expect(mockPrisma.contact.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { leaid: { in: ["0100001"] } } })
+    );
+  });
+});
+
 describe("POST /bulk-enrich — non-Principal (regression)", () => {
   it("Superintendent path still fires per-district webhooks", async () => {
     mockPrisma.contact.groupBy.mockResolvedValue([]); // no districts already enriched
