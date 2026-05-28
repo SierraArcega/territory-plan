@@ -6,9 +6,9 @@ import type { CopilotNudge } from "./nudge-types";
 
 type Db = Pick<PrismaClient, "opportunity" | "activity" | "task" | "territoryPlan" | "territoryPlanDistrict">;
 
-function endOfWeek(now: Date): Date {
+export function endOfWeek(now: Date): Date {
   const d = new Date(now);
-  const daysUntilSunday = 7 - d.getDay();
+  const daysUntilSunday = d.getDay() === 0 ? 0 : 7 - d.getDay();
   d.setDate(d.getDate() + daysUntilSunday);
   d.setHours(23, 59, 59, 999);
   return d;
