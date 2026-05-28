@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Loader2 } from "lucide-react";
 import type { ProposedAction } from "../lib/types";
 import type { ActionStatus } from "./ProposedActionCard";
 
@@ -107,7 +107,13 @@ export function BatchActionCard({
           aria-label={`Confirm ${selected.length}`}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50 ${confirmClasses}`}
         >
-          {anyPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}
+          {anyPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          ) : destructive ? (
+            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
           Confirm {selected.length}
         </button>
         <button
