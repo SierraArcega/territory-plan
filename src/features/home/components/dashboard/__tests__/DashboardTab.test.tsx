@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+
+// The shell test covers the FY selector + secondary tabs; stub the data-driven
+// strip so it doesn't pull the topline query (covered in ToplineStatStrip.test).
+vi.mock("@/features/home/components/dashboard/ToplineStatStrip", () => ({
+  default: () => <div data-testid="topline-strip" />,
+}));
+
 import DashboardTab from "../DashboardTab";
 import { getCurrentFY } from "@/lib/fiscal-year";
 

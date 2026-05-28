@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getCurrentFY, fyPills } from "@/lib/fiscal-year";
+import ToplineStatStrip from "./ToplineStatStrip";
 
 // Secondary tab strip below the performance dashboard. Only "pipeline" ships in
 // this milestone (Customer trends + Hygiene are deferred).
@@ -46,9 +47,12 @@ export default function DashboardTab() {
           })}
         </div>
 
-        {/* Topline strip + rank trajectory land in Phase 1–3 */}
+        {/* Topline cards (Targets card + segment bars / sparklines / deltas land in Phase 2) */}
+        <ToplineStatStrip fy={fy} />
+
+        {/* Rank trajectory lands in Phase 3 */}
         <div className="rounded-lg border border-dashed border-[#D4CFE2] p-8 text-center text-sm text-[#8A80A8]">
-          Topline metrics &amp; rank trajectory — coming next.
+          Rank trajectory — coming in Phase 3.
         </div>
       </section>
 

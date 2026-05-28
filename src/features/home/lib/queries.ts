@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
+import type { ToplineCard } from "./topline";
 
 // Types for the alerts response
 
@@ -30,5 +31,21 @@ export function useFeedAlerts() {
     queryKey: ["feed-alerts"],
     queryFn: () => fetchJson<FeedAlertsResponse>(`${API_BASE}/feed/alerts`),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
+
+export interface ToplineResponse {
+  fy: number;
+  schoolYr: string;
+  cards: ToplineCard[];
+}
+
+export function useTopline(fy: number) {
+  return useQuery({
+    queryKey: ["dashboard", "topline", fy],
+    queryFn: () => fetchJson<ToplineResponse>(`${API_BASE}/home/dashboard/topline?fy=${fy}`),
+    staleTime: 5 * 60 * 1000,
   });
 }
