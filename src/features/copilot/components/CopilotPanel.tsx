@@ -558,12 +558,14 @@ function ProposedActionCard({
             disabled={status === "pending"}
             className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 ${
               action.preview.destructive
-                ? "bg-[#A8281C] hover:bg-[#8C2117]"
+                ? "bg-[#F37167] hover:bg-[#D9584E]"
                 : "bg-[#403770] hover:bg-[#322a5a]"
             }`}
           >
             {status === "pending" ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : action.preview.destructive ? (
+              <AlertTriangle className="h-3.5 w-3.5" />
             ) : (
               <Check className="h-3.5 w-3.5" />
             )}
