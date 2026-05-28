@@ -7,6 +7,7 @@ import HomeTabBar, { type HomeTab } from "./HomeTabBar";
 import FeedTab from "./FeedTab";
 import ActivitiesTab from "./ActivitiesTab";
 import PlansTab from "./PlansTab";
+import DashboardTab from "./dashboard/DashboardTab";
 import {
   useAutoSyncCalendarOnMount,
   useBackfillStatus,
@@ -106,6 +107,7 @@ export default function HomeView() {
           {activeTab === "plans" && (
             <PlansTab onBadgeCountChange={handlePlansBadge} />
           )}
+          {activeTab === "dashboard" && <DashboardTab />}
         </div>
       </div>
 

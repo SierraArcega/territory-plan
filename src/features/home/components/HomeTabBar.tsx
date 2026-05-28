@@ -24,7 +24,7 @@ const TABS: TabConfig[] = [
   { id: "feed", label: "Feed", icon: Home },
   { id: "activities", label: "Activities", icon: Calendar },
   { id: "plans", label: "Plans", icon: FileText },
-  { id: "dashboard", label: "Dashboard", icon: BarChart3, disabled: true },
+  { id: "dashboard", label: "Dashboard", icon: BarChart3 },
 ];
 
 export default function HomeTabBar({
