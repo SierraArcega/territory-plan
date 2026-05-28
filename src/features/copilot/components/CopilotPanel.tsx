@@ -18,8 +18,8 @@ import { useMapV2Store } from "@/features/map/lib/store";
 import { boundsForLeaids } from "@/features/map/lib/views-plan-bounds";
 import { STATE_BBOX } from "@/features/map/lib/state-bbox";
 import { extractDistrictLeaids, statesForLeaids } from "@/features/copilot/lib/plot-districts";
-import { isIdColumn } from "@/features/reports/lib/result-columns";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
+import { AnswerBlock, type AnswerPayload } from "./AnswerBlock";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { CopilotHomeState } from "./CopilotHomeState";
 import { CopilotProgress } from "./CopilotProgress";
@@ -39,12 +39,6 @@ import type {
 const CONV_KEY = "copilot:conversationId";
 
 type ActionStatus = "idle" | "pending" | "confirmed" | "dismissed" | "error";
-
-interface AnswerPayload {
-  columns: string[];
-  rows: Array<Record<string, unknown>>;
-  rowCount: number;
-}
 
 interface ChatMessage {
   id: string;
@@ -129,6 +123,14 @@ export default function CopilotPanel() {
     }
   }, [conversationId]);
 
+  const plotLeaids = useCallback((columns: string[], rows: Array<Record<string, unknown>>) => {
+    const { leaids, truncated } = extractDistrictLeaids(columns, rows);
+    if (leaids.length === 0) return { plotted: 0, truncated: false };
+    focusDistricts(leaids, statesForLeaids(leaids), boundsForLeaids(leaids, STATE_BBOX));
+    setActiveTab("map");
+    return { plotted: leaids.length, truncated };
+  }, [focusDistricts, setActiveTab]);
+
   const applyResult = useCallback(
     (prev: ChatMessage, res: CopilotTurnResult): ChatMessage => {
       if (res.kind === "answer") {
@@ -184,23 +186,16 @@ export default function CopilotPanel() {
           );
           // If the answer carries district leaids, show them on the map.
           if (res.kind === "answer") {
-            const { leaids, truncated } = extractDistrictLeaids(
-              res.result.columns,
-              res.result.rows,
-            );
-            if (leaids.length > 0) {
-              focusDistricts(leaids, statesForLeaids(leaids), boundsForLeaids(leaids, STATE_BBOX));
-              setActiveTab("map");
-              if (truncated) {
-                setMessages((m) => [
-                  ...m,
-                  {
-                    id: uid(),
-                    role: "assistant",
-                    text: `Showing the first ${leaids.length} of ${res.result.rowCount} on the map.`,
-                  },
-                ]);
-              }
+            const { plotted, truncated } = plotLeaids(res.result.columns, res.result.rows);
+            if (plotted > 0 && truncated) {
+              setMessages((m) => [
+                ...m,
+                {
+                  id: uid(),
+                  role: "assistant",
+                  text: `Showing the first ${plotted} of ${res.result.rowCount} on the map.`,
+                },
+              ]);
             }
           }
         },
@@ -214,7 +209,7 @@ export default function CopilotPanel() {
           ),
       },
     );
-  }, [input, stream, conversationId, getPageContext, applyResult, focusDistricts, setActiveTab]);
+  }, [input, stream, conversationId, getPageContext, applyResult, plotLeaids]);
 
   const handleSeed = useCallback((prompt: string, autoSend: boolean) => {
     if (autoSend) {
@@ -363,6 +358,7 @@ export default function CopilotPanel() {
             actionError={actionError}
             onConfirm={onConfirm}
             onDismiss={onDismiss}
+            onViewOnMap={(a) => plotLeaids(a.columns, a.rows)}
           />
         ))}
       </div>
@@ -413,12 +409,14 @@ function MessageBlock({
   actionError,
   onConfirm,
   onDismiss,
+  onViewOnMap,
 }: {
   msg: ChatMessage;
   actionStatus: Record<string, ActionStatus>;
   actionError: Record<string, string>;
   onConfirm: (a: ProposedAction) => void;
   onDismiss: (id: string) => void;
+  onViewOnMap?: (answer: AnswerPayload) => void;
 }) {
   if (msg.role === "user") {
     return (
@@ -450,7 +448,9 @@ function MessageBlock({
 
       {msg.note && <p className="text-xs italic text-[#8A80A8]">{msg.note}</p>}
 
-      {msg.answer && <AnswerTable answer={msg.answer} />}
+      {msg.answer && (
+        <AnswerBlock answer={msg.answer} onViewOnMap={() => onViewOnMap?.(msg.answer!)} />
+      )}
 
       {msg.proposedActions?.map((action) => (
         <ProposedActionCard
@@ -462,54 +462,6 @@ function MessageBlock({
           onDismiss={onDismiss}
         />
       ))}
-    </div>
-  );
-}
-
-function AnswerTable({ answer }: { answer: AnswerPayload }) {
-  const visibleColumns = answer.columns.filter((c) => !isIdColumn(c));
-  if (answer.rows.length === 0) {
-    return (
-      <p className="text-sm text-[#6E6390]">No rows.</p>
-    );
-  }
-  if (visibleColumns.length === 0) {
-    return (
-      <p className="text-sm text-[#6E6390]">Plotted on the map — open the Map tab to see them.</p>
-    );
-  }
-  return (
-    <div className="overflow-x-auto rounded-lg border border-[#E2DEEC]">
-      <table className="w-full border-collapse text-xs">
-        <thead>
-          <tr className="bg-[#F7F5FA]">
-            {visibleColumns.map((c) => (
-              <th
-                key={c}
-                className="px-2 py-1 text-left font-semibold text-[#6E6390] whitespace-nowrap"
-              >
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {answer.rows.map((row, i) => (
-            <tr key={i} className="border-t border-[#E2DEEC]">
-              {visibleColumns.map((c) => (
-                <td key={c} className="px-2 py-1 text-[#403770] whitespace-nowrap">
-                  {row[c] == null ? "" : String(row[c])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {answer.rowCount > answer.rows.length && (
-        <p className="px-2 py-1 text-[10px] text-[#6E6390]">
-          Showing {answer.rows.length} of {answer.rowCount} rows.
-        </p>
-      )}
     </div>
   );
 }
