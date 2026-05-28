@@ -47,6 +47,17 @@ describe("formatActionLogEntry", () => {
     expect(e.label).not.toContain("p1");
   });
 
+  it("labels a plan remove_districts action with its count", () => {
+    const e = formatActionLogEntry({
+      ...base,
+      objectType: "plan",
+      operation: "remove_districts",
+      afterJson: { removed: 2, planId: "p1" },
+    });
+    expect(e.label).toBe("Removed 2 districts from plan");
+    expect(e.label).not.toContain("p1");
+  });
+
   it("serializes createdAt and carries status through", () => {
     const e = formatActionLogEntry({ ...base, status: "error" });
     expect(e.status).toBe("error");

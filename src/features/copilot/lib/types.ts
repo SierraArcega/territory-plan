@@ -24,7 +24,8 @@ export interface ActionPreview {
   /** One-line, rep-friendly description (model-authored when available). */
   summary: string;
   rows: ActionPreviewRow[];
-  /** Always false in v1 — no deletes. */
+  /** True for removals/unlinks (e.g. plan.remove_districts) so the confirm card
+   *  can warn; false for create/update. */
   destructive: boolean;
 }
 

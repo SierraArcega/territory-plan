@@ -23,12 +23,12 @@ const proposeActions: Anthropic.Tool = {
             },
             operation: {
               type: "string",
-              enum: ["create", "update", "add_districts"],
+              enum: ["create", "update", "add_districts", "remove_districts"],
             },
             targetId: {
               type: "string",
               description:
-                "Required for update (the id of the record to change — task id, contact id as a string, plan id, etc.) and for add_districts (the plan id). Omit for create.",
+                "Required for update (the id of the record to change — task id, contact id as a string, plan id, etc.) and for add_districts / remove_districts (the plan id). Omit for create.",
             },
             summary: {
               type: "string",

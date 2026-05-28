@@ -55,6 +55,23 @@ export function formatActionLogEntry(row: ActionLogRow): ActionLogEntry {
     };
   }
 
+  // Same for the unlink — it's a junction delete, not a record update.
+  if (row.operation === "remove_districts") {
+    const removed = after && typeof after.removed === "number" ? after.removed : null;
+    const label =
+      removed != null
+        ? `Removed ${removed} district${removed === 1 ? "" : "s"} from plan`
+        : "Removed districts from plan";
+    return {
+      id: row.id,
+      objectType: row.objectType,
+      operation: row.operation,
+      status: row.status,
+      label,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
   const verb = VERB[row.operation] ?? row.operation;
   const noun = NOUN[row.objectType] ?? row.objectType;
   const name =
