@@ -66,27 +66,34 @@ greeting line. Scrolls above the pinned composer.
 ### Nudge set (v1)
 
 Ranked, scoped to the current rep, read-only. The home state requests them once on
-open and caches for the session.
+open and caches for the session. **Backend discovery (2026-05-27) confirmed all
+four are backable by existing data; three already have live query logic to reuse.**
 
-- **Deals slipping** — opportunities whose close date has passed (or is imminent)
-  with no recent activity. *(at-risk)*
-- **Follow-ups due** — follow-up dates from logged activities, plus tasks due this
-  week. *(at-risk)*
-- **Stale plans / cold districts** — plans marked stale, or plan districts with no
-  activity in N days. *(at-risk)*
-- **Stale-in-stage deals** — open opportunities sitting in their current stage
-  longer than the **average time-in-stage for that stage**, approximated from the
-  opportunity's created date (now − created vs. the per-stage average of
-  now − created). *(at-risk)*
+- **Deals slipping** — open opportunities whose `closeDate` is in the past. "Open"
+  = `stage` set and not matching `CLOSED_RX` (`/closed[_ ](won|lost)/i`). Rep scope
+  `salesRepId = user.id`. *Reuses the exact open/overdue logic in
+  `/api/deals/open` (already surfaced by `OppSummaryStrip`).* *(at-risk)*
+- **Follow-ups due** — `Activity.followUpDate` (indexed) within the week, plus
+  `Task.dueDate` within the week, scoped by `createdByUserId = user.id`. *(at-risk)*
+- **Stale plans / cold districts** — plans with no activity/task in 30 days, and
+  plan districts with zero contacts. Rep scope `TerritoryPlan.userId = user.id`.
+  *Reuses `getStalePlans` + `getDistrictsWithoutContacts` from `/api/feed/alerts`.*
+  *(at-risk)*
+- **Stale-in-stage deals** — open opportunities in their current stage longer than
+  the **average time-in-stage for that stage**, computed from
+  `Opportunity.stageHistory` (JSONB `{stage, changed_at}[]`): time-in-stage =
+  now − the `changed_at` when the deal entered its current stage. Per-stage average
+  taken across open opps. *No created-date approximation — uses real stage-entry
+  timestamps; parse pattern exists in `/api/deals/events`.* *(at-risk)*
 
-**Feasibility flags (resolve in planning):**
-- The stale-in-stage and deals-slipping nudges require opportunity/pipeline data
-  with stage + created date + close date + last-activity. Confirm these fields
-  exist and are queryable for the current rep before committing the nudge.
-- Each nudge must define: the count query, the rep scoping
-  (`owner_id` / `created_by_user_id`), the "N days" threshold, and the seed
-  prompt it injects when tapped.
+**Planning notes:**
+- Each nudge defines: its count query, rep scoping (per above), threshold
+  (30-day staleness, current week for follow-ups), and the seed prompt it injects
+  when tapped.
 - Nudges with a zero count are omitted (no "0 deals slipping" cards).
+- Stale-in-stage accuracy is bounded by `stageHistory` completeness; it's a
+  "worth a look" signal, not a precise SLA. `OpportunitySnapshot` (weekly) is a
+  cross-check source if `stageHistory` proves sparse — not required for v1.
 
 ### Backend glue — nudges endpoint
 
@@ -95,6 +102,17 @@ A new read-only `GET /api/copilot/nudges` returns an ordered array of
 nudge queries server-side (rep-scoped), omits zero-count nudges, and ranks
 at-risk before opportunity. Fetched by a `useCopilotNudges()` hook
 (TanStack Query, stable string key, sensible `gcTime`). No writes; no model call.
+Follows the standard route pattern (`dynamic = "force-dynamic"`, `getUser()` →
+401, `NextResponse.json`).
+
+**Reuse over reinvention (required).** The open/overdue-deal predicate currently
+lives inside `/api/deals/open` and the stale-plan / districts-without-contacts
+logic inside `/api/feed/alerts`. Per the repo's "extract a helper before the third
+copy" rule, the plan must **extract these into shared lib functions** (e.g.
+`src/features/deals/lib/` and a plans/alerts lib) and have both the existing
+routes and the new nudges endpoint call them — the nudges endpoint must not
+re-implement deal/plan status logic. `CLOSED_RX` is the canonical open/closed
+test and should be the shared source of truth.
 
 ---
 
@@ -204,11 +222,16 @@ No change to the stream route, agent loop, action registry, or execute route.
 
 ## Open risks
 
-- **Nudge data availability** — opportunity/pipeline fields for "deals slipping"
-  and "stale-in-stage" must exist and be rep-scopable; if a nudge isn't backable
-  by a real query, it's cut from v1 (not faked).
-- **Stale-in-stage accuracy** — approximating time-in-stage from created date
-  overstates age for deals that changed stage recently. Acceptable for a v1
-  "worth a look" nudge; note it, don't present it as precise.
-- **Nudge query cost** — keep the endpoint cheap (aggregate counts, indexed
-  columns); it runs on every rail open.
+- ~~Nudge data availability~~ — **resolved** by backend discovery: all four nudges
+  are backed by existing fields and rep-scopable (`salesRepId` / `userId` /
+  `createdByUserId`). See the nudge set above.
+- **`stageHistory` completeness** — stale-in-stage relies on `stageHistory` being
+  populated with real `changed_at` transitions. If sparse for some opps, exclude
+  those (don't fall back to a misleading created-date age). `OpportunitySnapshot`
+  is an available cross-check.
+- **Avoiding duplication** — the extraction of deal/plan-status helpers (see
+  Backend glue) must land *before* the nudges endpoint calls them; copy-pasting
+  the predicates would violate the repo's reuse rule and drift over time.
+- **Nudge query cost** — keep the endpoint cheap (counts over indexed columns; the
+  stage-history parse is the heaviest — bound it to open opps); it runs on every
+  rail open, so cache per session client-side.
