@@ -342,7 +342,11 @@ export async function runAgentLoop<TTerminal = unknown>(
   while (true) {
     iteration++;
     markConversationCacheBreakpoint(messages);
-    const response = await anthropic.messages.create({
+    // Stream the call so assistant text reaches the client token-by-token
+    // (the loop logic below is unchanged — `finalMessage()` yields the same
+    // full Message that `create()` returned). `text_delta` events are emitted
+    // before this iteration's terminal `model_call` event.
+    const modelStream = anthropic.messages.stream({
       model: "claude-opus-4-7",
       max_tokens: 16000,
       thinking: { type: "adaptive" },
@@ -351,6 +355,10 @@ export async function runAgentLoop<TTerminal = unknown>(
       tools: toolSet,
       messages,
     });
+    modelStream.on("text", (delta) => {
+      if (delta) pushEvent({ kind: "text_delta", iteration, delta });
+    });
+    const response = await modelStream.finalMessage();
 
     const callUsage = extractUsage((response as { usage?: unknown }).usage);
     totalUsage = addUsage(totalUsage, callUsage);
