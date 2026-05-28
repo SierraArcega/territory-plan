@@ -579,4 +579,126 @@ describe("runAgentLoop", () => {
       expect(result.events.length).toBe(1);
     });
   });
+
+  describe("effort", () => {
+    it("threads effort into output_config when provided", async () => {
+      const anthropic = makeScriptedAnthropic([
+        { stop_reason: "end_turn", content: [{ type: "text", text: "hi" }] },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "x",
+        priorTurns: [],
+        userId: "u1",
+        effort: "medium",
+      });
+      const params = (anthropic.messages.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(params.output_config).toEqual({ effort: "medium" });
+    });
+
+    it("omits output_config when no effort is set (reports/list-builder default)", async () => {
+      const anthropic = makeScriptedAnthropic([
+        { stop_reason: "end_turn", content: [{ type: "text", text: "hi" }] },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "x",
+        priorTurns: [],
+        userId: "u1",
+      });
+      const params = (anthropic.messages.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(params.output_config).toBeUndefined();
+    });
+  });
+
+  describe("conversation cache breakpoint", () => {
+    const countMessageBreakpoints = (
+      msgs: Array<{ content: unknown }>,
+    ): number =>
+      msgs.reduce((n, m) => {
+        if (!Array.isArray(m.content)) return n;
+        return (
+          n +
+          m.content.filter(
+            (b) =>
+              b &&
+              typeof b === "object" &&
+              (b as { cache_control?: unknown }).cache_control,
+          ).length
+        );
+      }, 0);
+
+    it("anchors exactly one breakpoint on the latest tool_result tail", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "tool_use",
+          content: [{ type: "tool_use", id: "e1", name: "list_tables", input: {} }],
+        },
+        {
+          stop_reason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "e2",
+              name: "run_sql",
+              input: { sql: "SELECT a FROM districts LIMIT 100", summary },
+            },
+          ],
+        },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+      });
+
+      // Second iteration's request: the list_tables tool_result is the
+      // conversation tail and carries the breakpoint. NB `messages` is a shared
+      // mutable array that the loop keeps appending to after the call, so assert
+      // on *where* the breakpoint sits, not on positional "last message".
+      const secondMessages = (anthropic.messages.create as ReturnType<typeof vi.fn>)
+        .mock.calls[1][0].messages as Array<{ role: string; content: unknown }>;
+      expect(countMessageBreakpoints(secondMessages)).toBe(1);
+
+      const breakpointBlocks = secondMessages.flatMap((m) =>
+        Array.isArray(m.content)
+          ? m.content.filter(
+              (b) =>
+                b &&
+                typeof b === "object" &&
+                (b as { cache_control?: unknown }).cache_control,
+            )
+          : [],
+      ) as Array<{ type?: string; cache_control?: unknown }>;
+      expect(breakpointBlocks).toHaveLength(1);
+      expect(breakpointBlocks[0].type).toBe("tool_result");
+      expect(breakpointBlocks[0].cache_control).toEqual({ type: "ephemeral" });
+    });
+
+    it("does not set a message breakpoint when the only message is the user string", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "run_sql",
+              input: { sql: "SELECT a FROM districts LIMIT 100", summary },
+            },
+          ],
+        },
+      ]);
+      await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+      });
+      const firstMessages = (anthropic.messages.create as ReturnType<typeof vi.fn>)
+        .mock.calls[0][0].messages as Array<{ role: string; content: unknown }>;
+      expect(countMessageBreakpoints(firstMessages)).toBe(0);
+    });
+  });
 });

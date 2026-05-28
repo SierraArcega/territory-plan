@@ -134,6 +134,14 @@ interface RunAgentLoopArgs<TTerminal = unknown> {
     toolUse: Anthropic.ToolUseBlock,
     userId: string,
   ) => Promise<string>;
+  /**
+   * Optional `output_config.effort` (Opus 4.7). Omitted → the model's default
+   * (`high`). The copilot passes `medium`: its turns are id lookups + a
+   * propose, or a single run_sql — rarely reasoning-bound — so lower effort
+   * cuts per-iteration latency. Reports/list-builder leave it unset so their
+   * reasoning depth is unchanged.
+   */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 
 // Set AGENT_LOOP_DIAG=1 in the deployment env to capture full system-prompt +
@@ -180,6 +188,38 @@ function containsSqlFence(text: string): boolean {
   return bareFence.test(text);
 }
 
+// Places a single rolling prompt-cache breakpoint on the tail of the
+// conversation prefix so each agent-loop iteration reads the prior
+// tool_results (and replayed prior turns) from cache instead of reprocessing
+// them at full input price. The large static prefix (tools + system) is cached
+// separately via the system block's 1h breakpoint; this one moves forward each
+// iteration as tool_results accumulate. Anchored on the last *array-content*
+// message's final block — trailing string messages (the user question) are a
+// tiny, uncacheable suffix. Clearing prior breakpoints first keeps the count at
+// system(1) + conversation(1) = 2, within the 4-breakpoint cap.
+function markConversationCacheBreakpoint(messages: Anthropic.MessageParam[]): void {
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue;
+    for (const block of m.content) {
+      if (block && typeof block === "object" && "cache_control" in block) {
+        delete (block as { cache_control?: unknown }).cache_control;
+      }
+    }
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const content = messages[i].content;
+    if (Array.isArray(content) && content.length > 0) {
+      const lastBlock = content[content.length - 1];
+      if (lastBlock && typeof lastBlock === "object") {
+        (lastBlock as { cache_control?: Anthropic.CacheControlEphemeral }).cache_control = {
+          type: "ephemeral",
+        };
+      }
+      return;
+    }
+  }
+}
+
 export async function runAgentLoop<TTerminal = unknown>(
   args: RunAgentLoopArgs<TTerminal>,
 ): Promise<AgentResult<TTerminal>> {
@@ -195,6 +235,7 @@ export async function runAgentLoop<TTerminal = unknown>(
     tools: toolsOverride,
     terminalTool,
     exploratoryToolHandler,
+    effort,
   } = args;
   // Which tool name(s) terminate the loop. Reports keeps the historical
   // `run_sql`. List-builder uses whatever the caller passed in (typically
@@ -300,10 +341,12 @@ export async function runAgentLoop<TTerminal = unknown>(
 
   while (true) {
     iteration++;
+    markConversationCacheBreakpoint(messages);
     const response = await anthropic.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 16000,
       thinking: { type: "adaptive" },
+      ...(effort ? { output_config: { effort } } : {}),
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } }],
       tools: toolSet,
       messages,
