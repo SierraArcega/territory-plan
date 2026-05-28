@@ -2,22 +2,27 @@
 
 /**
  * AnchoredPopover — renders its children in a body portal, positioned just
- * below an anchor element.
+ * below (or above, when space is tight) an anchor element.
  *
  * Why a portal: the Filter / Sort / Group chip triggers live inside the grid's
- * chip strip, which uses `overflow-x-auto`. Per the CSS spec, `overflow-x: auto`
+ * chip strip, which uses `overflow-x: auto`. Per the CSS spec, `overflow-x: auto`
  * forces the computed `overflow-y` from `visible` to `auto`, turning the strip
  * into a scroll container on BOTH axes. A `position: absolute` dropdown nested
  * in that strip therefore gets clipped to the strip's height and grows a stray
  * scrollbar — hiding the options. Portaling to <body> escapes every overflow
- * ancestor. This mirrors the established pattern in
- * `features/shared/components/MultiSelect.tsx`.
+ * ancestor.
  *
- * Positioning is `fixed` and re-measured on scroll/resize so the panel tracks
- * the trigger even while the strip scrolls horizontally.
+ * Vertical placement uses a two-pass approach to avoid clipping near the
+ * viewport bottom:
+ *   1. First pass: render panel at "below" with visibility:hidden.
+ *   2. useLayoutEffect: measure panel height. Flip to "above" if the panel
+ *      would overflow the viewport bottom AND there is room above the anchor.
+ *      Falls back to "below" when neither direction fits.
+ *   3. Set visibility:visible — no flicker.
  */
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -26,7 +31,7 @@ import {
 import { createPortal } from "react-dom";
 
 interface AnchoredPopoverProps {
-  /** Element the popover anchors beneath. */
+  /** Element the popover anchors to. */
   anchorRef: RefObject<HTMLElement | null>;
   /** Whether the popover is shown. */
   open: boolean;
@@ -35,8 +40,7 @@ interface AnchoredPopoverProps {
   /**
    * Horizontal alignment of the panel relative to the anchor.
    * - `"left"` (default): panel's left edge aligns with anchor's left edge.
-   * - `"right"`: panel's right edge aligns with anchor's right edge (use when
-   *   the trigger is near the right side of the viewport to avoid overflow).
+   * - `"right"`: panel's right edge aligns with anchor's right edge.
    */
   align?: "left" | "right";
   children: ReactNode;
@@ -57,24 +61,24 @@ export function AnchoredPopover({
 }: AnchoredPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<Position | null>(null);
+  // `ready` gates visibility. False while the first-pass measurement is
+  // pending so the panel never flashes at the wrong position.
+  const [ready, setReady] = useState(false);
 
-  // Measure the anchor and keep the panel pinned beneath it. Re-measuring on
-  // scroll (capture phase, so it catches the strip's own scroll) and resize
-  // keeps the panel attached while the trigger moves. `pos` is intentionally
-  // not cleared on close — the render below already gates on `open`, so a
-  // stale position is never shown, and re-opening re-measures immediately.
+  // Measure the anchor and keep the panel pinned to it. Resets `ready` so
+  // the flip check re-runs after every scroll/resize re-measurement.
   useEffect(() => {
     if (!open) return;
     const measure = () => {
       const anchor = anchorRef.current;
       if (!anchor) return;
       const rect = anchor.getBoundingClientRect();
-      // +4px gap matches the prior `mt-1` spacing.
       if (align === "right") {
         setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
       } else {
         setPos({ top: rect.bottom + 4, left: rect.left });
       }
+      setReady(false);
     };
     measure();
     window.addEventListener("resize", measure);
@@ -83,11 +87,37 @@ export function AnchoredPopover({
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [open, anchorRef]);
+  }, [open, anchorRef, align]);
+
+  // Second pass: after the hidden panel renders, check if it fits below.
+  // Flip above when needed; set ready=true to reveal the panel.
+  useLayoutEffect(() => {
+    if (!open || ready || pos === null || !panelRef.current) return;
+    const anchor = anchorRef.current;
+    if (!anchor) {
+      setReady(true);
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    const panelH = panelRef.current.offsetHeight;
+    const spaceBelow = window.innerHeight - rect.bottom - 4;
+    // panelH is 0 when content hasn't rendered yet (jsdom, lazy children).
+    // In that case the flip condition is false and we fall through to setReady(true),
+    // showing the panel at the "below" default. No re-measurement occurs if content
+    // later expands — acceptable since this is an interactive, user-opened popover.
+    if (panelH > spaceBelow && rect.top > panelH + 4) {
+      // Enough room above — flip.
+      if (align === "right") {
+        setPos({ top: rect.top - panelH - 4, right: window.innerWidth - rect.right });
+      } else {
+        setPos({ top: rect.top - panelH - 4, left: rect.left });
+      }
+    }
+    setReady(true);
+  }, [open, ready, pos, align, anchorRef]);
 
   // Dismiss on outside-click + Escape. Deferred attach (setTimeout 0) so the
-  // click that opened the popover doesn't immediately close it. Clicks inside
-  // the anchor (trigger + sibling chips) or the portaled panel are kept open.
+  // click that opened the popover doesn't immediately close it.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -116,7 +146,12 @@ export function AnchoredPopover({
     <div
       ref={panelRef}
       className="fixed z-50"
-      style={{ top: pos.top, left: pos.left, right: pos.right }}
+      style={{
+        top: pos.top,
+        left: pos.left,
+        right: pos.right,
+        visibility: ready ? "visible" : "hidden",
+      }}
     >
       {children}
     </div>,
