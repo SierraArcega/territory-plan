@@ -307,9 +307,10 @@ export default function CopilotPanel() {
             type="button"
             onClick={onNewChat}
             aria-label="New chat"
-            className="rounded-lg p-1 text-[#6E6390] transition-colors hover:bg-[#EFEDF5]"
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[#403770] transition-colors hover:bg-[#EFEDF5]"
           >
-            <SquarePen className="h-5 w-5" />
+            <SquarePen className="h-4 w-4" aria-hidden="true" />
+            <span className="whitespace-nowrap">New chat</span>
           </button>
           <button
             type="button"
