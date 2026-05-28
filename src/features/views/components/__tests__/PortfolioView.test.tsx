@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import PortfolioView from "../PortfolioView";
@@ -92,7 +92,7 @@ beforeEach(() => {
 });
 
 describe("PortfolioView", () => {
-  it("renders the FY26 Portfolio header by default", async () => {
+  it("renders the portfolio header by default", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => [plan()],
@@ -104,7 +104,8 @@ describe("PortfolioView", () => {
         <PortfolioView />
       </Wrapper>,
     );
-    expect(getByText(/FY26 Portfolio/i)).toBeTruthy();
+    // Eyebrow + title render synchronously (outside the loading branch).
+    expect(getByText(/^Portfolio$/i)).toBeTruthy();
     expect(getByText(/All plans/i)).toBeTruthy();
   });
 
@@ -258,6 +259,46 @@ describe("PortfolioView", () => {
       </Wrapper>,
     );
     expect(await findByText(/No team plans/i)).toBeTruthy();
+  });
+
+  it("filters the active bucket by plan owner", async () => {
+    routerState.bucket = "team";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        plan({
+          id: "p2",
+          name: "Alpha Plan",
+          owner: { id: "u2", fullName: "Alice", avatarUrl: null },
+          collaborators: [],
+        }),
+        plan({
+          id: "p3",
+          name: "Bravo Plan",
+          owner: { id: "u3", fullName: "Bob", avatarUrl: null },
+          collaborators: [],
+        }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    const { findByText, getByText, queryByText, getByRole } = render(
+      <Wrapper>
+        <PortfolioView />
+      </Wrapper>,
+    );
+    // Both team plans render before any filter is applied.
+    expect(await findByText("Alpha Plan")).toBeTruthy();
+    expect(getByText("Bravo Plan")).toBeTruthy();
+
+    // Open the owner dropdown (trigger label is the "Owner" placeholder) and
+    // pick Alice — the portaled option list carries the owner's full name.
+    fireEvent.click(getByRole("button", { name: /owner/i }));
+    fireEvent.click(await findByText("Alice"));
+
+    // Only Alice's plan survives the filter.
+    await waitFor(() => expect(queryByText("Bravo Plan")).toBeNull());
+    expect(getByText("Alpha Plan")).toBeTruthy();
   });
 
   it("shows skeletons while loading", async () => {

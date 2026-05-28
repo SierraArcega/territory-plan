@@ -19,10 +19,14 @@
  * client-side aggregates substitute for the README's Total target / Booked /
  * To target set, which would require new API fields.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePlansWithStats, type PlanWithStats } from "../lib/queries";
 import { useViewsRouter, type PortfolioBucket } from "../hooks/useViewsRouter";
 import { useProfile } from "@/features/shared/lib/queries";
+import {
+  MultiSelect,
+  type MultiSelectOption,
+} from "@/features/shared/components/MultiSelect";
 import PlanCardPortfolio, { NewPlanCard } from "./PlanCardPortfolio";
 
 /** Compact dollar formatter ("$1.2M", "$622K", "$48"). */
@@ -76,6 +80,35 @@ export default function PortfolioView() {
 
   const shown = bucket === "archived" ? archived : bucket === "team" ? team : mine;
 
+  // Owner filter — multi-select by plan owner, applied to the active bucket.
+  // Defaults to no selection (show everything); empty array means "no filter".
+  const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
+
+  // Options are derived from the owners that actually appear across all plans
+  // (so selecting one always resolves to results in some bucket), sorted with
+  // the current user ("Me") first, then alphabetically — mirrors OwnerFilter.
+  const ownerOptions = useMemo<MultiSelectOption[]>(() => {
+    const byId = new Map<string, string>();
+    for (const p of allPlans) {
+      if (p.owner) byId.set(p.owner.id, p.owner.fullName ?? "Unknown");
+    }
+    return [...byId.entries()]
+      .map(([id, name]) => ({ value: id, label: id === userId ? "Me" : name }))
+      .sort((a, b) => {
+        if (a.value === userId) return -1;
+        if (b.value === userId) return 1;
+        return a.label.localeCompare(b.label);
+      });
+  }, [allPlans, userId]);
+
+  const ownerFiltered = useMemo(
+    () =>
+      selectedOwners.length === 0
+        ? shown
+        : shown.filter((p) => p.owner && selectedOwners.includes(p.owner.id)),
+    [shown, selectedOwners],
+  );
+
   // Header stats are computed from the active book (mine + team) so opening
   // Archived doesn't make the eyebrow stats appear to "drop" — the portfolio
   // number is your present-day book.
@@ -94,7 +127,7 @@ export default function PortfolioView() {
   }, [mine, team]);
 
   return (
-    <>
+    <div className="flex h-full flex-col">
       {/* Header — white bg, plum-tinted bottom border */}
       <header
         className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5 border-b border-[#D4CFE2] bg-white flex-shrink-0"
@@ -129,27 +162,44 @@ export default function PortfolioView() {
 
       {/* Body — off-white background, scrollable */}
       <section className="flex-1 min-h-0 overflow-y-auto bg-[#FFFCFA] px-6 py-5">
-        {/* Tab strip: My plans / Team plans / Archived plans */}
-        <div
-          className="flex gap-0 mb-[18px] border-b border-[#E2DEEC]"
-          role="tablist"
-          aria-label="Plan ownership"
-        >
-          <PortfolioTab
-            active={bucket === "mine"}
-            label={`My plans · ${mine.length}`}
-            onClick={() => router.goToPortfolio("mine")}
-          />
-          <PortfolioTab
-            active={bucket === "team"}
-            label={`Team plans · ${team.length}`}
-            onClick={() => router.goToPortfolio("team")}
-          />
-          <PortfolioTab
-            active={bucket === "archived"}
-            label={`Archived plans · ${archived.length}`}
-            onClick={() => router.goToPortfolio("archived")}
-          />
+        {/* Tab strip + owner filter. The strip carries the underline; the
+            filter sits to its right and wraps below on narrow widths. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-[18px]">
+          <div
+            className="flex gap-0 border-b border-[#E2DEEC] flex-1 min-w-0"
+            role="tablist"
+            aria-label="Plan ownership"
+          >
+            <PortfolioTab
+              active={bucket === "mine"}
+              label={`My plans · ${mine.length}`}
+              onClick={() => router.goToPortfolio("mine")}
+            />
+            <PortfolioTab
+              active={bucket === "team"}
+              label={`Team plans · ${team.length}`}
+              onClick={() => router.goToPortfolio("team")}
+            />
+            <PortfolioTab
+              active={bucket === "archived"}
+              label={`Archived plans · ${archived.length}`}
+              onClick={() => router.goToPortfolio("archived")}
+            />
+          </div>
+          {ownerOptions.length > 0 && (
+            <div className="flex-shrink-0">
+              <MultiSelect
+                id="portfolio-owner-filter"
+                label="Owner"
+                options={ownerOptions}
+                selected={selectedOwners}
+                onChange={setSelectedOwners}
+                placeholder="Owner"
+                countLabel="owners"
+                searchPlaceholder="Search people…"
+              />
+            </div>
+          )}
         </div>
 
         {/* Card grid — auto-fill at 320px minimum so wide viewports get 4+
@@ -161,8 +211,8 @@ export default function PortfolioView() {
           <Skeletons />
         ) : plansQ.isError ? (
           <ErrorBlock />
-        ) : bucket !== "mine" && shown.length === 0 ? (
-          <EmptyBlock bucket={bucket} />
+        ) : bucket !== "mine" && ownerFiltered.length === 0 ? (
+          <EmptyBlock bucket={bucket} ownerFiltered={selectedOwners.length > 0} />
         ) : (
           <div
             className="grid gap-[14px]"
@@ -170,7 +220,7 @@ export default function PortfolioView() {
               gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
             }}
           >
-            {shown.map((p) => (
+            {ownerFiltered.map((p) => (
               <PlanCardPortfolio
                 key={p.id}
                 plan={p}
@@ -184,7 +234,7 @@ export default function PortfolioView() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
 
@@ -270,10 +320,16 @@ function ErrorBlock() {
 
 interface EmptyBlockProps {
   bucket: PortfolioBucket;
+  /** True when the bucket has plans but the owner filter excluded them all. */
+  ownerFiltered?: boolean;
 }
-function EmptyBlock({ bucket }: EmptyBlockProps) {
-  const { title, body } =
-    bucket === "archived"
+function EmptyBlock({ bucket, ownerFiltered }: EmptyBlockProps) {
+  const { title, body } = ownerFiltered
+    ? {
+        title: "No plans match this owner",
+        body: "Try clearing the owner filter or picking a different person.",
+      }
+    : bucket === "archived"
       ? {
           title: "No archived plans",
           body: "Plans you archive will appear here.",
