@@ -16,6 +16,15 @@ vi.mock("@/features/copilot/hooks/useCopilotPageContext", () => ({
 vi.mock("@/features/copilot/components/CopilotActivityLog", () => ({
   CopilotActivityLog: () => <div data-testid="activity-log">log</div>,
 }));
+vi.mock("@/features/copilot/hooks/useCopilotNudges", () => ({
+  useCopilotNudges: () => ({ data: [] }),
+}));
+vi.mock("@/features/copilot/hooks/useCopilotConversations", () => ({
+  useCopilotConversations: () => ({ data: [] }),
+}));
+vi.mock("@/features/shared/lib/queries", () => ({
+  useProfile: () => ({ data: { fullName: null, id: "test-user" } }),
+}));
 
 import CopilotPanel from "../CopilotPanel";
 

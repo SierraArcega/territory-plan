@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   Send,
@@ -21,9 +21,13 @@ import { extractDistrictLeaids, statesForLeaids } from "@/features/copilot/lib/p
 import { isIdColumn } from "@/features/reports/lib/result-columns";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
+import { CopilotHomeState } from "./CopilotHomeState";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
 import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
 import { useExecuteCopilotAction } from "../hooks/useExecuteCopilotAction";
+import { useCopilotNudges } from "../hooks/useCopilotNudges";
+import { useCopilotConversations } from "../hooks/useCopilotConversations";
+import { useProfile } from "@/features/shared/lib/queries";
 import type {
   CopilotTurnResult,
   CopilotHistoryMessage,
@@ -84,6 +88,11 @@ export default function CopilotPanel() {
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [actionStatus, setActionStatus] = useState<Record<string, ActionStatus>>({});
   const [actionError, setActionError] = useState<Record<string, string>>({});
+
+  const { data: profile } = useProfile();
+  const firstName = profile?.fullName?.trim().split(/\s+/)[0] ?? null;
+  const nudges = useCopilotNudges(open).data ?? [];
+  const recent = useCopilotConversations(open).data ?? [];
 
   const stream = useCopilotTurnStream();
   const execute = useExecuteCopilotAction();
@@ -157,8 +166,8 @@ export default function CopilotPanel() {
     [],
   );
 
-  const handleSend = useCallback(() => {
-    const text = input.trim();
+  const handleSend = useCallback((textOverride?: string) => {
+    const text = (textOverride ?? input).trim();
     if (!text || stream.isPending) return;
     const assistantId = uid();
     setMessages((m) => [
@@ -217,6 +226,25 @@ export default function CopilotPanel() {
     );
   }, [input, stream, conversationId, getPageContext, applyResult, focusDistricts, setActiveTab]);
 
+  const handleSeed = useCallback((prompt: string, autoSend: boolean) => {
+    if (autoSend) {
+      handleSend(prompt);
+    } else {
+      setInput(prompt);
+    }
+  }, [handleSend]);
+
+  const handleResume = useCallback((id: string) => {
+    setConversationId(id);
+    fetch(`/api/copilot/history?conversationId=${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { messages?: CopilotHistoryMessage[] } | null) => {
+        if (!data?.messages) return;
+        setMessages(data.messages.map((m) => ({ id: uid(), role: m.role, text: m.text, note: m.note })));
+      })
+      .catch(() => {});
+  }, []);
+
   const onConfirm = useCallback(
     async (action: ProposedAction) => {
       setActionStatus((s) => ({ ...s, [action.id]: "pending" }));
@@ -256,11 +284,6 @@ export default function CopilotPanel() {
       // ignore
     }
   }, []);
-
-  const greeting = useMemo(
-    () => "Ask about your data, or tell me what to create or update.",
-    [],
-  );
 
   if (!open) {
     return (
@@ -334,7 +357,13 @@ export default function CopilotPanel() {
         className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
       >
         {messages.length === 0 && (
-          <p className="text-sm text-[#6E6390]">{greeting}</p>
+          <CopilotHomeState
+            firstName={firstName}
+            nudges={nudges}
+            recent={recent}
+            onSeed={handleSeed}
+            onResume={handleResume}
+          />
         )}
         {messages.map((msg) => (
           <MessageBlock
@@ -369,7 +398,7 @@ export default function CopilotPanel() {
           />
           <button
             type="button"
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || stream.isPending}
             aria-label="Send"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#403770] text-white transition-colors hover:bg-[#322a5a] disabled:opacity-40"
