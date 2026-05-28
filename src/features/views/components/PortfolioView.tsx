@@ -94,7 +94,10 @@ export default function PortfolioView() {
   }, [mine, team]);
 
   return (
-    <>
+    // h-full + flex-col gives <section> a constrained height so overflow-y-auto activates.
+    // AppShell's <main> is overflow-hidden but not flex, so without this wrapper the
+    // section grows to content size and gets clipped rather than scrolling.
+    <div className="h-full flex flex-col">
       {/* Header — white bg, plum-tinted bottom border */}
       <header
         className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5 border-b border-[#D4CFE2] bg-white flex-shrink-0"
@@ -184,7 +187,7 @@ export default function PortfolioView() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
 
