@@ -299,14 +299,27 @@ describe("plan activity-link actions", () => {
     const remove = getAction("plan", "remove_activities")!;
     const parsedAdd = add.parse({ activityIds: ["act-1", "act-2"] });
     const parsedRemove = remove.parse({ activityIds: ["act-1"] });
-    expect(parsedAdd.ok && parsedRemove.ok).toBe(true);
-    if (!parsedAdd.ok || !parsedRemove.ok) return;
+    if (!parsedAdd.ok) throw new Error("add parse failed");
+    if (!parsedRemove.ok) throw new Error("remove parse failed");
     expect(add.buildPreview(parsedAdd.fields, { targetId: "plan-1" }).destructive).toBe(false);
     expect(remove.buildPreview(parsedRemove.fields, { targetId: "plan-1" }).destructive).toBe(true);
   });
 
-  it("validate rejects activity ids with no matching activity", async () => {
+  it("validate rejects unknown ids and accepts known ones", async () => {
     const a = getAction("plan", "add_activities")!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbNone = { activity: { findMany: async () => [] } } as any;
+    const errs = await a.validate!({ activityIds: ["ghost"] }, { userId: "u", db: dbNone });
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0]).toMatch(/activit/i);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbOk = { activity: { findMany: async () => [{ id: "act-1" }] } } as any;
+    const ok = await a.validate!({ activityIds: ["act-1"] }, { userId: "u", db: dbOk });
+    expect(ok).toEqual([]);
+  });
+
+  it("remove_activities validate also rejects unknown ids", async () => {
+    const a = getAction("plan", "remove_activities")!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbNone = { activity: { findMany: async () => [] } } as any;
     const errs = await a.validate!({ activityIds: ["ghost"] }, { userId: "u", db: dbNone });

@@ -154,7 +154,7 @@ function activityIdErrors(missing: string[]): string[] {
   return [
     `No activity found for id(s): ${missing.join(", ")}. Look up real activity ids with ` +
       `run_sql (e.g. SELECT id, title FROM activities WHERE …) and use only a returned ` +
-      `value. Do not guess.`,
+      `value, or tell the rep you couldn't find that activity. Do not guess.`,
   ];
 }
 
