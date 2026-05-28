@@ -6,6 +6,7 @@ import { Apple } from "lucide-react";
 import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardNavWidget";
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 import MyViewsSection from "@/features/views/components/MyViewsSection";
+import { CopilotNavButton } from "@/features/copilot/components/CopilotNavButton";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app.
@@ -332,8 +333,8 @@ export default function Sidebar({
     >
       {/* Main navigation tabs */}
       <nav className="py-2 flex-shrink-0">
-
         {MAIN_TABS.map(renderTab)}
+        <CopilotNavButton collapsed={collapsed} />
       </nav>
 
       {/* My Views section — only when expanded */}

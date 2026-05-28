@@ -4,6 +4,7 @@ import { Check, Database, Eye } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { LiveTrace } from "./LiveTrace";
 import { VersionPill } from "./VersionPill";
+import { AssistantMarkdown } from "@/features/shared/components/AssistantMarkdown";
 import type { BuilderTurn } from "./types";
 
 interface Props {
@@ -101,7 +102,7 @@ function AssistantCard({
           />
         </div>
       )}
-      {turn.assistantText && <RenderMarkdown text={turn.assistantText} />}
+      {turn.assistantText && <AssistantMarkdown text={turn.assistantText} />}
       {v && (
         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-[#E2DEEC] pt-2">
           <span
@@ -194,121 +195,3 @@ function ErrorCard({ message }: { message: string }) {
   );
 }
 
-// Lightweight Markdown subset for assistant replies: paragraphs, bullet
-// lists, numbered lists, and **bold** inline. Long, dense answers (e.g.
-// "here are 5 ways to slice this") were previously rendered as one wall of
-// text; this gives the agent room to format readably without pulling in a
-// full Markdown library.
-function RenderInline({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return (
-            <strong key={i} className="font-semibold text-[#322a5a]">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-}
-
-interface ListBlock {
-  kind: "ul" | "ol";
-  items: string[];
-}
-type Block = { kind: "p"; text: string } | ListBlock;
-
-// Group consecutive `- foo` / `* foo` lines into a <ul>, `1. foo` lines into
-// an <ol>, and anything else into <p>. Blank lines separate paragraphs.
-function parseBlocks(text: string): Block[] {
-  const lines = text.split("\n");
-  const blocks: Block[] = [];
-  let paragraphBuf: string[] = [];
-  let listBuf: ListBlock | null = null;
-
-  const flushParagraph = (): void => {
-    if (paragraphBuf.length === 0) return;
-    blocks.push({ kind: "p", text: paragraphBuf.join(" ") });
-    paragraphBuf = [];
-  };
-  const flushList = (): void => {
-    if (listBuf) {
-      blocks.push(listBuf);
-      listBuf = null;
-    }
-  };
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-    const bullet = /^[-*]\s+(.*)$/.exec(line);
-    const numbered = /^\d+\.\s+(.*)$/.exec(line);
-    if (bullet) {
-      flushParagraph();
-      if (!listBuf || listBuf.kind !== "ul") {
-        flushList();
-        listBuf = { kind: "ul", items: [] };
-      }
-      listBuf.items.push(bullet[1]!);
-    } else if (numbered) {
-      flushParagraph();
-      if (!listBuf || listBuf.kind !== "ol") {
-        flushList();
-        listBuf = { kind: "ol", items: [] };
-      }
-      listBuf.items.push(numbered[1]!);
-    } else {
-      flushList();
-      paragraphBuf.push(line);
-    }
-  }
-  flushParagraph();
-  flushList();
-  return blocks;
-}
-
-function RenderMarkdown({ text }: { text: string }) {
-  const blocks = parseBlocks(text);
-  return (
-    <div className="space-y-2">
-      {blocks.map((b, i) => {
-        if (b.kind === "p") {
-          return (
-            <p key={i} className="leading-relaxed">
-              <RenderInline text={b.text} />
-            </p>
-          );
-        }
-        if (b.kind === "ul") {
-          return (
-            <ul key={i} className="list-disc space-y-1 pl-4 marker:text-[#A69DC0]">
-              {b.items.map((it, j) => (
-                <li key={j} className="leading-relaxed">
-                  <RenderInline text={it} />
-                </li>
-              ))}
-            </ul>
-          );
-        }
-        return (
-          <ol key={i} className="list-decimal space-y-1 pl-4 marker:text-[#A69DC0]">
-            {b.items.map((it, j) => (
-              <li key={j} className="leading-relaxed">
-                <RenderInline text={it} />
-              </li>
-            ))}
-          </ol>
-        );
-      })}
-    </div>
-  );
-}

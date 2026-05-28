@@ -51,6 +51,18 @@ export interface ClickRipple {
 // Panel types for unified panel management
 export type PanelType = 'district' | 'state' | 'school' | null;
 
+/** A snapshot of what the active view is currently showing, published by views
+ *  so the AI copilot can reason about "these" rows on the page. Transient — never
+ *  persisted, and cleared on view unmount. */
+export interface CopilotViewSnapshot {
+  /** Short description of what the rows are, e.g. "Low-hanging-fruit list". */
+  source: string;
+  /** Visible rows, trimmed to display-relevant fields (the reader caps the count). */
+  rows: Array<Record<string, unknown>>;
+  /** Human-readable active filter labels, if any. */
+  filters?: string[];
+}
+
 interface MapState {
   // Navigation state - which tab is active and sidebar collapse state
   activeTab: TabId;
@@ -82,6 +94,11 @@ interface MapState {
   // Charter district layer toggle
   charterLayerVisible: boolean;
   selectedNcessch: string | null;
+  // Snapshot of the active view's visible rows, for the AI copilot's page context
+  copilotView: CopilotViewSnapshot | null;
+  // Whether the AI copilot rail is open. Lifted into the store so AppShell can
+  // reserve space for it (split view) — persisted like sidebarCollapsed.
+  copilotOpen: boolean;
 }
 
 interface MapActions {
@@ -125,6 +142,10 @@ interface MapActions {
   setSelectedNcessch: (ncessch: string | null) => void;
   clearSelectedNcessch: () => void;
   openSchoolPanel: (ncessch: string) => void;
+  // Copilot page-context publishing (views opt in)
+  setCopilotView: (view: CopilotViewSnapshot | null) => void;
+  clearCopilotView: () => void;
+  setCopilotOpen: (open: boolean) => void;
 }
 
 const initialTooltip: TooltipState = {
@@ -163,6 +184,8 @@ export const useMapStore = create<MapState & MapActions>()(
       vendorLayerVisible: false,
       charterLayerVisible: false,
       selectedNcessch: null,
+      copilotView: null,
+      copilotOpen: false,
 
       // Navigation actions
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -286,12 +309,16 @@ export const useMapStore = create<MapState & MapActions>()(
       selectedLeaid: null,
       selectedStateCode: null,
     }),
+  setCopilotView: (view) => set({ copilotView: view }),
+  clearCopilotView: () => set({ copilotView: null }),
+  setCopilotOpen: (open) => set({ copilotOpen: open }),
     }),
     {
       name: "territory-plan-storage",
       // Only persist navigation preferences, not transient UI state
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
+        copilotOpen: state.copilotOpen,
         // Don't persist activeTab - we'll sync with URL instead
       }),
     }

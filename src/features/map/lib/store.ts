@@ -437,6 +437,11 @@ interface MapV2Actions {
 
   // Focus Map
   focusPlan: (planId: string, stateAbbrevs: string[], leaids: string[], bounds: [[number, number], [number, number]]) => void;
+  focusDistricts: (
+    leaids: string[],
+    stateAbbrevs: string[],
+    bounds: [[number, number], [number, number]] | null,
+  ) => void;
   unfocusPlan: () => void;
   clearPendingFitBounds: () => void;
 
@@ -522,6 +527,52 @@ function serializeMapState(s: MapV2State & MapV2Actions): string {
     signalPalette: s.signalPalette,
     visibleMetrics: [...s.visibleMetrics].sort(),
   });
+}
+
+/** Sentinel focusPlanId for a Copilot query-driven focus (matches no real plan,
+ *  so the exit-focus control still shows and unfocusPlan restores filters). */
+export const COPILOT_FOCUS_ID = "__copilot_query__";
+
+/** Shared body for focusPlan / focusDistricts: stash current filters, isolate to
+ *  the given districts + states, reset engagement defaults, and queue fitBounds. */
+function buildFocusUpdate(
+  s: MapV2State & MapV2Actions,
+  focusId: string,
+  stateAbbrevs: string[],
+  leaids: string[],
+  bounds: [[number, number], [number, number]] | null,
+) {
+  return {
+    focusPlanId: focusId,
+    focusLeaids: leaids,
+    preFocusFilters: {
+      filterStates: s.filterStates,
+      filterPlanId: s.filterPlanId,
+      filterOwner: s.filterOwner,
+      filterAccountTypes: s.filterAccountTypes,
+      fullmindEngagement: s.fullmindEngagement,
+      competitorEngagement: s.competitorEngagement,
+    },
+    // Clear all filters and apply only the plan's state filter
+    filterStates: stateAbbrevs,
+    filterOwner: null,
+    filterAccountTypes: [],
+    fullmindEngagement: [
+      "new_business_pipeline",
+      "winback_pipeline",
+      "renewal_pipeline",
+      "expansion_pipeline",
+      "first_year",
+      "multi_year_growing",
+      "multi_year_flat",
+      "multi_year_shrinking",
+      "lapsed",
+    ],
+    competitorEngagement: {},
+    // Don't set filterPlanId — we want non-plan districts visible (dimmed),
+    // not hidden. The highlight layers make plan districts stand out.
+    pendingFitBounds: bounds,
+  };
 }
 
 export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => ({
@@ -1131,37 +1182,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
 
   // Focus Map — saves ALL current filters, clears them, applies plan state filter + highlight layers, queues fitBounds
   focusPlan: (planId, stateAbbrevs, leaids, bounds) =>
-    set((s) => ({
-      focusPlanId: planId,
-      focusLeaids: leaids,
-      preFocusFilters: {
-        filterStates: s.filterStates,
-        filterPlanId: s.filterPlanId,
-        filterOwner: s.filterOwner,
-        filterAccountTypes: s.filterAccountTypes,
-        fullmindEngagement: s.fullmindEngagement,
-        competitorEngagement: s.competitorEngagement,
-      },
-      // Clear all filters and apply only the plan's state filter
-      filterStates: stateAbbrevs,
-      filterOwner: null,
-      filterAccountTypes: [],
-      fullmindEngagement: [
-        "new_business_pipeline",
-        "winback_pipeline",
-        "renewal_pipeline",
-        "expansion_pipeline",
-        "first_year",
-        "multi_year_growing",
-        "multi_year_flat",
-        "multi_year_shrinking",
-        "lapsed",
-      ],
-      competitorEngagement: {},
-      // Don't set filterPlanId — we want non-plan districts visible (dimmed),
-      // not hidden. The highlight layers make plan districts stand out.
-      pendingFitBounds: bounds,
-    })),
+    set((s) => buildFocusUpdate(s, planId, stateAbbrevs, leaids, bounds)),
+  focusDistricts: (leaids, stateAbbrevs, bounds) =>
+    set((s) => buildFocusUpdate(s, COPILOT_FOCUS_ID, stateAbbrevs, leaids, bounds)),
 
   unfocusPlan: () =>
     set((s) => ({

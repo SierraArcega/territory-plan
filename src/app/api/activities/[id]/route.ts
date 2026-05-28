@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser, isAdmin } from "@/lib/supabase/server";
-import {
-  getCategoryForType,
-  ALL_ACTIVITY_TYPES,
-  VALID_ACTIVITY_STATUSES,
-  VALID_ACTIVITY_OUTCOMES,
-  VALID_ACTIVITY_SENTIMENTS,
-  VALID_DEAL_IMPACTS,
-  type ActivityType,
-} from "@/features/activities/types";
+import { getCategoryForType, type ActivityType } from "@/features/activities/types";
+import { updateActivity } from "@/features/activities/lib/service";
+import { isServiceError } from "@/features/shared/lib/service-error";
 import { updateActivityOnCalendar, deleteActivityFromCalendar } from "@/features/calendar/lib/push";
 
 export const dynamic = "force-dynamic";
@@ -247,176 +241,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify activity exists and user can edit it
-    const existing = await prisma.activity.findUnique({
-      where: { id },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Activity not found" }, { status: 404 });
-    }
-
-    // Allow editing if user owns it, if it has no owner (backwards compatibility), or if user is admin
-    if (existing.createdByUserId && existing.createdByUserId !== user.id) {
-      if (!(await isAdmin(user.id))) {
-        return NextResponse.json({ error: "Not authorized to edit this activity" }, { status: 403 });
-      }
-    }
-
     const body = await request.json();
-    const {
-      type, title, notes, startDate, endDate, status, outcome, outcomeType,
-      // Wave 1 redesigned outcome fields — see types.ts VALID_* constants
-      sentiment, nextStep, followUpDate, dealImpact, outcomeDisposition,
-      address, addressLat, addressLng, inPerson,
-      metadata, attendeeUserIds, contactIds, expenses, rating, opportunityIds,
-      districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
-      createdByUserId, // owner reassignment — auth gate above already restricts to current owner or admin
-    } = body;
+    // Scalar update + validation + owner/admin auth are delegated to the
+    // service; this route still reconciles relations (below) and pushes the
+    // change to Google Calendar.
+    const activity = await updateActivity(id, body, user.id, () => isAdmin(user.id));
+    const { attendeeUserIds, contactIds, expenses, opportunityIds, districts: districtUpdates } = body;
 
-    // Validate the new owner exists when reassigning ownership.
-    if (createdByUserId !== undefined && createdByUserId !== null) {
-      const newOwner = await prisma.userProfile.findUnique({
-        where: { id: createdByUserId },
-        select: { id: true },
-      });
-      if (!newOwner) {
-        return NextResponse.json({ error: "invalid_owner" }, { status: 400 });
-      }
-    }
-
-    // Validate type if provided — allow keeping the existing type even if it's
-    // a legacy value not in the current enum (e.g. customer_check_in)
-    if (type && type !== existing.type && !ALL_ACTIVITY_TYPES.includes(type)) {
-      return NextResponse.json(
-        { error: `Invalid activity type: ${type}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate status if provided
-    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
-      return NextResponse.json(
-        { error: `status must be one of: ${VALID_ACTIVITY_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate dates if provided
-    if (startDate !== undefined && startDate !== null) {
-      const parsedStart = new Date(startDate);
-      if (isNaN(parsedStart.getTime())) {
-        return NextResponse.json(
-          { error: "startDate must be a valid date" },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (endDate !== undefined && endDate !== null) {
-      const parsedEnd = new Date(endDate);
-      if (isNaN(parsedEnd.getTime())) {
-        return NextResponse.json(
-          { error: "endDate must be a valid date" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate rating if provided (1-5 integer)
-    if (rating !== undefined && rating !== null) {
-      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-        return NextResponse.json(
-          { error: "rating must be an integer between 1 and 5" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate opportunityIds if provided
+    // opportunityIds is a relation reconciled below (not a scalar handled by the
+    // service); validate its shape here to match the route's prior behavior.
     if (opportunityIds !== undefined && !Array.isArray(opportunityIds)) {
       return NextResponse.json(
         { error: "opportunityIds must be an array of strings" },
         { status: 400 }
       );
     }
-
-    // Validate redesigned outcome fields. Treating null/empty string as
-    // "clear the value" so the auto-save model can revert a field cleanly.
-    if (sentiment != null && sentiment !== "" &&
-        !(VALID_ACTIVITY_SENTIMENTS as readonly string[]).includes(sentiment)) {
-      return NextResponse.json(
-        { error: `sentiment must be one of: ${VALID_ACTIVITY_SENTIMENTS.join(", ")}` },
-        { status: 400 }
-      );
-    }
-    if (dealImpact != null && dealImpact !== "" &&
-        !(VALID_DEAL_IMPACTS as readonly string[]).includes(dealImpact)) {
-      return NextResponse.json(
-        { error: `dealImpact must be one of: ${VALID_DEAL_IMPACTS.join(", ")}` },
-        { status: 400 }
-      );
-    }
-    if (outcomeDisposition != null && outcomeDisposition !== "" &&
-        !(VALID_ACTIVITY_OUTCOMES as readonly string[]).includes(outcomeDisposition)) {
-      return NextResponse.json(
-        { error: `outcomeDisposition must be one of: ${VALID_ACTIVITY_OUTCOMES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-    if (followUpDate !== undefined && followUpDate !== null && followUpDate !== "") {
-      const parsedFollowUp = new Date(followUpDate);
-      if (isNaN(parsedFollowUp.getTime())) {
-        return NextResponse.json(
-          { error: "followUpDate must be a valid date" },
-          { status: 400 }
-        );
-      }
-    }
-
-    const activity = await prisma.activity.update({
-      where: { id },
-      data: {
-        ...(type && { type }),
-        ...(title && { title: title.trim() }),
-        ...(notes !== undefined && { notes: notes?.trim() || null }),
-        ...(startDate !== undefined && {
-          startDate: startDate ? new Date(startDate) : null,
-        }),
-        ...(endDate !== undefined && {
-          endDate: endDate ? new Date(endDate) : null,
-        }),
-        ...(status && { status }),
-        ...(outcome !== undefined && { outcome: outcome?.trim() || null }),
-        ...(outcomeType !== undefined && { outcomeType: outcomeType || null }),
-        ...(sentiment !== undefined && { sentiment: sentiment || null }),
-        ...(nextStep !== undefined && { nextStep: nextStep?.trim() || null }),
-        ...(followUpDate !== undefined && {
-          followUpDate: followUpDate ? new Date(followUpDate) : null,
-        }),
-        ...(dealImpact !== undefined && dealImpact !== null && dealImpact !== "" && {
-          dealImpact,
-        }),
-        ...(outcomeDisposition !== undefined && {
-          outcomeDisposition: outcomeDisposition || null,
-        }),
-        ...(address !== undefined && {
-          address: typeof address === "string" ? address.trim() || null : null,
-        }),
-        ...(addressLat !== undefined && {
-          addressLat: addressLat === null ? null : Number(addressLat),
-        }),
-        ...(addressLng !== undefined && {
-          addressLng: addressLng === null ? null : Number(addressLng),
-        }),
-        ...(inPerson !== undefined && {
-          inPerson: inPerson === null ? null : Boolean(inPerson),
-        }),
-        ...(metadata !== undefined && { metadata: metadata }),
-        ...(rating !== undefined && { rating: rating }),
-        ...(createdByUserId !== undefined && { createdByUserId }),
-      },
-    });
 
     // Update attendees if provided (replace all)
     if (attendeeUserIds !== undefined) {
@@ -542,6 +381,9 @@ export async function PATCH(
       }),
     });
   } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error updating activity:", error);
     return NextResponse.json(
       { error: "Failed to update activity" },
