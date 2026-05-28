@@ -22,6 +22,7 @@ import { isIdColumn } from "@/features/reports/lib/result-columns";
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { CopilotHomeState } from "./CopilotHomeState";
+import { CopilotProgress } from "./CopilotProgress";
 import { useCopilotTurnStream } from "../hooks/useCopilotTurnStream";
 import { useCopilotPageContext } from "../hooks/useCopilotPageContext";
 import { useExecuteCopilotAction } from "../hooks/useExecuteCopilotAction";
@@ -63,16 +64,6 @@ const uid = (): string =>
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-function latestToolLabel(events: TurnEvent[] | undefined): string {
-  if (!events || events.length === 0) return "Thinking…";
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i];
-    if (e.kind === "model_call" && e.toolUses.length > 0) {
-      return `Running ${e.toolUses[e.toolUses.length - 1]!.name}…`;
-    }
-  }
-  return "Thinking…";
-}
 
 export default function CopilotPanel() {
   const isMobile = useIsMobile();
@@ -443,10 +434,7 @@ function MessageBlock({
   return (
     <div className="panel-content-enter space-y-2">
       {msg.streaming && !msg.text ? (
-        <div className="flex items-center gap-2 text-sm text-[#6E6390]">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>{latestToolLabel(msg.events)}</span>
-        </div>
+        <CopilotProgress events={msg.events} />
       ) : (
         msg.text && (
           <div
