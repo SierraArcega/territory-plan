@@ -10,7 +10,7 @@ export async function GET() {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const conversations = await loadRecentConversations(prisma, user.id, 5);
+    const conversations = await loadRecentConversations(prisma, user.id, 3);
     return NextResponse.json({ conversations });
   } catch (error) {
     console.error("[copilot/conversations] failed", error);
