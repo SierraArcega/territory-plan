@@ -9,7 +9,7 @@ import { plainTextToNoteDoc } from "@/features/views/lib/note-doc";
 import { isNoteType, NOTE_TYPE_LABELS } from "@/features/views/lib/note-types";
 import { createActivity, updateActivity } from "@/features/activities/lib/service";
 import { ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES } from "@/features/activities/types";
-import { createPlan, updatePlan, addDistrictsToPlan } from "@/features/plans/lib/service";
+import { createPlan, updatePlan, addDistrictsToPlan, removeDistrictsFromPlan } from "@/features/plans/lib/service";
 import { isAdmin } from "@/lib/supabase/server";
 import type {
   ActionPreview,
@@ -621,5 +621,28 @@ register(
     }),
     validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
     execute: (f, { targetId, ctx }) => addDistrictsToPlan(String(targetId), f.leaids, ctx.db),
+  }),
+);
+
+// ===== plan.remove_districts — unlink existing districts from a plan =====
+register(
+  defineAction({
+    objectType: "plan",
+    operation: "remove_districts",
+    needsTarget: true,
+    fieldsSchema: z.object({
+      leaids: z.array(z.string().min(1)).min(1, "provide at least one district"),
+    }),
+    buildPreview: (f, { summary }) => ({
+      title: "Remove districts from plan",
+      summary:
+        summary ||
+        `Remove ${f.leaids.length} district${f.leaids.length === 1 ? "" : "s"} from the plan`,
+      rows: [{ label: "Districts", value: String(f.leaids.length) }],
+      destructive: true,
+    }),
+    validate: async (f, { db }) => leaidErrors(await missingLeaids(f.leaids, db)),
+    execute: (f, { targetId, ctx }) =>
+      removeDistrictsFromPlan(String(targetId), f.leaids, ctx.db),
   }),
 );

@@ -247,4 +247,32 @@ describe("plan actions", () => {
     expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
     expect(preview.rows.some((r) => r.value === "2")).toBe(true);
   });
+
+  it("plan.remove_districts needs a target plan and a non-empty leaid list", () => {
+    const a = getAction("plan", "remove_districts")!;
+    expect(a).toBeDefined();
+    expect(a.needsTarget).toBe(true);
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ leaids: [] }).ok).toBe(false);
+    expect(a.parse({ leaids: ["0601234"] }).ok).toBe(true);
+  });
+
+  it("plan.remove_districts validate flags leaids that don't exist", async () => {
+    const a = getAction("plan", "remove_districts")!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbNone = { district: { findMany: async () => [] } } as any;
+    const errs = await a.validate!({ leaids: ["ghost"] }, { userId: "u", db: dbNone });
+    expect(errs.length).toBeGreaterThan(0);
+    expect(errs[0]).toMatch(/leaid/i);
+  });
+
+  it("plan.remove_districts confirm card is destructive and shows a count, not raw leaids", () => {
+    const a = getAction("plan", "remove_districts")!;
+    const parsed = a.parse({ leaids: ["0601234", "4800001"] });
+    if (!parsed.ok) throw new Error("expected valid");
+    const preview = a.buildPreview(parsed.fields, { targetId: "plan-1", summary: "Remove 2 districts from Texas FY26" });
+    expect(preview.destructive).toBe(true);
+    expect(preview.rows.some((r) => r.value === "0601234")).toBe(false);
+    expect(preview.rows.some((r) => r.value === "2")).toBe(true);
+  });
 });
