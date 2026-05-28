@@ -30,7 +30,7 @@ type Db = Pick<PrismaClient, "opportunity">;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Open deals for a rep (or all), newest close-date first. Mirrors /api/deals/open. */
+/** Open deals for a rep (or all), earliest close-date first. Mirrors /api/deals/open. */
 export async function getOpenDeals(
   db: Db,
   opts: { ownerId: string | "all"; stateAbbrevs?: string[]; limit?: number; now?: Date },

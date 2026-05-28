@@ -25,5 +25,6 @@ describe("isOverdue", () => {
   it("is false when closeDate is future or null", () => {
     expect(isOverdue(new Date("2026-06-01T00:00:00Z"), now)).toBe(false);
     expect(isOverdue(null, now)).toBe(false);
+    expect(isOverdue(undefined, now)).toBe(false);
   });
 });
