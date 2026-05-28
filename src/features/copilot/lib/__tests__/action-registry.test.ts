@@ -276,3 +276,40 @@ describe("plan actions", () => {
     expect(preview.rows.some((r) => r.value === "2")).toBe(true);
   });
 });
+
+describe("plan activity-link actions", () => {
+  it("exposes plan.add_activities and plan.remove_activities, both needing a target", () => {
+    const add = getAction("plan", "add_activities");
+    const remove = getAction("plan", "remove_activities");
+    expect(add).toBeDefined();
+    expect(remove).toBeDefined();
+    expect(add!.needsTarget).toBe(true);
+    expect(remove!.needsTarget).toBe(true);
+  });
+
+  it("requires a non-empty activityIds array", () => {
+    const a = getAction("plan", "add_activities")!;
+    expect(a.parse({}).ok).toBe(false);
+    expect(a.parse({ activityIds: [] }).ok).toBe(false);
+    expect(a.parse({ activityIds: ["act-1", "act-2"] }).ok).toBe(true);
+  });
+
+  it("add is non-destructive, remove is destructive", () => {
+    const add = getAction("plan", "add_activities")!;
+    const remove = getAction("plan", "remove_activities")!;
+    const parsedAdd = add.parse({ activityIds: ["act-1", "act-2"] });
+    const parsedRemove = remove.parse({ activityIds: ["act-1"] });
+    expect(parsedAdd.ok && parsedRemove.ok).toBe(true);
+    if (!parsedAdd.ok || !parsedRemove.ok) return;
+    expect(add.buildPreview(parsedAdd.fields, { targetId: "plan-1" }).destructive).toBe(false);
+    expect(remove.buildPreview(parsedRemove.fields, { targetId: "plan-1" }).destructive).toBe(true);
+  });
+
+  it("validate rejects activity ids with no matching activity", async () => {
+    const a = getAction("plan", "add_activities")!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbNone = { activity: { findMany: async () => [] } } as any;
+    const errs = await a.validate!({ activityIds: ["ghost"] }, { userId: "u", db: dbNone });
+    expect(errs.length).toBeGreaterThan(0);
+  });
+});
