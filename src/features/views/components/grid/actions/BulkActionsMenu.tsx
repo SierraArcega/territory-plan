@@ -131,7 +131,7 @@ export function BulkActionsMenu({
       </button>
 
       {/* Actions dropdown */}
-      <AnchoredPopover anchorRef={btnRef} open={open} onDismiss={() => setOpen(false)}>
+      <AnchoredPopover anchorRef={btnRef} open={open} onDismiss={() => setOpen(false)} align="right">
         <div
           role="menu"
           aria-label="Bulk actions"
@@ -171,7 +171,7 @@ export function BulkActionsMenu({
 
       {/* Remove confirm */}
       {surface === "remove" && (
-        <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
+        <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)} align="right">
           <div
             role="dialog"
             aria-modal="true"
