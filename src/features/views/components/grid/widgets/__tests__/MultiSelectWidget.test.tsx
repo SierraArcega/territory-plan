@@ -109,6 +109,33 @@ describe("MultiSelectWidget", () => {
     expect(screen.queryByLabelText("Banana")).not.toBeInTheDocument();
   });
 
+  it("matches dynamic options by abbreviation (value) when label does not match", () => {
+    setEnumState({
+      isLoading: false,
+      data: {
+        values: [
+          { value: "MT", label: "Montana" },
+          { value: "MN", label: "Minnesota" },
+          { value: "CA", label: "California" },
+        ],
+      },
+    });
+    render(
+      <MultiSelectWidget
+        widget={{ kind: "multiselect", enumSource: "states" }}
+        value={[]}
+        onApply={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/search/i), {
+      target: { value: "MT" },
+    });
+    expect(screen.getByLabelText("Montana")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Minnesota")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("California")).not.toBeInTheDocument();
+  });
+
   it("Apply button fires onApply with current selection", () => {
     const onApply = vi.fn();
     render(

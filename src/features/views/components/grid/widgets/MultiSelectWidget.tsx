@@ -28,7 +28,11 @@ export function MultiSelectWidget({
   const filtered = useMemo(() => {
     if (!query) return options;
     const q = query.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        o.value.toLowerCase().includes(q),
+    );
   }, [options, query]);
 
   const toggle = (v: string) =>
