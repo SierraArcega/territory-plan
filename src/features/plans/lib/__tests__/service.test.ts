@@ -146,6 +146,7 @@ describe("addActivitiesToPlan", () => {
   it("404s when the plan is missing", async () => {
     mockPrisma.territoryPlan.findUnique.mockResolvedValue(null);
     await expect(addActivitiesToPlan("plan-x", ["act-1"])).rejects.toMatchObject({ status: 404 });
+    expect(mockPrisma.activityPlan.createMany).not.toHaveBeenCalled();
   });
 
   it("400s when an activity does not exist", async () => {
