@@ -37,7 +37,7 @@ import {
   ViewScroll,
 } from "../views/_shared";
 import GridPager from "./GridPager";
-import { GRID_PAGE_SIZE } from "./grid-pagination";
+import { DEFAULT_PAGE_SIZE, type PageSize } from "./grid-pagination";
 
 function FilteredEmptyState({ onClear }: { onClear: () => void }) {
   return (
@@ -190,6 +190,7 @@ export default function GridView(props: GridViewProps) {
     : (onLayoutChangeProp ?? (() => {}));
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
@@ -213,6 +214,7 @@ export default function GridView(props: GridViewProps) {
     JSON.stringify(layout.filters),
     JSON.stringify(layout.sort),
     layout.groupBy?.id ?? "",
+    String(pageSize),
   ].join("|");
   const [prevQuerySig, setPrevQuerySig] = useState(querySig);
   let effectivePage = page;
@@ -234,9 +236,9 @@ export default function GridView(props: GridViewProps) {
   }
 
   // One fixed-size window per fetch (offset paging), so we never exceed the
-  // backend's 200-row LIMIT cap and every page is reachable.
-  const limit = GRID_PAGE_SIZE;
-  const offset = (effectivePage - 1) * GRID_PAGE_SIZE;
+  // backend's 1000-row LIMIT cap and every page is reachable.
+  const limit = pageSize;
+  const offset = (effectivePage - 1) * pageSize;
   const q = useViewsData({ source, leaids, listId, planId, layout, limit, offset });
 
   function handleSortChange(columnId: string, dir: "asc" | "desc" | null, shift: boolean) {
@@ -836,12 +838,13 @@ export default function GridView(props: GridViewProps) {
           </tbody>
         </table>
       </div>
-      {total > GRID_PAGE_SIZE && (
+      {total > pageSize && (
         <GridPager
           total={total}
           page={effectivePage}
-          pageSize={GRID_PAGE_SIZE}
+          pageSize={pageSize}
           onPageChange={setPage}
+          onPageSizeChange={setPageSize}
         />
       )}
     </div>

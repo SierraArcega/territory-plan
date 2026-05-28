@@ -58,6 +58,7 @@ describe("GridView — pagination", () => {
       </Wrapper>,
     );
 
+    expect(lastArgs().limit).toBe(50); // DEFAULT_PAGE_SIZE
     expect(lastArgs()).toMatchObject({ limit: 50, offset: 0 });
   });
 
@@ -150,5 +151,33 @@ describe("GridView — pagination", () => {
 
     expect(lastArgs()).toMatchObject({ offset: 0 });
     expect(screen.getByText("Showing 1–50 of 738")).toBeInTheDocument();
+  });
+
+  it("re-fetches with the new limit when page size changes", async () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: rows(50), total: 500 },
+    });
+    render(
+      <GridView
+        source="districts"
+        leaids={null}
+        listId={null}
+        parentKind="plan"
+        parentId="plan-1"
+        viewType="table"
+        layout={emptyLayout()}
+        onLayoutChange={() => {}}
+      />,
+      { wrapper: makeWrapper() },
+    );
+
+    // Find the rows-per-page select and change to 200.
+    const select = screen.getByRole("combobox", { name: /rows per page/i });
+    fireEvent.change(select, { target: { value: "200" } });
+
+    // GridView re-renders; useViewsData should now receive limit=200.
+    expect(lastArgs().limit).toBe(200);
   });
 });

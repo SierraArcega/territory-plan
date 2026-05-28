@@ -11,7 +11,7 @@
  *   listId    — optional. Load a SavedList and merge its filterTree into the query.
  *   filters   — optional JSON-encoded FilterNode to AND on top of listId filters.
  *   sort      — repeatable `<fieldId>:<asc|desc>` (e.g. sort=name:asc&sort=enrollment:desc).
- *   limit     — default 50, max 200.
+ *   limit     — default 50, max 1000.
  *   offset    — default 0.
  *
  * Note (v1 limitation): leaids scoping is not applied when source=news. News
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
 
   // 4. Parse limit/offset.
   const rawLimit = parseInt(searchParams.get("limit") ?? "50", 10);
-  const limit = Math.min(isNaN(rawLimit) || rawLimit < 1 ? 50 : rawLimit, 200);
+  const limit = Math.min(isNaN(rawLimit) || rawLimit < 1 ? 50 : rawLimit, 1000);
   const rawOffset = parseInt(searchParams.get("offset") ?? "0", 10);
   const offset = isNaN(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
 
