@@ -52,3 +52,16 @@ export function cumulativeColumns(rows: DatedValueRow[], fy: number): Map<string
   }
   return byRep;
 }
+
+// The "today" column for a given FY relative to `now` — the solid→dashed boundary.
+// A past FY is fully delivered (12); a future FY hasn't started (0); the current FY
+// resolves to its in-progress month. (fyMonthIndex already clamps both extremes.)
+export function todayColumnIndex(fy: number, now: Date = new Date()): number {
+  return fyMonthIndex(now, fy);
+}
+
+// Projection (locked decision): carry the current standing flat into future months.
+// Columns after `todayIndex` take the today-column value; columns up to it are kept.
+export function flatCarry(columns: number[], todayIndex: number): number[] {
+  return columns.map((v, i) => (i > todayIndex ? columns[todayIndex] : v));
+}

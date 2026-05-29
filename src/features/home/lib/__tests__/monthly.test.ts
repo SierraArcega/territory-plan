@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { fyMonthIndex, cumulativeColumns, FY_COLUMN_LABELS } from "../monthly";
+import {
+  fyMonthIndex,
+  cumulativeColumns,
+  flatCarry,
+  todayColumnIndex,
+  FY_COLUMN_LABELS,
+} from "../monthly";
 
 // FY26 = "2025-26": Jul 1 2025 → Jun 30 2026. 13 columns: Pre-FY + Jul..Jun.
 const FY = 2026;
@@ -79,5 +85,33 @@ describe("cumulativeColumns", () => {
 
   it("returns an empty map for no rows", () => {
     expect(cumulativeColumns([], FY).size).toBe(0);
+  });
+});
+
+describe("todayColumnIndex", () => {
+  it("returns the current month's column when 'now' is inside the FY", () => {
+    // May 2026 is inside FY26 → column 11 (May).
+    expect(todayColumnIndex(2026, new Date("2026-05-29T12:00:00Z"))).toBe(11);
+  });
+
+  it("returns the final column (12) for a fully-elapsed past FY", () => {
+    expect(todayColumnIndex(2025, new Date("2026-05-29T12:00:00Z"))).toBe(12);
+  });
+
+  it("returns the Pre-FY column (0) for a not-yet-started future FY", () => {
+    expect(todayColumnIndex(2027, new Date("2026-05-29T12:00:00Z"))).toBe(0);
+  });
+});
+
+describe("flatCarry", () => {
+  it("holds the today-column value flat across all future columns", () => {
+    const carried = flatCarry([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], 8);
+    // columns 0..8 unchanged; 9..12 carry column-8's value (80)
+    expect(carried).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 80, 80, 80, 80]);
+  });
+
+  it("leaves the array unchanged when today is the final column", () => {
+    const cols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    expect(flatCarry(cols, 12)).toEqual(cols);
   });
 });
