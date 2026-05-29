@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { ServiceError, type DbClient } from "@/features/shared/lib/service-error";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 import {
   ALL_ACTIVITY_TYPES,
   VALID_ACTIVITY_STATUSES,
@@ -126,6 +127,11 @@ export async function createActivity(input: CreateActivityInput, userId: string,
     ...new Set([...districtLeaids, ...districtDetails.map((d) => d.leaid)]),
   ];
 
+  // Auto-link: attach this activity to every plan that contains any of its
+  // districts (in addition to caller-supplied planIds), deduped.
+  const autoPlanIds = await findPlanIdsForDistricts(allDistrictLeaids, db);
+  const mergedPlanIds = [...new Set([...planIds, ...autoPlanIds])];
+
   return db.activity.create({
     data: {
       type,
@@ -143,7 +149,7 @@ export async function createActivity(input: CreateActivityInput, userId: string,
       inPerson: inPerson == null ? null : Boolean(inPerson),
       metadata: metadata || undefined,
       createdByUserId: userId,
-      plans: { create: planIds.map((planId) => ({ planId })) },
+      plans: { create: mergedPlanIds.map((planId) => ({ planId })) },
       districts: {
         create: allDistrictLeaids.map((leaid) => {
           const detail = districtDetailsMap.get(leaid);

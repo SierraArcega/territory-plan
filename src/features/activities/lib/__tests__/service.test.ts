@@ -4,6 +4,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     activity: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     district: { findMany: vi.fn() },
+    territoryPlanDistrict: { findMany: vi.fn() },
     userProfile: { findUnique: vi.fn() },
   },
 }));
@@ -18,7 +19,11 @@ import { ServiceError } from "@/features/shared/lib/service-error";
 const never = () => Promise.resolve(false);
 const always = () => Promise.resolve(true);
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: districts belong to no plan, so auto-link is a no-op.
+  mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+});
 
 describe("createActivity", () => {
   it("rejects missing type or title", async () => {
@@ -51,6 +56,23 @@ describe("createActivity", () => {
     expect(arg.data.createdByUserId).toBe("user-1");
     expect(arg.data.plans).toEqual({ create: [{ planId: "plan-1" }] });
     expect(arg.data.districts.create[0]).toMatchObject({ districtLeaid: "0601234", warningDismissed: false });
+  });
+
+  it("auto-links plans that contain the activity's districts", async () => {
+    mockPrisma.district.findMany.mockResolvedValue([{ stateFips: "06" }]);
+    mockPrisma.activity.create.mockResolvedValue({ id: "a-2" });
+    // District 0601234 lives in plan-1 (caller-supplied) AND plan-2 (auto).
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([
+      { planId: "plan-1" },
+      { planId: "plan-2" },
+    ]);
+    await createActivity(
+      { type: "discovery_call", title: "Demo", planIds: ["plan-1"], districtLeaids: ["0601234"] },
+      "user-1",
+    );
+    const arg = mockPrisma.activity.create.mock.calls[0][0];
+    const planIds = arg.data.plans.create.map((p: { planId: string }) => p.planId).sort();
+    expect(planIds).toEqual(["plan-1", "plan-2"]);
   });
 });
 

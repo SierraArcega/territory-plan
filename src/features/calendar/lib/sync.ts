@@ -14,6 +14,7 @@ import {
   type CalendarEventAttendee,
 } from "@/features/calendar/lib/google";
 import { encrypt, decrypt } from "@/features/integrations/lib/encryption";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 
 // ===== Types =====
 
@@ -509,6 +510,11 @@ export async function confirmCalendarEvent(
 
   // Create the Activity with all associations in a single transaction
   const activity = await prisma.$transaction(async (tx) => {
+    // Auto-link: every plan containing the resolved districts, in addition to
+    // the suggested/override plan(s). Uses tx for read consistency.
+    const autoPlanIds = await findPlanIdsForDistricts(districtLeaids, tx);
+    const allPlanIds = [...new Set([...planIds, ...autoPlanIds])];
+
     // Create the activity
     const newActivity = await tx.activity.create({
       data: {
@@ -525,9 +531,9 @@ export async function confirmCalendarEvent(
     });
 
     // Link to plans
-    if (planIds.length > 0) {
+    if (allPlanIds.length > 0) {
       await tx.activityPlan.createMany({
-        data: planIds.map((planId) => ({
+        data: allPlanIds.map((planId) => ({
           activityId: newActivity.id,
           planId,
         })),

@@ -6,6 +6,7 @@ import { getCategoryForType, ACTIVITY_CATEGORIES, type ActivityCategory, type Ac
 import { pushActivityToCalendar } from "@/features/calendar/lib/push";
 import { createActivity } from "@/features/activities/lib/service";
 import { isServiceError } from "@/features/shared/lib/service-error";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 
 export const dynamic = "force-dynamic";
 
@@ -486,6 +487,11 @@ export async function POST(request: NextRequest) {
           const districtInfo = stopDistrictMap.get(stop.leaid);
           const districtName = stop.name || districtInfo?.name || stop.leaid;
 
+          // Auto-link the visit to every plan containing its stop's district,
+          // merged with the parent road trip's plans.
+          const stopAutoPlanIds = await findPlanIdsForDistricts([stop.leaid]);
+          const stopPlanIds = [...new Set([...planIds, ...stopAutoPlanIds])];
+
           await prisma.activity.create({
             data: {
               type: "school_site_visit",
@@ -494,7 +500,7 @@ export async function POST(request: NextRequest) {
               status: "planned",
               createdByUserId: user.id,
               plans: {
-                create: planIds.map((planId: string) => ({ planId })),
+                create: stopPlanIds.map((planId: string) => ({ planId })),
               },
               districts: {
                 create: [{ districtLeaid: stop.leaid }],
