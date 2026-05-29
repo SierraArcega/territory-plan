@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a one-click target breakdown popover to the district Target cell in the plan Table view (GridView), so reps can edit renewal/expansion/winback/new-biz targets without expanding the row panel.
+**Goal:** Add a TARGET column expansion chevron to the plan Table view (GridView) so reps can inline-edit renewal/expansion/winback/new-biz targets directly in the grid without opening the row panel.
 
-**Architecture:** `TargetBreakdownPopover` is a new plan-scoped component wired into the existing `GridView` cell renderer alongside the already-wired `ChurnRiskCell`. The views data route is extended to carry the 4 individual target fields (currently only the sum is returned). `useUpdateDistrictTargets` gains a `["views","data"]` cache invalidation so the sum refreshes after save.
+**Architecture:** A `▶` chevron in the TARGET column header toggles `targetExpanded` state in `GridView`. When expanded, `tanCols` (via `flatMap`) replaces the single sum column with 4 sub-columns, each cell rendered by a new `TargetSubCell` component. `TargetSubCell` handles click-to-edit inline with autosave on blur/Enter. The views data route is extended to carry the 4 individual target fields. `useUpdateDistrictTargets` gains a `["views","data"]` cache invalidation.
 
-**Tech Stack:** React 19, TypeScript, Tailwind 4, TanStack Query v5, Vitest + Testing Library, Next.js App Router API routes, Prisma raw SQL.
+**Tech Stack:** React 19, TypeScript, Tailwind 4, TanStack Table v8, TanStack Query v5, Vitest + Testing Library, Next.js App Router API routes, Prisma raw SQL.
 
 ---
 
@@ -14,11 +14,11 @@
 
 | Action | File | Responsibility |
 |---|---|---|
-| Create | `src/features/plans/components/TargetBreakdownPopover.tsx` | Popover with 4 currency inputs + live total + Save/Cancel |
-| Create | `src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx` | Unit tests |
+| Create | `src/features/views/components/grid/cells/TargetSubCell.tsx` | Inline-editable currency cell for each sub-target field |
+| Create | `src/features/views/components/grid/cells/__tests__/TargetSubCell.test.tsx` | Unit tests |
 | Modify | `src/app/api/views/data/route.ts` | Add 4 individual target fields to `TargetRow` SQL + `DistrictEnrichmentEntry` |
 | Modify | `src/features/plans/lib/queries.ts` | Add `["views","data"]` invalidation to `useUpdateDistrictTargets.onSettled` |
-| Modify | `src/features/views/components/grid/GridView.tsx` | Add `c.id === "target"` cell case wiring `TargetBreakdownPopover` |
+| Modify | `src/features/views/components/grid/GridView.tsx` | `targetExpanded` state, `flatMap` tanCols, chevron headers, `colCount` fix |
 
 ---
 
@@ -27,7 +27,7 @@
 **Files:**
 - Modify: `src/app/api/views/data/route.ts`
 
-The `fetchDistrictPlanEnrichment` function currently fetches only the sum (`target`). We need the 4 sub-fields so the popover can pre-fill each input.
+The `fetchDistrictPlanEnrichment` function currently fetches only the sum (`target`). We need the 4 sub-fields so each `TargetSubCell` can pre-fill its input and pass sibling values in the mutation.
 
 - [ ] **Step 1.1: Extend `TargetRow` type and SQL query**
 
@@ -53,7 +53,7 @@ type TargetRow = {
 };
 ```
 
-Then find the SQL query:
+Then find the SQL query that computes `target`:
 
 ```sql
 SELECT district_leaid,
@@ -88,7 +88,7 @@ WHERE plan_id = ${planId}
 Find `interface DistrictEnrichmentEntry` (around line 428). Add 4 fields after `target: number | null;`:
 
 ```ts
-/** Individual target sub-fields for the breakdown popover. NULL = not set. */
+/** Individual target sub-fields for inline editing. NULL = not set. */
 renewalTarget: number | null;
 winbackTarget: number | null;
 expansionTarget: number | null;
@@ -134,7 +134,7 @@ for (const r of targetRows) {
 
 - [ ] **Step 1.5: Expose the fields in the row enrichment mapping**
 
-Find the enrichment application block (around line 345–355). It currently spreads `e` into the row. Look for the line `target: e?.target ?? null,` and add the 4 fields immediately after:
+Find the enrichment application block (around line 345–355). Look for the line `target: e?.target ?? null,` and add the 4 fields immediately after:
 
 ```ts
 target: e?.target ?? null,
@@ -147,7 +147,7 @@ newBusinessTarget: e?.newBusinessTarget ?? null,
 - [ ] **Step 1.6: Verify TypeScript compiles**
 
 ```bash
-cd .worktrees/feat/plan-inline-editing
+cd /Users/astonfurious/The\ Laboratory/territory-plan/.worktrees/feat/plan-inline-editing
 npx tsc --noEmit 2>&1 | grep "views/data" | head -10
 ```
 
@@ -167,7 +167,7 @@ git commit -m "feat(views): include individual target fields in district enrichm
 **Files:**
 - Modify: `src/features/plans/lib/queries.ts`
 
-After saving from the popover, the GridView target sum cell must re-fetch to reflect the new total.
+After inline-editing a sub-target cell, the GridView target sum must re-fetch to reflect the new total.
 
 - [ ] **Step 2.1: Find `onSettled` in `useUpdateDistrictTargets`**
 
@@ -217,93 +217,112 @@ git commit -m "feat(plans): invalidate views data cache after target update"
 
 ---
 
-## Task 3: Build `TargetBreakdownPopover`
+## Task 3: Build `TargetSubCell`
 
 **Files:**
-- Create: `src/features/plans/components/TargetBreakdownPopover.tsx`
-- Create: `src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx`
+- Create: `src/features/views/components/grid/cells/TargetSubCell.tsx`
+- Create: `src/features/views/components/grid/cells/__tests__/TargetSubCell.test.tsx`
+
+`TargetSubCell` is an inline-editable cell: click to edit, blur/Enter autosaves, Escape cancels.
 
 - [ ] **Step 3.1: Write the failing tests**
 
-Create `src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx`:
+Create `src/features/views/components/grid/cells/__tests__/TargetSubCell.test.tsx`:
 
 ```tsx
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TargetBreakdownPopover } from "../TargetBreakdownPopover";
+import { TargetSubCell } from "../TargetSubCell";
 
 const mockMutate = vi.fn();
 vi.mock("@/features/plans/lib/queries", () => ({
   useUpdateDistrictTargets: () => ({ mutate: mockMutate, isPending: false }),
 }));
 
+const SIBLING_VALUES = {
+  renewalTarget:     20000,
+  expansionTarget:   5000,
+  winbackTarget:     5000,
+  newBusinessTarget: null,
+};
+
 const BASE = {
   planId: "1",
   leaid: "0601234",
-  renewal: 20000,
-  expansion: 5000,
-  winback: 5000,
-  newBusiness: null,
-  onClose: vi.fn(),
+  field: "renewalTarget" as const,
+  value: 20000,
+  siblingValues: SIBLING_VALUES,
 };
 
-describe("TargetBreakdownPopover", () => {
-  beforeEach(() => {
-    mockMutate.mockReset();
-    BASE.onClose = vi.fn();
+describe("TargetSubCell", () => {
+  beforeEach(() => mockMutate.mockReset());
+
+  it("renders formatted value when not editing", () => {
+    render(<TargetSubCell {...BASE} />);
+    expect(screen.getByText("$20K")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("renders 4 inputs pre-filled with prop values", () => {
-    render(<TargetBreakdownPopover {...BASE} />);
-    expect(screen.getByDisplayValue("20,000")).toBeInTheDocument();
-    expect(screen.getAllByDisplayValue("5,000")).toHaveLength(2);
-    // newBusiness is null → empty string
-    const inputs = screen.getAllByRole("textbox");
-    expect(inputs[3]).toHaveValue("");
+  it("renders — when value is null", () => {
+    render(<TargetSubCell {...BASE} value={null} />);
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
-  it("live total updates as a field changes", () => {
-    render(<TargetBreakdownPopover {...BASE} />);
-    // Initial total: 20000 + 5000 + 5000 + 0 = 30000
-    expect(screen.getByText("$30,000")).toBeInTheDocument();
-    const renewalInput = screen.getByDisplayValue("20,000");
-    fireEvent.change(renewalInput, { target: { value: "10000" } });
-    expect(screen.getByText("$20,000")).toBeInTheDocument();
+  it("clicking enters edit mode with raw number pre-filled", () => {
+    render(<TargetSubCell {...BASE} />);
+    fireEvent.click(screen.getByText("$20K"));
+    const input = screen.getByRole("textbox");
+    expect(input).toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe("20000");
   });
 
-  it("Save fires mutation with all 4 fields and calls onClose", () => {
-    render(<TargetBreakdownPopover {...BASE} />);
-    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+  it("blur fires mutation with updated field and calls with all sibling values", () => {
+    render(<TargetSubCell {...BASE} />);
+    fireEvent.click(screen.getByText("$20K"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "15000" } });
+    fireEvent.blur(input);
     expect(mockMutate).toHaveBeenCalledWith({
       planId: "1",
       leaid: "0601234",
-      renewalTarget: 20000,
-      expansionTarget: 5000,
-      winbackTarget: 5000,
+      renewalTarget:     15000,
+      expansionTarget:   5000,
+      winbackTarget:     5000,
       newBusinessTarget: null,
     });
-    expect(BASE.onClose).toHaveBeenCalled();
   });
 
-  it("Cancel calls onClose without mutating", () => {
-    render(<TargetBreakdownPopover {...BASE} />);
-    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-    expect(mockMutate).not.toHaveBeenCalled();
-    expect(BASE.onClose).toHaveBeenCalled();
+  it("Enter key fires mutation", () => {
+    render(<TargetSubCell {...BASE} />);
+    fireEvent.click(screen.getByText("$20K"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "10000" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ renewalTarget: 10000 })
+    );
   });
 
-  it("Escape key calls onClose without mutating", () => {
-    render(<TargetBreakdownPopover {...BASE} />);
-    fireEvent.keyDown(document, { key: "Escape" });
+  it("Escape cancels without firing mutation", () => {
+    render(<TargetSubCell {...BASE} />);
+    fireEvent.click(screen.getByText("$20K"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "99999" } });
+    fireEvent.keyDown(input, { key: "Escape" });
     expect(mockMutate).not.toHaveBeenCalled();
-    expect(BASE.onClose).toHaveBeenCalled();
+    // Returns to display mode
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("click-outside calls onClose without mutating", () => {
-    render(<TargetBreakdownPopover {...BASE} />);
-    fireEvent.mouseDown(document.body);
-    expect(mockMutate).not.toHaveBeenCalled();
-    expect(BASE.onClose).toHaveBeenCalled();
+  it("empty input saves null (clears the field)", () => {
+    render(<TargetSubCell {...BASE} />);
+    fireEvent.click(screen.getByText("$20K"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(mockMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ renewalTarget: null })
+    );
   });
 });
 ```
@@ -311,164 +330,124 @@ describe("TargetBreakdownPopover", () => {
 - [ ] **Step 3.2: Run tests to confirm they fail**
 
 ```bash
-npx vitest run src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx 2>&1 | tail -10
+npx vitest run src/features/views/components/grid/cells/__tests__/TargetSubCell.test.tsx 2>&1 | tail -10
 ```
 
 Expected: `FAIL` with "Cannot find module" or similar — component doesn't exist yet.
 
-- [ ] **Step 3.3: Implement `TargetBreakdownPopover`**
+- [ ] **Step 3.3: Implement `TargetSubCell`**
 
-Create `src/features/plans/components/TargetBreakdownPopover.tsx`:
+Create `src/features/views/components/grid/cells/TargetSubCell.tsx`:
 
 ```tsx
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useUpdateDistrictTargets } from "@/features/plans/lib/queries";
+
+export type TargetField = "renewalTarget" | "expansionTarget" | "winbackTarget" | "newBusinessTarget";
 
 interface Props {
   planId: string;
   leaid: string;
-  renewal: number | null;
-  expansion: number | null;
-  winback: number | null;
-  newBusiness: number | null;
-  onClose: () => void;
+  field: TargetField;
+  value: number | null;
+  siblingValues: {
+    renewalTarget:     number | null;
+    expansionTarget:   number | null;
+    winbackTarget:     number | null;
+    newBusinessTarget: number | null;
+  };
 }
 
-type FieldKey = "renewal" | "expansion" | "winback" | "newBusiness";
-
-const FIELDS: { key: FieldKey; label: string }[] = [
-  { key: "renewal",     label: "Renewal"   },
-  { key: "expansion",   label: "Expansion" },
-  { key: "winback",     label: "Win Back"  },
-  { key: "newBusiness", label: "New Biz"   },
-];
-
-function toDisplayString(val: number | null): string {
-  if (val == null || val === 0) return "";
-  return val.toLocaleString("en-US");
+function formatDisplay(v: number | null): string {
+  if (v == null || v === 0) return "—";
+  if (v >= 1_000_000) return `$${Math.round(v / 1_000_000)}M`;
+  if (v >= 1_000)     return `$${Math.round(v / 1_000)}K`;
+  return `$${v}`;
 }
 
-function parseField(raw: string): number | null {
+function parseInput(raw: string): number | null {
   const stripped = raw.replace(/[^0-9.]/g, "");
   if (!stripped) return null;
   const n = parseFloat(stripped);
   return Number.isFinite(n) ? n : null;
 }
 
-export function TargetBreakdownPopover({
-  planId, leaid, renewal, expansion, winback, newBusiness, onClose,
-}: Props) {
-  const [values, setValues] = useState<Record<FieldKey, string>>({
-    renewal:     toDisplayString(renewal),
-    expansion:   toDisplayString(expansion),
-    winback:     toDisplayString(winback),
-    newBusiness: toDisplayString(newBusiness),
-  });
-  const [openUpward, setOpenUpward] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const mutation = useUpdateDistrictTargets();
 
-  // Flip upward if near viewport bottom
-  useEffect(() => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      if (window.innerHeight - rect.bottom < 200) setOpenUpward(true);
-    }
-  }, []);
+  function enterEdit() {
+    setDraft(value != null ? String(value) : "");
+    setEditing(true);
+  }
 
-  // Click-outside → discard
-  useEffect(() => {
-    function onMouseDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [onClose]);
-
-  // Escape → discard
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
-  const total = FIELDS
-    .map(({ key }) => parseField(values[key]) ?? 0)
-    .reduce((a, b) => a + b, 0);
-
-  function handleSave() {
+  function commit() {
+    const parsed = parseInput(draft);
     mutation.mutate({
       planId,
       leaid,
-      renewalTarget:     parseField(values.renewal),
-      expansionTarget:   parseField(values.expansion),
-      winbackTarget:     parseField(values.winback),
-      newBusinessTarget: parseField(values.newBusiness),
+      ...siblingValues,
+      [field]: parsed,
     });
-    onClose();
+    setEditing(false);
+  }
+
+  function cancel() {
+    setEditing(false);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancel();
+    }
+  }
+
+  // Auto-focus + select-all when entering edit mode
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <div className="flex items-center justify-end">
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          role="textbox"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+          className="w-full rounded border-b border-[#7C5CDB] bg-[#EDE8FF] px-1.5 py-0.5 text-right text-[12px] font-semibold text-[#1A1228] outline-none"
+        />
+      </div>
+    );
   }
 
   return (
-    <div
-      ref={containerRef}
+    <button
+      type="button"
+      onClick={enterEdit}
       className={[
-        "absolute z-20 w-56 rounded-xl border border-[#C4B5D8] bg-white p-3 shadow-[0_8px_28px_rgba(45,31,94,0.18)]",
-        openUpward ? "bottom-full mb-1" : "top-full mt-1",
-        "left-0",
+        "w-full rounded px-1.5 py-0.5 text-right text-[12px] font-semibold transition-colors",
+        value != null && value !== 0
+          ? "text-[#5B3FC8] hover:bg-[#EDE8FF]"
+          : "text-[#C4B5D0] font-normal hover:bg-[#EDE8FF] hover:text-[#5B3FC8]",
       ].join(" ")}
     >
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#9B8FC0]">
-        Targets
-      </p>
-
-      {FIELDS.map(({ key, label }) => (
-        <div key={key} className="mb-1.5 flex items-center justify-between gap-2">
-          <span className="whitespace-nowrap text-xs text-[#4A3770]">{label}</span>
-          <div className="flex items-center rounded border border-[#D4CCE8] bg-[#FAFAF8] px-2 py-1 focus-within:border-[#7C5CDB] focus-within:bg-white transition-colors">
-            <span className="text-xs text-[#9B8FC0]">$</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              className="w-20 bg-transparent text-right text-xs font-semibold text-[#1A1228] outline-none"
-              value={values[key]}
-              onChange={(e) =>
-                setValues((prev) => ({ ...prev, [key]: e.target.value }))
-              }
-            />
-          </div>
-        </div>
-      ))}
-
-      <div className="mt-2 flex items-center justify-between border-t border-[#EFEDF5] pt-2">
-        <span className="text-xs font-semibold text-[#6B5FA0]">Total</span>
-        <span className="text-sm font-bold text-[#1A1228]">
-          ${total.toLocaleString("en-US")}
-        </span>
-      </div>
-
-      <div className="mt-2 flex justify-end gap-1.5">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded bg-[#EFEDF5] px-2.5 py-1 text-xs font-semibold text-[#6B5FA0] hover:bg-[#E0DBF0] transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={mutation.isPending}
-          className="rounded bg-[#5B3FC8] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#4A31A8] disabled:opacity-50 transition-colors"
-        >
-          Save
-        </button>
-      </div>
-    </div>
+      {formatDisplay(value)}
+    </button>
   );
 }
 ```
@@ -476,123 +455,295 @@ export function TargetBreakdownPopover({
 - [ ] **Step 3.4: Run tests — confirm they pass**
 
 ```bash
-npx vitest run src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx 2>&1 | tail -10
+npx vitest run src/features/views/components/grid/cells/__tests__/TargetSubCell.test.tsx 2>&1 | tail -10
 ```
 
-Expected: `6 passed`.
+Expected: `8 passed`.
 
 - [ ] **Step 3.5: Commit**
 
 ```bash
-git add src/features/plans/components/TargetBreakdownPopover.tsx \
-        src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx
-git commit -m "feat(plans): add TargetBreakdownPopover component"
+git add src/features/views/components/grid/cells/TargetSubCell.tsx \
+        src/features/views/components/grid/cells/__tests__/TargetSubCell.test.tsx
+git commit -m "feat(views): add TargetSubCell inline-edit component"
 ```
 
 ---
 
-## Task 4: Wire `TargetBreakdownPopover` into `GridView`
+## Task 4: Wire column expansion into `GridView`
 
 **Files:**
 - Modify: `src/features/views/components/grid/GridView.tsx`
 
-- [ ] **Step 4.1: Add the import**
+This task adds the `targetExpanded` state, changes `tanCols` from `.map()` to `.flatMap()` to support dynamic column count, injects the ▶/◀ chevron buttons into appropriate headers, and fixes `colCount`.
 
-At the top of `GridView.tsx`, alongside existing cell imports, add:
+- [ ] **Step 4.1: Add import for `TargetSubCell`**
+
+At the top of `GridView.tsx`, alongside existing cell imports:
 
 ```tsx
-import { TargetBreakdownPopover } from "@/features/plans/components/TargetBreakdownPopover";
+import { TargetSubCell, type TargetField } from "./cells/TargetSubCell";
 ```
 
-- [ ] **Step 4.2: Add a `TargetCell` helper at module scope**
+- [ ] **Step 4.2: Add `SUB_TARGET_IDS` constant at module scope**
 
-`TargetCell` uses `useState` so it must be a proper component defined at **module scope** (outside `GridView`'s function body — React forbids defining components with hooks inside other component bodies). Add it just before the `export default function GridView` line:
+Before `export default function GridView`, add:
 
 ```tsx
-/** Wrapper that manages open/closed state for the target breakdown popover. */
-function TargetCell({
-  planId,
-  leaid,
-  row,
-}: {
-  planId: string;
-  leaid: string;
-  row: Record<string, unknown>;
-}) {
-  const [open, setOpen] = useState(false);
-  const total = typeof row.target === "number" ? row.target : null;
+const SUB_TARGET_IDS = new Set([
+  "renewalTarget",
+  "expansionTarget",
+  "winbackTarget",
+  "newBusinessTarget",
+]);
+```
 
-  return (
-    <div className="relative inline-block">
+- [ ] **Step 4.3: Add `targetExpanded` state inside `GridView`**
+
+Inside the `GridView` function body, alongside the other `useState` calls (selection, collapsedGroups, etc.):
+
+```tsx
+const [targetExpanded, setTargetExpanded] = useState(false);
+```
+
+- [ ] **Step 4.4: Change `tanCols` from `.map()` to `.flatMap()`**
+
+The current `tanCols` begins:
+```tsx
+const tanCols: TanColumnDef<Record<string, unknown>>[] = useMemo(() =>
+  visibleCols.map((c) => ({
+    id: c.id,
+    header: c.header,
+    accessorKey: c.accessor,
+    cell: (info) => {
+```
+
+Change to use `.flatMap()` and wrap the entire `return` in an array, then add the target-column expansion logic **before** the existing `cell` logic. The full new `tanCols`:
+
+```tsx
+const SUB_COLS = [
+  { id: "renewalTarget",     label: "Renewal",   accessor: "renewalTarget"   },
+  { id: "expansionTarget",   label: "Expansion", accessor: "expansionTarget" },
+  { id: "winbackTarget",     label: "Win Back",  accessor: "winbackTarget"   },
+  { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
+] as const;
+
+const tanCols: TanColumnDef<Record<string, unknown>>[] = useMemo(
+  () =>
+    visibleCols.flatMap((c) => {
+      // ── Target column: expand/collapse into 4 sub-columns ──────────────────
+      if (c.id === "target") {
+        if (!targetExpanded) {
+          // Collapsed: single sum column (read-only — sum is computed, not editable)
+          return [{
+            id: "target",
+            header: c.header,
+            accessorKey: c.accessor,
+            cell: (info) => {
+              const v = info.getValue();
+              if (v == null) return <span className="text-[#A69DC0]">—</span>;
+              return <span>{formatCellValue(v, c.format)}</span>;
+            },
+          }];
+        }
+
+        // Expanded: 4 inline-editable sub-columns
+        return SUB_COLS.map((sub) => ({
+          id: sub.id,
+          header: sub.label,
+          accessorKey: sub.accessor,
+          cell: (info) => {
+            const row = info.row.original as Record<string, unknown>;
+            const leaid = typeof row.leaid === "string" ? row.leaid : null;
+            if (!planId || !leaid) return <span className="text-[#A69DC0]">—</span>;
+            return (
+              <TargetSubCell
+                planId={planId}
+                leaid={leaid}
+                field={sub.id as TargetField}
+                value={typeof row[sub.accessor] === "number" ? row[sub.accessor] as number : null}
+                siblingValues={{
+                  renewalTarget:     typeof row.renewalTarget     === "number" ? row.renewalTarget     as number : null,
+                  expansionTarget:   typeof row.expansionTarget   === "number" ? row.expansionTarget   as number : null,
+                  winbackTarget:     typeof row.winbackTarget     === "number" ? row.winbackTarget     as number : null,
+                  newBusinessTarget: typeof row.newBusinessTarget === "number" ? row.newBusinessTarget as number : null,
+                }}
+              />
+            );
+          },
+        }));
+      }
+
+      // ── All other columns — existing logic ──────────────────────────────────
+      return [{
+        id: c.id,
+        header: c.header,
+        accessorKey: c.accessor,
+        cell: (info) => {
+          const v = info.getValue();
+          const row = info.row.original as Record<string, unknown>;
+          const leaid = typeof row.leaid === "string" ? row.leaid : null;
+
+          if (c.id === "customer_rank") {
+            return <CustomerRankCell value={typeof v === "string" ? v : null} />;
+          }
+          if (c.id === "churn_risk" && leaid) {
+            return (
+              <ChurnRiskCell
+                value={typeof v === "string" ? v : null}
+                planId={planId}
+                leaid={leaid}
+                disabled={planId == null}
+              />
+            );
+          }
+          if (c.id === "plan_notes" && leaid) {
+            return (
+              <DistrictNotesCell
+                leaid={leaid}
+                districtName={typeof row.name === "string" ? row.name : leaid}
+                latest={typeof row.notesLatest === "string" ? row.notesLatest : null}
+                count={typeof row.notesCount === "number" ? row.notesCount : 0}
+                latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
+              />
+            );
+          }
+          if (c.id === "note_type") {
+            const t = typeof row.notesLatestType === "string" ? row.notesLatestType : null;
+            return t
+              ? <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${noteTypeMeta(t).pill}`}>{noteTypeMeta(t).label}</span>
+              : <span className="text-[#A69DC0]">—</span>;
+          }
+          if (c.id === "name" && showRowActions && leaid) {
+            return (
+              <span className="flex items-center gap-2">
+                <RowActionsMenu
+                  planId={planId!}
+                  leaid={leaid}
+                  districtName={typeof v === "string" ? v : String(row.name ?? "")}
+                />
+                <span className="truncate">{formatCellValue(v, c.format)}</span>
+              </span>
+            );
+          }
+          if (v == null) return <span className="text-[#A69DC0]">—</span>;
+          return <span>{formatCellValue(v, c.format)}</span>;
+        },
+      }];
+    }),
+  [visibleCols, planId, targetExpanded],
+);
+```
+
+> **Important:** `targetExpanded` is added to the `useMemo` dependency array — when it changes, `tanCols` recomputes and TanStack Table re-renders with the new column set.
+
+- [ ] **Step 4.5: Fix `colCount`**
+
+Find:
+```tsx
+const colCount = visibleCols.length + 1 + (showRowActions ? 1 : 0);
+```
+
+Replace with:
+```tsx
+const colCount = tanCols.length + 1 + (showRowActions ? 1 : 0);
+```
+
+This keeps grouped-row `colSpan` and empty-state `colSpan` correct when 4 sub-columns replace 1 column.
+
+- [ ] **Step 4.6: Inject chevron buttons into the header render loop**
+
+Find the header `<th>` render loop (around line 829). It currently renders all headers via `<GridHeaderCell>`. Before it, the `colDef` lookup is:
+
+```tsx
+const colDef = SOURCE_COLUMNS[source].find((c) => c.id === h.column.id);
+```
+
+Inside the `<th>`, replace the `<GridHeaderCell ...>` call with a conditional:
+
+```tsx
+<th
+  key={h.id}
+  style={{ width: colWidth ? `${colWidth}px` : undefined, position: "relative" }}
+  className={[
+    "text-[10px] font-semibold uppercase tracking-[0.06em] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left",
+    SUB_TARGET_IDS.has(colId) ? "text-[#5B3FC8] bg-[#F3EFFE]" : "text-[#8A80A8]",
+  ].join(" ")}
+>
+  {colId === "target" ? (
+    // Collapsed target header — show ▶ expand button
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="rounded px-1.5 py-0.5 text-xs font-semibold text-[#1A1228] hover:bg-[#EDE8FF] hover:text-[#5B3FC8] transition-colors"
+        aria-label="Expand target breakdown"
+        onClick={() => setTargetExpanded(true)}
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[9px] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
       >
-        {total != null && total > 0
-          ? `$${total >= 1000 ? `${Math.round(total / 1000)}K` : total}`
-          : <span className="text-[#A69DC0] italic text-[10px]">Not set</span>
-        }
+        ▶
       </button>
-      {open && (
-        <TargetBreakdownPopover
-          planId={planId}
-          leaid={leaid}
-          renewal={typeof row.renewalTarget === "number" ? row.renewalTarget : null}
-          expansion={typeof row.expansionTarget === "number" ? row.expansionTarget : null}
-          winback={typeof row.winbackTarget === "number" ? row.winbackTarget : null}
-          newBusiness={typeof row.newBusinessTarget === "number" ? row.newBusinessTarget : null}
-          onClose={() => setOpen(false)}
-        />
-      )}
+      <span className="whitespace-nowrap">Target</span>
     </div>
-  );
-}
+  ) : colId === "renewalTarget" ? (
+    // First sub-column header — show ◀ collapse button
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        aria-label="Collapse target breakdown"
+        onClick={() => setTargetExpanded(false)}
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[9px] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
+      >
+        ◀
+      </button>
+      <span className="whitespace-nowrap">Renewal</span>
+    </div>
+  ) : SUB_TARGET_IDS.has(colId) ? (
+    // Other sub-column headers — just the label, purple-tinted
+    <span className="whitespace-nowrap">{colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}</span>
+  ) : (
+    // All other columns — existing GridHeaderCell with sort + resize
+    <GridHeaderCell
+      label={colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}
+      sortable={colDef?.sortable ?? false}
+      sortDir={sortDir}
+      sortIndex={showIndex ? sortIndexInStack + 1 : undefined}
+      onSortChange={(dir, shift) => handleSortChange(h.column.id, dir, shift)}
+      width={colWidth}
+      onWidthChange={(w) => {
+        const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);
+        const merged = allColIds.map((id) => {
+          const existing = layout.columns.find((c) => c.id === id);
+          const def = SOURCE_COLUMNS[source].find((c) => c.id === id)!;
+          const base = existing ?? { id, order: def.defaultOrder, visible: def.defaultVisible };
+          return id === colId ? { ...base, width: w } : base;
+        });
+        setLayout({ ...layout, columns: merged });
+      }}
+    />
+  )}
+</th>
 ```
 
-> **Why module scope:** Defining a component that calls `useState` inside another component body causes a React error ("rendered more hooks than during the previous render"). Module scope is stable and correct here.
-
-- [ ] **Step 4.3: Add the `target` case to the cell renderer**
-
-In the `cell` callback inside `tanCols`, find the `churn_risk` block:
-
-```tsx
-if (c.id === "churn_risk" && leaid) {
-  return (
-    <ChurnRiskCell ... />
-  );
-}
-```
-
-Add directly after it:
-
-```tsx
-if (c.id === "target" && planId != null && leaid) {
-  return <TargetCell planId={planId} leaid={leaid} row={row} />;
-}
-```
-
-- [ ] **Step 4.4: Verify TypeScript compiles**
+- [ ] **Step 4.7: Verify TypeScript compiles cleanly**
 
 ```bash
-npx tsc --noEmit 2>&1 | grep "GridView\|TargetBreakdownPopover" | head -10
+npx tsc --noEmit 2>&1 | grep "GridView\|TargetSubCell" | head -10
 ```
 
 Expected: no errors.
 
-- [ ] **Step 4.5: Run the full test suite**
+- [ ] **Step 4.8: Run the full test suite**
 
 ```bash
 npx vitest run --reporter=dot 2>&1 | tail -8
 ```
 
-Expected: same pass/fail count as baseline (3267 passed, 3 pre-existing failures). No new failures.
+Expected: same pass/fail count as baseline — no new failures.
 
-- [ ] **Step 4.6: Commit**
+- [ ] **Step 4.9: Commit**
 
 ```bash
 git add src/features/views/components/grid/GridView.tsx
-git commit -m "feat(views): wire TargetBreakdownPopover into GridView target cell"
+git commit -m "feat(views): column expansion chevron for target breakdown inline editing"
 ```
 
 ---
@@ -608,17 +759,18 @@ npm run dev -- --port 3005
 - [ ] **Step 5.2: Open a plan in the Table view**
 
 Navigate to the Views tab → open a plan → click the Table view tab. Confirm:
-- Rows with a target set show a clickable chip (e.g. `$30K`)
-- Rows with no target show `Not set` in italic
-- Clicking the chip opens the breakdown popover
-- The 4 fields are pre-filled with correct values (verify against the expand-row panel on the same district)
-- Editing a field updates the live total
-- Clicking Save dismisses the popover and the target cell refreshes to the new total
-- Clicking Cancel/Escape discards changes
+
+1. **Collapsed state:** TARGET column shows a formatted sum (e.g. `$30K`) with a small `▶` chevron to its left in the header. The header text is "TARGET".
+2. **Expand:** Click `▶`. The TARGET column splits into 4 purple-tinted columns — Renewal, Expansion, Win Back, New Biz. The first (Renewal) shows a `◀` chevron. Right-side columns shift right.
+3. **Sub-cell values:** Cells show `$20K`, `$5K`, etc. for set values; `—` for unset. Verify values match the expand-row panel for the same district.
+4. **Inline edit:** Click a sub-cell. An input appears with the raw number (e.g. `20000`). Edit the value. Press Enter or click elsewhere — the cell saves and shows the new formatted value.
+5. **Escape:** Click a sub-cell, start editing, press Escape — edit mode cancels without saving.
+6. **Target sum refresh:** After saving a sub-cell, collapse the columns (click `◀`). The TARGET sum should refresh to reflect the new total.
+7. **Collapse:** Click `◀`. Returns to single TARGET column.
 
 - [ ] **Step 5.3: Final commit if any fixups needed**
 
 ```bash
 git add -A
-git commit -m "fix(plans): smoke test fixups for target breakdown popover"
+git commit -m "fix(views): smoke test fixups for target column expansion"
 ```
