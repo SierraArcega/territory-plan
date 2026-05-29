@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { X, Search } from "lucide-react";
+import { X, Search, Loader2, AlertCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface DistrictHit {
@@ -28,6 +28,8 @@ export function AddDistrictsModal({
   const [added, setAdded] = useState<Set<string>>(new Set());
   /** leaids whose POST is currently in-flight. */
   const [adding, setAdding] = useState<Set<string>>(new Set());
+  /** leaids whose POST returned an error this session. */
+  const [rowErrors, setRowErrors] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -65,7 +67,11 @@ export function AddDistrictsModal({
         });
         if (res.ok) {
           setAdded((prev) => new Set([...prev, leaid]));
+        } else {
+          setRowErrors((prev) => new Set([...prev, leaid]));
         }
+      } catch {
+        setRowErrors((prev) => new Set([...prev, leaid]));
       } finally {
         setAdding((prev) => {
           const next = new Set(prev);
@@ -86,6 +92,7 @@ export function AddDistrictsModal({
     setResults([]);
     setAdded(new Set());
     setAdding(new Set());
+    setRowErrors(new Set());
     onClose();
   }, [added, queryClient, onClose]);
 
@@ -136,11 +143,11 @@ export function AddDistrictsModal({
         <div className="min-h-0 flex-1 overflow-y-auto">
           {query.length < 2 ? (
             <div className="px-4 py-6 text-center text-[12px] text-[#8A80A8]">
-              Type at least 2 characters to search
+              Type at least 2 characters
             </div>
           ) : loading ? (
-            <div className="px-4 py-6 text-center text-[12px] text-[#8A80A8]">
-              Searching…
+            <div className="flex justify-center py-3">
+              <Loader2 className="animate-spin text-[#8A80A8]" size={16} />
             </div>
           ) : results.length === 0 ? (
             <div className="px-4 py-6 text-center text-[12px] text-[#8A80A8]">
@@ -150,6 +157,7 @@ export function AddDistrictsModal({
             results.map((d) => {
               const isAdded = added.has(d.leaid);
               const isAdding = adding.has(d.leaid);
+              const hasError = rowErrors.has(d.leaid);
               return (
                 <div
                   key={d.leaid}
@@ -161,21 +169,30 @@ export function AddDistrictsModal({
                     </p>
                     <p className="text-[11px] text-[#8A80A8]">{d.stateAbbrev}</p>
                   </div>
-                  <button
-                    type="button"
-                    aria-label={isAdded ? `✓ Added` : `+ Add`}
-                    disabled={isAdded || isAdding}
-                    onClick={() => handleAdd(d.leaid)}
-                    className={`ml-3 shrink-0 rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                      isAdded
-                        ? "cursor-default bg-[#EFEDF5] text-[#403770]"
-                        : isAdding
-                          ? "cursor-wait bg-[#EFEDF5] text-[#8A80A8]"
-                          : "bg-[#403770] text-white hover:bg-[#322a5a]"
-                    }`}
-                  >
-                    {isAdded ? "✓ Added" : isAdding ? "Adding…" : "+ Add"}
-                  </button>
+                  <div className="ml-3 flex shrink-0 items-center gap-1.5">
+                    {hasError && (
+                      <AlertCircle
+                        size={14}
+                        className="text-red-500"
+                        title="Failed to add"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      aria-label={isAdded ? `✓ Added` : `+ Add`}
+                      disabled={isAdded || isAdding}
+                      onClick={() => handleAdd(d.leaid)}
+                      className={`shrink-0 rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                        isAdded
+                          ? "cursor-default bg-[#EFEDF5] text-[#403770]"
+                          : isAdding
+                            ? "cursor-wait bg-[#EFEDF5] text-[#8A80A8]"
+                            : "bg-[#403770] text-white hover:bg-[#322a5a]"
+                      }`}
+                    >
+                      {isAdded ? "✓ Added" : isAdding ? "Adding…" : "+ Add"}
+                    </button>
+                  </div>
                 </div>
               );
             })

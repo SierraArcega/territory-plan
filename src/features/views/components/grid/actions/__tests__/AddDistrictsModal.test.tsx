@@ -142,6 +142,40 @@ describe("AddDistrictsModal", () => {
     );
   });
 
+  it("shows an error indicator when the POST returns a non-ok response", async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(searchResults), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "bad request" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    render(
+      <AddDistrictsModal planId="plan-1" open={true} onClose={vi.fn()} />,
+      { wrapper: makeWrapper() },
+    );
+    fireEvent.change(screen.getByPlaceholderText(/search by name or state/i), {
+      target: { value: "fres" },
+    });
+    await act(async () => { vi.advanceTimersByTime(300); });
+    vi.useRealTimers();
+    await waitFor(() =>
+      expect(screen.getByText("Fresno Unified")).toBeInTheDocument(),
+    );
+    // Click the first "+ Add" button.
+    const addBtns = screen.getAllByRole("button", { name: /\+ add/i });
+    fireEvent.click(addBtns[0]);
+    await waitFor(() =>
+      expect(document.querySelector('[title="Failed to add"]')).toBeInTheDocument(),
+    );
+  });
+
   it("calls onClose when the × button is clicked", () => {
     const onClose = vi.fn();
     render(
