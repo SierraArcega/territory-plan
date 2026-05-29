@@ -172,8 +172,18 @@ describe("AddDistrictsModal", () => {
     const addBtns = screen.getAllByRole("button", { name: /\+ add/i });
     fireEvent.click(addBtns[0]);
     await waitFor(() =>
-      expect(document.querySelector('[title="Failed to add"]')).toBeInTheDocument(),
+      expect(screen.getByLabelText("Failed to add")).toBeInTheDocument(),
     );
+  });
+
+  it("calls onClose when the Escape key is pressed", () => {
+    const onClose = vi.fn();
+    render(
+      <AddDistrictsModal planId="plan-1" open={true} onClose={onClose} />,
+      { wrapper: makeWrapper() },
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("calls onClose when the × button is clicked", () => {

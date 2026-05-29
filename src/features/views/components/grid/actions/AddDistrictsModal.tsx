@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Search, Loader2, AlertCircle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -33,28 +33,60 @@ export function AddDistrictsModal({
   const queryClient = useQueryClient();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleQueryChange = useCallback((q: string) => {
-    setQuery(q);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (q.length < 2) {
+  // Fix 3 — Reset state when modal opens fresh.
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setResults([]);
+      setLoading(false);
+      setAdded(new Set());
+      setAdding(new Set());
+      setRowErrors(new Set());
+    }
+  }, [open]);
+
+  // Fix 2 — Clear any pending debounce timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  // Fix 1 — Search with AbortController to prevent stale results.
+  useEffect(() => {
+    if (!open) return;
+    if (query.length < 2) {
       setResults([]);
       return;
     }
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
+
+    setLoading(true);
+    const controller = new AbortController();
+    const id = window.setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/admin/districts/search?q=${encodeURIComponent(q)}`,
+          `/api/admin/districts/search?q=${encodeURIComponent(query)}`,
+          { signal: controller.signal },
         );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { items?: DistrictHit[] };
         setResults(data.items ?? []);
-      } catch {
-        setResults([]);
+      } catch (e) {
+        if ((e as { name?: string }).name !== "AbortError") {
+          setResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (!(controller.signal.aborted)) {
+          setLoading(false);
+        }
       }
     }, 300);
-  }, []);
+
+    return () => {
+      window.clearTimeout(id);
+      controller.abort();
+    };
+  }, [open, query]);
 
   const handleAdd = useCallback(
     async (leaid: string) => {
@@ -67,6 +99,8 @@ export function AddDistrictsModal({
         });
         if (res.ok) {
           setAdded((prev) => new Set([...prev, leaid]));
+          // Fix 7 — Invalidate grid query on each successful add, not on close.
+          await queryClient.invalidateQueries({ queryKey: ["views", "data"] });
         } else {
           setRowErrors((prev) => new Set([...prev, leaid]));
         }
@@ -80,21 +114,27 @@ export function AddDistrictsModal({
         });
       }
     },
-    [planId],
+    [planId, queryClient],
   );
 
   const handleClose = useCallback(() => {
-    // Refresh the districts table if anything was added this session.
-    if (added.size > 0) {
-      queryClient.invalidateQueries({ queryKey: ["views", "data"] });
-    }
     setQuery("");
     setResults([]);
     setAdded(new Set());
     setAdding(new Set());
     setRowErrors(new Set());
     onClose();
-  }, [added, queryClient, onClose]);
+  }, [onClose]);
+
+  // Fix 5 — Escape-to-close.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, handleClose]);
 
   if (!open) return null;
 
@@ -105,13 +145,17 @@ export function AddDistrictsModal({
         if (e.target === e.currentTarget) handleClose();
       }}
     >
+      {/* Fix 4 — role="dialog", aria-modal, aria-labelledby */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-districts-title"
         className="relative flex w-full max-w-md flex-col rounded-2xl border border-[#E2DEEC] bg-white shadow-[0_16px_48px_rgba(64,55,112,0.2)]"
         style={{ maxHeight: "80vh" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#EFEDF5] px-4 py-3.5">
-          <h2 className="text-[15px] font-semibold text-[#403770]">
+          <h2 id="add-districts-title" className="text-[15px] font-semibold text-[#403770]">
             Add districts to plan
           </h2>
           <button
@@ -133,7 +177,7 @@ export function AddDistrictsModal({
               type="text"
               placeholder="Search by name or state…"
               value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               className="w-full rounded-lg border border-[#D4CFE2] bg-white py-2 pl-8 pr-3 text-[13px] text-[#403770] placeholder-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#D4CFE2]"
             />
           </div>
@@ -171,10 +215,11 @@ export function AddDistrictsModal({
                   </div>
                   <div className="ml-3 flex shrink-0 items-center gap-1.5">
                     {hasError && (
+                      // Fix 6 — Use aria-label instead of title for accessible name.
                       <AlertCircle
                         size={14}
                         className="text-red-500"
-                        title="Failed to add"
+                        aria-label="Failed to add"
                       />
                     )}
                     <button
