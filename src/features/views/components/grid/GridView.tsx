@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useRef, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import {
   useReactTable,
@@ -7,7 +7,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import type { ColumnDef as TanColumnDef } from "@tanstack/react-table";
-import { useIsMutating } from "@tanstack/react-query";
+import { useIsMutating, useIsFetching } from "@tanstack/react-query";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type {
   GridViewLayout,
@@ -153,7 +153,11 @@ interface GridViewProps {
   onLayoutChange?: (next: GridViewLayout) => void;
 }
 
-/** Dims the target sum while any target mutation for this row is in-flight. */
+/**
+ * Dims the target sum while a target mutation for this row is in-flight AND
+ * through the subsequent refetch — so the italic/opacity and the updated
+ * number both clear at the same moment.
+ */
 function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null }) {
   const isMutating = useIsMutating({
     predicate: (mutation) => {
@@ -161,9 +165,20 @@ function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null 
       return vars?.leaid === leaid;
     },
   });
+  const isFetching = useIsFetching({ queryKey: ["views", "data"] });
+
+  // Track whether this row's mutation was in-flight recently so we extend the
+  // dim through the following refetch without dimming on unrelated fetches
+  // (e.g. filter changes, window-focus re-fetches).
+  const wasMutatingRef = useRef(false);
+  if (isMutating > 0) wasMutatingRef.current = true;
+  if (isFetching === 0) wasMutatingRef.current = false;
+
+  const isPending = isMutating > 0 || (isFetching > 0 && wasMutatingRef.current);
+
   if (value == null) return <span className="text-[#A69DC0]">—</span>;
   return (
-    <span className={["transition-all", isMutating > 0 ? "opacity-50 italic" : ""].join(" ")}>
+    <span className={["transition-all", isPending ? "opacity-50 italic" : ""].join(" ")}>
       {formatCellValue(value, "money")}
     </span>
   );
