@@ -7,6 +7,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import type { ColumnDef as TanColumnDef } from "@tanstack/react-table";
+import { useIsMutating } from "@tanstack/react-query";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type {
   GridViewLayout,
@@ -150,6 +151,22 @@ interface GridViewProps {
   layout?: GridViewLayout;
   /** Called synchronously on every layout mutation when using Option B. */
   onLayoutChange?: (next: GridViewLayout) => void;
+}
+
+/** Dims the target sum while any target mutation for this row is in-flight. */
+function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null }) {
+  const isMutating = useIsMutating({
+    predicate: (mutation) => {
+      const vars = mutation.state.variables as Record<string, unknown> | undefined;
+      return vars?.leaid === leaid;
+    },
+  });
+  if (value == null) return <span className="text-[#A69DC0]">—</span>;
+  return (
+    <span className={["transition-all", isMutating > 0 ? "opacity-50 italic" : ""].join(" ")}>
+      {formatCellValue(value, "money")}
+    </span>
+  );
 }
 
 const SUB_TARGET_IDS = new Set([
@@ -309,15 +326,16 @@ export default function GridView(props: GridViewProps) {
     return visibleCols.flatMap((c) => {
       if (c.id === "target") {
         if (!targetExpanded) {
-          // Collapsed: single read-only sum column
+          // Collapsed: single read-only sum column — dims while any target
+          // mutation for this row is in-flight.
           return [{
             id: "target",
             header: c.header,
             accessorKey: c.accessor,
-            cell: (info: { getValue: () => unknown }) => {
-              const v = info.getValue();
-              if (v == null) return <span className="text-[#A69DC0]">—</span>;
-              return <span>{formatCellValue(v, c.format)}</span>;
+            cell: (info) => {
+              const row = info.row.original as Record<string, unknown>;
+              const leaid = typeof row.leaid === "string" ? row.leaid : null;
+              return <TargetSumCell value={info.getValue()} leaid={leaid} />;
             },
           }];
         }
