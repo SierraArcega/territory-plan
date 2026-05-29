@@ -427,7 +427,11 @@ export default function GridView(props: GridViewProps) {
         // Hard cap reached — do not add more rows.
         return prev;
       }
-      next.has(leaid) ? next.delete(leaid) : next.add(leaid);
+      if (next.has(leaid)) {
+        next.delete(leaid);
+      } else {
+        next.add(leaid);
+      }
       return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
     });
   }
@@ -690,7 +694,7 @@ export default function GridView(props: GridViewProps) {
             <>
               <span className="font-semibold whitespace-nowrap">
                 {selection.leaids.size >= BULK_SELECT_CAP
-                  ? "100 (max) selected"
+                  ? `${BULK_SELECT_CAP} (max) selected`
                   : `${selection.leaids.size} of ${rows.length} on this page selected`}
               </span>
               {/* Show "Select all N" promote link only when all page rows checked,
@@ -807,7 +811,7 @@ export default function GridView(props: GridViewProps) {
                           ...rows
                             .map((r) => r.leaid)
                             .filter((l): l is string => typeof l === "string")
-                            .slice(0, remainingCap),
+                            .slice(0, Math.max(0, remainingCap)),
                         ]);
                         setSelection({ mode: "explicit", leaids: pageLeaids });
                       } else {
