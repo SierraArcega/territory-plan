@@ -234,7 +234,7 @@ const SUB_COLS = [
 ] as const;
 
 // Derived from SUB_COLS so there's a single source of truth for the four IDs.
-const SUB_TARGET_IDS = new Set(SUB_COLS.map((c) => c.id));
+const SUB_TARGET_IDS = new Set<string>(SUB_COLS.map((c) => c.id));
 
 export default function GridView(props: GridViewProps) {
   const {
