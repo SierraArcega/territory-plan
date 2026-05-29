@@ -62,10 +62,10 @@ describe("buildRankTrajectoryPayload", () => {
     const bookings = p.metrics.find((m) => m.metricKey === "bookings")!;
 
     // renewal rows only me → me #1 in the "return" segment
-    expect(bookings.segments.return.caller.values[12]).toBe(100);
-    expect(bookings.segments.return.caller.ranks[12]).toBe(1);
+    expect(bookings.segments.return!.caller.values[12]).toBe(100);
+    expect(bookings.segments.return!.caller.ranks[12]).toBe(1);
     // new_business rows only u2 → me #2 with $0 in the "new" segment
-    expect(bookings.segments.new.caller.values[12]).toBe(0);
-    expect(bookings.segments.new.caller.ranks[12]).toBe(2);
+    expect(bookings.segments.new!.caller.values[12]).toBe(0);
+    expect(bookings.segments.new!.caller.ranks[12]).toBe(2);
   });
 });
