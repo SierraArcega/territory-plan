@@ -20,7 +20,8 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
-    activityPlan: { findFirst: vi.fn() },
+    activityPlan: { findFirst: vi.fn(), createMany: vi.fn() },
+    activityDistrict: { deleteMany: vi.fn(), createMany: vi.fn() },
     district: { findMany: vi.fn() },
     territoryPlanDistrict: { findMany: vi.fn() },
     userProfile: { findUnique: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
@@ -436,6 +437,8 @@ describe("GET /api/activities", () => {
 describe("POST /api/activities", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: districts belong to no plan, so auto-link is a no-op.
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -689,6 +692,58 @@ describe("POST /api/activities", () => {
     expect(body.category).toBe("outreach");
   });
 
+  it("road_trip child visit activities auto-link plans for their stop district", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    // district.findMany serves both state-derivation and the road_trip stop lookup
+    mockPrisma.district.findMany.mockResolvedValue([
+      { leaid: "0601234", name: "LA Unified", stateFips: "06" },
+    ] as never);
+    // Stop district 0601234 is in plan-parent (supplied) AND plan-stop (auto)
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([
+      { planId: "plan-parent" },
+      { planId: "plan-stop" },
+    ] as never);
+    mockPrisma.activity.create.mockResolvedValue({
+      id: "rt-1", type: "road_trip", title: "Spring Road Trip", notes: null,
+      startDate: null, endDate: null, status: "planned", metadata: null,
+      createdByUserId: "user-1", createdAt: new Date("2026-02-23T00:00:00Z"),
+      updatedAt: new Date("2026-02-23T00:00:00Z"),
+      plans: [], districts: [], contacts: [], states: [],
+      expenses: [], attendees: [], relations: [], relatedTo: [],
+    } as never);
+
+    const req = makeRequest("/api/activities", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "road_trip",
+        title: "Spring Road Trip",
+        planIds: ["plan-parent"],
+        districts: [{ leaid: "0601234", visitDate: "2026-06-01", name: "LA Unified" }],
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+
+    // Find the child school_site_visit create call among all activity.create calls
+    const childCall = mockPrisma.activity.create.mock.calls.find(
+      (call: unknown[]) =>
+        (call[0] as { data: { type: string } }).data.type === "school_site_visit"
+    );
+    expect(childCall).toBeDefined();
+    const childData = (childCall as [{ data: { plans: { create: { planId: string }[] }; districts: { create: unknown[] } } }])[0].data;
+    const childPlanIds = childData.plans.create.map((p: { planId: string }) => p.planId).sort();
+    expect(childPlanIds).toEqual(["plan-parent", "plan-stop"]);
+    expect(childData.districts.create).toEqual([{ districtLeaid: "0601234" }]);
+    // The stop auto-link lookup was scoped to the stop's own leaid
+    const stopLookup = mockPrisma.territoryPlanDistrict.findMany.mock.calls.find(
+      (c: unknown[]) => {
+        const arg = c[0] as { where?: { districtLeaid?: { in?: string[] } } };
+        return JSON.stringify(arg?.where?.districtLeaid?.in) === JSON.stringify(["0601234"]);
+      },
+    );
+    expect(stopLookup).toBeDefined();
+  });
+
   it("returns 500 on error", async () => {
     mockGetUser.mockResolvedValue(TEST_USER);
     mockPrisma.activity.create.mockRejectedValue(new Error("DB error"));
@@ -892,6 +947,34 @@ describe("PATCH /api/activities/[id]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.title).toBe("Admin Updated");
+  });
+
+  it("auto-links plans for districts updated via PATCH", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+    mockPrisma.activity.update.mockResolvedValue({
+      id: "activity-1", type: "conference", title: "T", rating: null,
+      updatedAt: new Date("2026-02-23T12:00:00Z"),
+    } as never);
+    mockPrisma.activityDistrict.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.activityDistrict.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.activityPlan.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([{ planId: "plan-7" }]);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ districts: [{ leaid: "0601234" }] }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id: "activity-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.activityPlan.createMany).toHaveBeenCalledWith({
+      data: [{ activityId: "activity-1", planId: "plan-7" }],
+      skipDuplicates: true,
+    });
   });
 
   it("returns 400 for invalid type", async () => {

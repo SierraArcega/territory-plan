@@ -4,6 +4,7 @@ import { getUser, isAdmin } from "@/lib/supabase/server";
 import { getCategoryForType, type ActivityType } from "@/features/activities/types";
 import { updateActivity } from "@/features/activities/lib/service";
 import { isServiceError } from "@/features/shared/lib/service-error";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 import { updateActivityOnCalendar, deleteActivityFromCalendar } from "@/features/calendar/lib/push";
 
 export const dynamic = "force-dynamic";
@@ -324,6 +325,16 @@ export async function PATCH(
             warningDismissed: false,
           })),
         });
+
+        // Auto-link: attach this activity to every plan that contains any of the
+        // updated districts (additive, idempotent — never removes existing links).
+        const autoPlanIds = await findPlanIdsForDistricts(districts.map((du) => du.leaid));
+        if (autoPlanIds.length > 0) {
+          await prisma.activityPlan.createMany({
+            data: autoPlanIds.map((planId) => ({ activityId: id, planId })),
+            skipDuplicates: true,
+          });
+        }
       }
     }
 
