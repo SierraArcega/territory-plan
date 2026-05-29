@@ -159,6 +159,13 @@ const SUB_TARGET_IDS = new Set([
   "newBusinessTarget",
 ]);
 
+const SUB_COLS = [
+  { id: "renewalTarget",     label: "Renewal",   accessor: "renewalTarget"   },
+  { id: "expansionTarget",   label: "Expansion", accessor: "expansionTarget" },
+  { id: "winbackTarget",     label: "Win Back",  accessor: "winbackTarget"   },
+  { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
+] as const;
+
 export default function GridView(props: GridViewProps) {
   const {
     source,
@@ -299,13 +306,6 @@ export default function GridView(props: GridViewProps) {
   );
 
   const tanCols: TanColumnDef<Record<string, unknown>>[] = useMemo(() => {
-    const SUB_COLS = [
-      { id: "renewalTarget",     label: "Renewal",   accessor: "renewalTarget"   },
-      { id: "expansionTarget",   label: "Expansion", accessor: "expansionTarget" },
-      { id: "winbackTarget",     label: "Win Back",  accessor: "winbackTarget"   },
-      { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
-    ] as const;
-
     return visibleCols.flatMap((c) => {
       if (c.id === "target") {
         if (!targetExpanded) {
