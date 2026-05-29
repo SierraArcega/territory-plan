@@ -38,7 +38,7 @@ import {
   ViewScroll,
 } from "../views/_shared";
 import GridPager from "./GridPager";
-import { DEFAULT_PAGE_SIZE, type PageSize } from "./grid-pagination";
+import { DEFAULT_PAGE_SIZE, BULK_SELECT_CAP, type PageSize } from "./grid-pagination";
 
 function FilteredEmptyState({ onClear }: { onClear: () => void }) {
   return (
@@ -423,6 +423,10 @@ export default function GridView(props: GridViewProps) {
         return prev;
       }
       const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
+      if (!next.has(leaid) && next.size >= BULK_SELECT_CAP) {
+        // Hard cap reached — do not add more rows.
+        return prev;
+      }
       next.has(leaid) ? next.delete(leaid) : next.add(leaid);
       return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
     });
@@ -437,20 +441,25 @@ export default function GridView(props: GridViewProps) {
       (selection.mode === "explicit" &&
         leaid != null &&
         selection.leaids.has(leaid));
+    const atCap =
+      selection.mode === "explicit" &&
+      selection.leaids.size >= BULK_SELECT_CAP;
+    const lockedOut = atCap && !checked;
     return (
       <td
         className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
         onClick={(e) => {
           e.stopPropagation();
-          if (leaid) toggleRowLeaid(leaid);
+          if (leaid && !lockedOut) toggleRowLeaid(leaid);
         }}
       >
         <input
           type="checkbox"
           aria-label={`Select ${name}`}
-          className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
+          className={`h-3.5 w-3.5 rounded accent-[#403770] ${lockedOut ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
           readOnly
           checked={checked}
+          disabled={lockedOut}
         />
       </td>
     );
@@ -680,12 +689,15 @@ export default function GridView(props: GridViewProps) {
           ) : (
             <>
               <span className="font-semibold whitespace-nowrap">
-                {selection.leaids.size} of {rows.length} on this page selected
+                {selection.leaids.size >= BULK_SELECT_CAP
+                  ? "100 (max) selected"
+                  : `${selection.leaids.size} of ${rows.length} on this page selected`}
               </span>
-              {/* Show "Select all N" promote link only when all page rows checked AND more exist */}
+              {/* Show "Select all N" promote link only when all page rows checked,
+                  more exist beyond the page, AND total is within the cap. */}
               {rows.every(
                 (r) => typeof r.leaid === "string" && selection.leaids.has(r.leaid)
-              ) && total > rows.length && (
+              ) && total > rows.length && total <= BULK_SELECT_CAP && (
                 <>
                   <span className="text-[#A69DC0]">·</span>
                   <button
@@ -787,11 +799,16 @@ export default function GridView(props: GridViewProps) {
                         return;
                       }
                       if (e.target.checked) {
-                        const pageLeaids = new Set(
-                          rows
+                        const currentLeaids =
+                          selection.mode === "explicit" ? selection.leaids : new Set<string>();
+                        const remainingCap = BULK_SELECT_CAP - currentLeaids.size;
+                        const pageLeaids = new Set([
+                          ...currentLeaids,
+                          ...rows
                             .map((r) => r.leaid)
                             .filter((l): l is string => typeof l === "string")
-                        );
+                            .slice(0, remainingCap),
+                        ]);
                         setSelection({ mode: "explicit", leaids: pageLeaids });
                       } else {
                         setSelection({ mode: "none" });

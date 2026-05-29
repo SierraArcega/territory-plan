@@ -11,6 +11,7 @@
  */
 export const DEFAULT_PAGE_SIZE = 50;
 export const PAGE_SIZE_OPTIONS = [50, 100, 200, 500, 1000] as const;
+export const BULK_SELECT_CAP = 100;
 export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export interface PageMeta {
