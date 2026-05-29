@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { ToplineCard } from "./topline";
+import type { RankTrajectoryPayload } from "./rank-trajectory";
 
 // Types for the alerts response
 
@@ -74,6 +75,15 @@ export function useTargets(fy: number) {
   return useQuery({
     queryKey: ["dashboard", "targets", fy],
     queryFn: () => fetchJson<TargetsResponse>(`${API_BASE}/home/dashboard/targets?fy=${fy}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useRankTrajectory(fy: number) {
+  return useQuery({
+    queryKey: ["dashboard", "rankTrajectory", fy],
+    queryFn: () =>
+      fetchJson<RankTrajectoryPayload>(`${API_BASE}/home/dashboard/rank-trajectory?fy=${fy}`),
     staleTime: 5 * 60 * 1000,
   });
 }
