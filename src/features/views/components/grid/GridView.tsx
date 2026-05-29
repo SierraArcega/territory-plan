@@ -167,14 +167,25 @@ function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null 
   });
   const isFetching = useIsFetching({ queryKey: ["views", "data"] });
 
-  // Track whether this row's mutation was in-flight recently so we extend the
-  // dim through the following refetch without dimming on unrelated fetches
-  // (e.g. filter changes, window-focus re-fetches).
+  // Latch: stays true from mutation start until the subsequent refetch completes.
+  // This keeps the dim alive through the full optimistic → network → refetch cycle,
+  // including the brief gap between a mutation settling and its refetch starting.
+  //
+  // Key rules:
+  //  1. Clear BEFORE set — so an active mutation always wins if both fire together
+  //     (e.g. Row A's refetch completes while Row B's mutation is still in-flight).
+  //  2. Clear only on a fetch TRANSITION (prevFetching > 0 → isFetching === 0),
+  //     not on every render where isFetching happens to be 0. Without this, the
+  //     latch resets prematurely in the gap between mutation settle and refetch start.
+  //  3. Formula uses `|| wasMutatingRef.current` directly (not gated on isFetching)
+  //     so the gap window also stays pending.
   const wasMutatingRef = useRef(false);
+  const prevFetchingRef = useRef(0);
+  if (isFetching === 0 && prevFetchingRef.current > 0) wasMutatingRef.current = false;
+  prevFetchingRef.current = isFetching;
   if (isMutating > 0) wasMutatingRef.current = true;
-  if (isFetching === 0) wasMutatingRef.current = false;
 
-  const isPending = isMutating > 0 || (isFetching > 0 && wasMutatingRef.current);
+  const isPending = isMutating > 0 || wasMutatingRef.current;
 
   if (value == null) return <span className="text-[#A69DC0]">—</span>;
   return (
