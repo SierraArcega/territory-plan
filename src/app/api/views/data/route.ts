@@ -430,7 +430,7 @@ function camelizeRow(row: Record<string, unknown>): Record<string, unknown> {
  */
 interface DistrictEnrichmentEntry {
   target: number | null;
-  /** Individual target sub-fields for the breakdown popover. NULL = not set. */
+  /** Individual target sub-fields for the breakdown columns. NULL = not set. */
   renewalTarget: number | null;
   winbackTarget: number | null;
   expansionTarget: number | null;
@@ -617,7 +617,7 @@ async function fetchDistrictPlanEnrichment(
 
   for (const r of targetRows) {
     const cur = byLeaid.get(r.district_leaid) ?? blank();
-    cur.target = r.target == null ? null : Number(r.target);
+    cur.target = Number(r.target);
     cur.renewalTarget = r.renewal_target == null ? null : Number(r.renewal_target);
     cur.winbackTarget = r.winback_target == null ? null : Number(r.winback_target);
     cur.expansionTarget = r.expansion_target == null ? null : Number(r.expansion_target);

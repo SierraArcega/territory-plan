@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState, useRef, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, Plus } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -184,19 +184,15 @@ function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null 
   );
 }
 
-const SUB_TARGET_IDS = new Set([
-  "renewalTarget",
-  "expansionTarget",
-  "winbackTarget",
-  "newBusinessTarget",
-]);
-
 const SUB_COLS = [
   { id: "renewalTarget",     label: "Renewal",   accessor: "renewalTarget"   },
   { id: "expansionTarget",   label: "Expansion", accessor: "expansionTarget" },
   { id: "winbackTarget",     label: "Win Back",  accessor: "winbackTarget"   },
   { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
 ] as const;
+
+// Derived from SUB_COLS so there's a single source of truth for the four IDs.
+const SUB_TARGET_IDS = new Set(SUB_COLS.map((c) => c.id));
 
 export default function GridView(props: GridViewProps) {
   const {
@@ -929,28 +925,28 @@ export default function GridView(props: GridViewProps) {
                     ].join(" ")}
                   >
                     {colId === "target" ? (
-                      // Collapsed target header — ▶ expand button
+                      // Collapsed target header — expand button
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           aria-label="Expand target breakdown"
                           onClick={() => setTargetExpanded(true)}
-                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[9px] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
                         >
-                          ▶
+                          <ChevronRight className="h-3 w-3" aria-hidden />
                         </button>
                         <span className="whitespace-nowrap">Target</span>
                       </div>
                     ) : colId === "renewalTarget" ? (
-                      // First sub-column header — ◀ collapse button
+                      // First sub-column header — collapse button
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           aria-label="Collapse target breakdown"
                           onClick={() => setTargetExpanded(false)}
-                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[9px] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
                         >
-                          ◀
+                          <ChevronLeft className="h-3 w-3" aria-hidden />
                         </button>
                         <span className="whitespace-nowrap">Renewal</span>
                       </div>

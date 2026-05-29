@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useUpdateDistrictTargets } from "@/features/plans/lib/queries";
+import { formatCurrency } from "@/features/shared/lib/format";
 
 export type TargetField = "renewalTarget" | "expansionTarget" | "winbackTarget" | "newBusinessTarget";
 
@@ -9,13 +10,6 @@ interface Props {
   leaid: string;
   field: TargetField;
   value: number | null;
-}
-
-function formatDisplay(v: number | null): string {
-  if (v == null || v === 0) return "—";
-  if (v >= 1_000_000) return `$${Math.round(v / 1_000_000)}M`;
-  if (v >= 1_000)     return `$${Math.round(v / 1_000)}K`;
-  return `$${v}`;
 }
 
 function parseInput(raw: string): number | null {
@@ -42,7 +36,9 @@ export function TargetSubCell({ planId, leaid, field, value }: Props) {
 
   function enterEdit() {
     editingRef.current = true;
-    setDraft(value != null ? String(value) : "");
+    // Use optimisticValue so a re-open after a save shows the new number,
+    // not the stale prop (which hasn't refetched yet).
+    setDraft(optimisticValue != null ? String(optimisticValue) : "");
     setEditing(true);
   }
 
@@ -95,7 +91,6 @@ export function TargetSubCell({ planId, leaid, field, value }: Props) {
           ref={inputRef}
           type="text"
           inputMode="numeric"
-          role="textbox"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
@@ -106,19 +101,20 @@ export function TargetSubCell({ planId, leaid, field, value }: Props) {
     );
   }
 
+  const isEmpty = optimisticValue == null || optimisticValue === 0;
   return (
     <button
       type="button"
       onClick={enterEdit}
       className={[
         "w-full rounded px-1.5 py-0.5 text-right text-[12px] font-semibold transition-all",
-        optimisticValue != null && optimisticValue !== 0
-          ? "text-[#5B3FC8] hover:bg-[#EDE8FF]"
-          : "text-[#C4B5D0] font-normal hover:bg-[#EDE8FF] hover:text-[#5B3FC8]",
+        isEmpty
+          ? "text-[#C4B5D0] font-normal hover:bg-[#EDE8FF] hover:text-[#5B3FC8]"
+          : "text-[#5B3FC8] hover:bg-[#EDE8FF]",
         mutation.isPending ? "opacity-50 italic" : "",
       ].join(" ")}
     >
-      {formatDisplay(optimisticValue)}
+      {isEmpty ? "—" : formatCurrency(optimisticValue, true)}
     </button>
   );
 }
