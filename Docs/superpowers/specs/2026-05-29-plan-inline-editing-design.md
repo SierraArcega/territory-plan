@@ -26,12 +26,12 @@ Editing per-district targets and churn risk in the plan detail table requires tw
 **Props:**
 ```ts
 interface Props {
-  planId: number
+  planId: string        // String — matches useUpdateDistrictTargets / ChurnRiskCell conventions
   leaid: string
-  renewal: Decimal | null
-  expansion: Decimal | null
-  winback: Decimal | null
-  newBusiness: Decimal | null
+  renewal: number | null   // Parent converts Prisma Decimal → number before passing
+  expansion: number | null
+  winback: number | null
+  newBusiness: number | null
   onClose: () => void
 }
 ```
