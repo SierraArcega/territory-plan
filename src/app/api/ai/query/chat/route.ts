@@ -108,7 +108,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     conversationId,
     assistantText:
-      result.kind === "terminal_result" ? result.assistantText : result.text,
+      result.kind === "terminal_result" || result.kind === "research"
+        ? result.assistantText
+        : result.text,
     result: null,
   });
 }
