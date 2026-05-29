@@ -42,7 +42,18 @@ export default function RankTrajectoryChart({
 }: RankTrajectoryChartProps) {
   if (series.length === 0) return null;
   const ranksLen = series[0].ranks.length;
-  const total = Math.max(totalRanks ?? 12, ...series.map((s) => Math.max(...s.ranks)));
+  // Zoom the Y-axis to the rank range actually drawn (plus a little headroom) so
+  // the lines fill the chart instead of bunching at the top when the caller ranks
+  // high in a large roster. `totalRanks` (active-rep count) is only an upper cap.
+  const maxRank = Math.max(1, ...series.map((s) => Math.max(...s.ranks)));
+  const cap = totalRanks ?? Number.POSITIVE_INFINITY;
+  const total = Math.max(4, Math.min(cap, maxRank + 1));
+  // Gridlines: the design's 1·3·6·9·12 rhythm for small ranges, anchored at the
+  // bottom; evenly-spaced quartiles for large rosters (e.g. the modal's full team).
+  const gridRanks =
+    total <= 12
+      ? [...new Set([...[1, 3, 6, 9, 12].filter((r) => r <= total), total])].sort((a, b) => a - b)
+      : [1, Math.round(total * 0.25), Math.round(total * 0.5), Math.round(total * 0.75), total];
   const w = 1100;
   const padL = 56;
   const padT = 24;
@@ -102,7 +113,7 @@ export default function RankTrajectoryChart({
       )}
 
       {/* gridlines + y-axis labels */}
-      {[1, 3, 6, 9, 12].filter((r) => r <= total).map((r) => (
+      {gridRanks.map((r) => (
         <g key={r}>
           <line x1={padL} y1={yAt(r)} x2={w - padR} y2={yAt(r)} stroke={BORDER_SUBTLE} strokeWidth="1" opacity={r === 1 ? 0.9 : 0.55} />
           <text x={padL - 10} y={yAt(r) + 4} textAnchor="end" fontSize="11" fill={SECONDARY} fontWeight="500">#{r}</text>

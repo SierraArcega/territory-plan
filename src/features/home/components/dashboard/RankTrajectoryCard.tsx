@@ -37,7 +37,8 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
   }
 
   const { columns, todayIndex, metrics } = data;
-  const totalRanks = Math.max(12, ...metrics.map((m) => m.reps.length));
+  // Active-rep roster size = the worst possible rank; caps the chart Y-axis.
+  const totalReps = Math.max(1, ...metrics.map((m) => m.reps.length));
 
   const series: RankSeries[] = metrics.map((m) => ({ name: m.name, color: m.color, ranks: m.caller.ranks }));
 
@@ -76,7 +77,7 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
       {/* Chart + legend */}
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="min-w-0 flex-1">
-          <RankTrajectoryChart series={series} months={columns as string[]} carryover todayIndex={todayIndex} totalRanks={totalRanks} hideEndLabels />
+          <RankTrajectoryChart series={series} months={columns as string[]} carryover todayIndex={todayIndex} totalRanks={totalReps} hideEndLabels />
         </div>
         <div className="w-full shrink-0 lg:w-[248px]">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">
@@ -112,7 +113,7 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
           <svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#403770" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 4" opacity="0.55" /></svg>
           Projected (held flat)
         </span>
-        <span className="whitespace-nowrap">Lower is better · #1 = top of team</span>
+        <span className="whitespace-nowrap">Lower is better · #1 = top of {totalReps} reps</span>
       </div>
     </div>
   );
