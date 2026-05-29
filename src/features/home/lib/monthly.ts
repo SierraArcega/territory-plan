@@ -27,3 +27,28 @@ export function fyMonthIndex(date: Date, fy: number): number {
   if (offset < 0) return 0;
   return Math.min(offset + 1, COLUMN_COUNT - 1);
 }
+
+// A dated, rep-attributed, valued source row. `category` (DOA segment) is optional
+// and only used when building per-segment sub-series.
+export interface DatedValueRow {
+  email: string;
+  date: Date;
+  value: number;
+  category?: string;
+}
+
+// Per-rep cumulative-YTD values across the 13 FY columns: column i holds the sum
+// of that rep's rows dated on or before month i (monotonic non-decreasing).
+export function cumulativeColumns(rows: DatedValueRow[], fy: number): Map<string, number[]> {
+  const byRep = new Map<string, number[]>();
+  for (const row of rows) {
+    let cols = byRep.get(row.email);
+    if (!cols) {
+      cols = new Array(COLUMN_COUNT).fill(0);
+      byRep.set(row.email, cols);
+    }
+    // Add the row to its column and every later column (cumulative).
+    for (let i = fyMonthIndex(row.date, fy); i < COLUMN_COUNT; i++) cols[i] += row.value;
+  }
+  return byRep;
+}
