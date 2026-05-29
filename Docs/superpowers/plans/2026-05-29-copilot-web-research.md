@@ -4,9 +4,11 @@
 
 **Goal:** Give the copilot autonomous public-web research via Anthropic's server-side `web_search` + `web_fetch` tools, rendering answers as prose with a numbered Sources list.
 
-**Architecture:** Extend the shared `runAgentLoop` to (1) call the beta messages endpoint when `betas` are supplied, (2) continue across `pause_turn`, and (3) emit a new `research` result when server tools ran. Web tools are added only to `COPILOT_TOOLS`, and the new behavior is a no-op for the `reports`/`list-builder` variants. Citations are extracted off text blocks and rendered by a new `ResearchAnswer` component.
+**Architecture:** Extend the shared `runAgentLoop` to (1) continue across `pause_turn` and (2) emit a new `research` result when server tools ran. Web tools (`web_search`, `web_fetch`) are added only to `COPILOT_TOOLS`, and the new behavior is a no-op for the `reports`/`list-builder` variants. Citations are extracted off text blocks and rendered by a new `ResearchAnswer` component.
 
-**Tech Stack:** Next.js 16 App Router, TypeScript, `@anthropic-ai/sdk` ^0.90 (beta tool types `BetaWebSearchTool20250305` / `BetaWebFetchTool20250910`), Vitest + Testing Library.
+**SDK note (verified by live probe against `@anthropic-ai/sdk@0.90`):** both `web_search_20250305` and `web_fetch_20250910` are accepted on the **stable** `anthropic.messages` endpoint with **no beta header**. The stable `Anthropic.ToolUnion` already includes `WebFetchTool20250910`/`WebSearchTool20250305`. So this plan uses the stable endpoint and `Anthropic.ToolUnion[]` typing — **no beta endpoint, no `betas` arg, no `web-fetch-2025-09-10` header**.
+
+**Tech Stack:** Next.js 16 App Router, TypeScript, `@anthropic-ai/sdk` ^0.90 (stable tool types `Anthropic.WebSearchTool20250305` / `Anthropic.WebFetchTool20250910` / `Anthropic.ToolUnion`), Vitest + Testing Library.
 
 **Spec:** `Docs/superpowers/specs/2026-05-29-copilot-web-research-design.md`
 
@@ -18,9 +20,9 @@
 
 - **Create** `src/features/copilot/lib/citations.ts` — `CopilotCitation` type + `extractCitations()` (pure, endpoint-agnostic).
 - **Modify** `src/features/copilot/lib/tools.ts` — add `web_search` + `web_fetch` server-tool defs; append to `COPILOT_TOOLS`.
-- **Modify** `src/features/reports/lib/agent/agent-loop.ts` — `betas` arg, beta-endpoint branch, `pause_turn` continuation, server-tool tracking, `research` result kind.
+- **Modify** `src/features/reports/lib/agent/agent-loop.ts` — widen `tools` to `Anthropic.ToolUnion[]`, `pause_turn` continuation, server-tool tracking, `research` result kind.
 - **Modify** `src/features/copilot/lib/types.ts` — `research` variant on `CopilotTurnResult`.
-- **Modify** `src/app/api/copilot/chat/stream/route.ts` — pass `betas`, emit `research` SSE, persist research turn.
+- **Modify** `src/app/api/copilot/chat/stream/route.ts` — emit `research` SSE, persist research turn.
 - **Modify** `src/features/copilot/lib/system-prompt.ts` — web-research guidance.
 - **Create** `src/features/copilot/components/ResearchAnswer.tsx` — prose + Sources list.
 - **Modify** `src/features/copilot/components/CopilotPanel.tsx` — handle/render `research`.
@@ -198,17 +200,16 @@ Expected: FAIL — `web_search` not found in `COPILOT_TOOLS`.
 Edit `src/features/copilot/lib/tools.ts`. After the `proposeActions` definition and before the `COPILOT_TOOLS` export, add:
 
 ```ts
-// Anthropic server-side tools. `web_search` is GA; `web_fetch` is beta and
-// requires the `web-fetch-2025-09-10` beta header (supplied by the stream
-// route via runAgentLoop's `betas`). They run Anthropic-side — we never execute
-// them — and return text blocks with `citations`.
-const webSearch: Anthropic.Beta.BetaWebSearchTool20250305 = {
+// Anthropic server-side tools. Both are accepted on the stable messages
+// endpoint in @anthropic-ai/sdk 0.90 (no beta header). They run Anthropic-side —
+// we never execute them — and return text blocks with `citations`.
+const webSearch: Anthropic.WebSearchTool20250305 = {
   type: "web_search_20250305",
   name: "web_search",
   max_uses: 5,
 };
 
-const webFetch: Anthropic.Beta.BetaWebFetchTool20250910 = {
+const webFetch: Anthropic.WebFetchTool20250910 = {
   type: "web_fetch_20250910",
   name: "web_fetch",
   max_uses: 5,
@@ -217,18 +218,18 @@ const webFetch: Anthropic.Beta.BetaWebFetchTool20250910 = {
 };
 ```
 
-Then replace the `COPILOT_TOOLS` export:
+Then replace the `COPILOT_TOOLS` export (note the type changes from `Anthropic.Tool[]` to `Anthropic.ToolUnion[]`, which is the stable union containing `Tool`, `WebSearchTool20250305`, and `WebFetchTool20250910` — so no casts are needed):
 
 ```ts
-export const COPILOT_TOOLS: Anthropic.Beta.BetaToolUnion[] = [
-  ...(AGENT_TOOLS as Anthropic.Beta.BetaToolUnion[]),
+export const COPILOT_TOOLS: Anthropic.ToolUnion[] = [
+  ...AGENT_TOOLS,
   webSearch,
   webFetch,
   proposeActions,
 ];
 ```
 
-> Note: `AGENT_TOOLS` and `proposeActions` are stable `Anthropic.Tool`s; the cast widens them to the beta union so the whole set can go through the beta endpoint. If a `satisfies`/field mismatch appears against the installed SDK shape (e.g. `citations`/`max_content_tokens` naming), adjust the literal to match `Anthropic.Beta.BetaWebFetchTool20250910` — do not loosen to `any`.
+> Note: `AGENT_TOOLS` is `Anthropic.Tool[]` and `Tool` is a member of `ToolUnion`, so the spread needs no cast. If a field mismatch appears against the installed SDK shape (e.g. `citations`/`max_content_tokens` naming), adjust the literal to match `Anthropic.WebFetchTool20250910` — do not loosen to `any`. The tests access `.name` via `(t as { name: string })`; that light cast is fine since not every `ToolUnion` member exposes `name` as a shared property.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -250,31 +251,17 @@ git -c user.name="SierraArcega" -c user.email="sierra.arcega@fullmindlearning.co
 
 ---
 
-## Task 3: Agent loop — betas, pause_turn, research result
+## Task 3: Agent loop — pause_turn + research result
 
 **Files:**
 - Modify: `src/features/reports/lib/agent/agent-loop.ts`
-- Test: `src/features/copilot/lib/__tests__/agent-loop-copilot.test.ts` (exists — add cases + extend the mock)
+- Test: `src/features/copilot/lib/__tests__/agent-loop-copilot.test.ts` (exists — add cases)
 
-- [ ] **Step 1: Extend the test mock to support the beta endpoint, add failing tests**
+> Prereq from Task 2: `RunAgentLoopArgs.tools` is already typed `Anthropic.ToolUnion[]` and the `anthropic.messages.stream` call passes `tools: toolSet` with no cast. Task 3 does **not** touch the stream-creation code or add a beta endpoint — both web tools work on the stable endpoint.
 
-In `agent-loop-copilot.test.ts`, replace the `scripted` helper so the same scripted responses are served from both `messages.stream` and `beta.messages.stream`:
+- [ ] **Step 1: Add failing test cases**
 
-```ts
-function scripted(responses: Array<unknown>) {
-  let i = 0;
-  const streamFn = vi.fn(() => {
-    const resp = responses[i++];
-    return { on: vi.fn(), finalMessage: vi.fn(async () => resp) };
-  });
-  return {
-    messages: { stream: streamFn },
-    beta: { messages: { stream: streamFn } },
-  };
-}
-```
-
-Then add these cases inside the `describe`:
+The existing `scripted` helper (serving `messages.stream`) is unchanged. Add these cases inside the `describe`:
 
 ```ts
   it("continues across pause_turn, then returns research on the final text", async () => {
@@ -303,7 +290,6 @@ Then add these cases inside the `describe`:
       systemPrompt: SYS,
       tools: TOOLS,
       terminalTool: { name: "propose_actions", handle: vi.fn() },
-      betas: ["web-fetch-2025-09-10"],
     });
     expect(res.kind).toBe("research");
     if (res.kind === "research") {
@@ -311,18 +297,20 @@ Then add these cases inside the `describe`:
       expect(res.citations).toEqual([{ url: "https://austinisd.org/bond", title: "2024 Bond" }]);
     }
     // pause_turn forced a second model call
-    expect(anthropic.beta.messages.stream).toHaveBeenCalledTimes(2);
+    expect(anthropic.messages.stream).toHaveBeenCalledTimes(2);
   });
 
-  it("uses the beta endpoint when betas are supplied", async () => {
+  it("returns research when server tools ran without a pause_turn", async () => {
     const anthropic = scripted([
       {
         stop_reason: "end_turn",
-        content: [{ type: "server_tool_use", id: "s1", name: "web_search", input: {} },
-                  { type: "text", text: "done", citations: [] }],
+        content: [
+          { type: "server_tool_use", id: "s1", name: "web_search", input: {} },
+          { type: "text", text: "done", citations: [] },
+        ],
       },
     ]);
-    await runAgentLoop({
+    const res = await runAgentLoop({
       anthropic: anthropic as never,
       userMessage: "search the web",
       priorTurns: [],
@@ -331,10 +319,9 @@ Then add these cases inside the `describe`:
       systemPrompt: SYS,
       tools: TOOLS,
       terminalTool: { name: "propose_actions", handle: vi.fn() },
-      betas: ["web-fetch-2025-09-10"],
     });
-    expect(anthropic.beta.messages.stream).toHaveBeenCalledTimes(1);
-    expect(anthropic.messages.stream).not.toHaveBeenCalled();
+    expect(res.kind).toBe("research");
+    if (res.kind === "research") expect(res.citations).toEqual([]);
   });
 
   it("still treats a no-tool text turn as clarifying when no server tools ran", async () => {
@@ -350,7 +337,6 @@ Then add these cases inside the `describe`:
       systemPrompt: SYS,
       tools: TOOLS,
       terminalTool: { name: "propose_actions", handle: vi.fn() },
-      betas: ["web-fetch-2025-09-10"],
     });
     expect(res.kind).toBe("clarifying");
   });
@@ -359,9 +345,9 @@ Then add these cases inside the `describe`:
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run src/features/copilot/lib/__tests__/agent-loop-copilot.test.ts`
-Expected: FAIL — `res.kind` is `clarifying` (research not implemented) and `beta.messages.stream` is never called.
+Expected: FAIL — `res.kind` is `clarifying` (research not implemented); the pause_turn test sees only 1 model call.
 
-- [ ] **Step 3a: Add the `research` variant to `AgentResult` and the `betas` arg**
+- [ ] **Step 3a: Add the `research` variant to `AgentResult`**
 
 In `agent-loop.ts`, add the import near the top:
 
@@ -379,50 +365,7 @@ Add to the `AgentResult` union (after the `terminal_result` member, before `clar
       }
 ```
 
-Add to `RunAgentLoopArgs`:
-
-```ts
-  /**
-   * Anthropic beta flags. When non-empty, the loop calls the beta messages
-   * endpoint (required for server tools like web_fetch). Reports/list-builder
-   * omit this → the stable endpoint and unchanged behavior.
-   */
-  betas?: Anthropic.Beta.AnthropicBeta[];
-```
-
-Destructure `betas` alongside the other args in `runAgentLoop`.
-
-- [ ] **Step 3b: Branch the model call onto the beta endpoint**
-
-Replace the `const modelStream = anthropic.messages.stream({ ... });` block with:
-
-```ts
-    const streamParams = {
-      model: "claude-opus-4-7",
-      max_tokens: 16000,
-      thinking: { type: "adaptive" as const },
-      ...(effort ? { output_config: { effort } } : {}),
-      system: [
-        { type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const, ttl: "1h" as const } },
-      ],
-      messages,
-    };
-    const modelStream =
-      betas && betas.length > 0
-        ? anthropic.beta.messages.stream({
-            ...streamParams,
-            betas,
-            tools: toolSet as unknown as Anthropic.Beta.BetaToolUnion[],
-          })
-        : anthropic.messages.stream({
-            ...streamParams,
-            tools: toolSet as Anthropic.ToolUnion[],
-          });
-```
-
-> Note: `toolSet` is typed `Anthropic.Tool[]` on the args; the casts adapt it to each endpoint's tool param. Keep the existing `modelStream.on("text", ...)` + `await modelStream.finalMessage()` lines unchanged.
-
-- [ ] **Step 3c: Track server tools + handle pause_turn**
+- [ ] **Step 3b: Track server tools + handle pause_turn**
 
 Near the other loop-state declarations (e.g. after `let assistantText = "";`), add:
 
@@ -459,7 +402,7 @@ Immediately after the `pushEvent({ kind: "model_call", ... })` call (and before 
     }
 ```
 
-- [ ] **Step 3d: Return `research` at the no-client-tool exit**
+- [ ] **Step 3c: Return `research` at the no-client-tool exit**
 
 In the `if (toolUses.length === 0) { ... }` block, after the existing ghost-report handling and the `if (ghostReportRetriesUsed > 0) { return surrender }` block, and **before** the final `return { kind: "clarifying", ... }`, insert:
 
@@ -485,7 +428,7 @@ Expected: PASS (all cases, including the pre-existing run_sql/propose/clarifying
 - [ ] **Step 5: Run the reports agent-loop tests to confirm no regression**
 
 Run: `npx vitest run src/features/reports`
-Expected: PASS (reports/list-builder variants unchanged — they never pass `betas`).
+Expected: PASS (reports/list-builder variants unchanged — they never run server tools, so `usedServerTools` stays false and they can't produce `research`).
 
 - [ ] **Step 6: Commit**
 
@@ -551,16 +494,9 @@ Expected: PASS.
 
 - [ ] **Step 4: Wire the stream route**
 
-In `src/app/api/copilot/chat/stream/route.ts`:
+In `src/app/api/copilot/chat/stream/route.ts` (no `betas` — the web tools come in via `COPILOT_TOOLS`, which the route already passes as `tools`):
 
-(a) Pass `betas` into `runAgentLoop` — add to the call options:
-
-```ts
-          effort: "medium",
-          betas: ["web-fetch-2025-09-10"],
-```
-
-(b) Persist research turns. In the `// Persist the turn` block, add a branch before the final `else`:
+(a) Persist research turns. In the `// Persist the turn` block, add a branch before the final `else`:
 
 ```ts
           } else if (result.kind === "research") {
@@ -575,7 +511,7 @@ In `src/app/api/copilot/chat/stream/route.ts`:
           } else {
 ```
 
-(c) Emit the research SSE result. In the terminal `if (result.kind === "result") { ... } else if (...) { ... } else { ... }` chain, add before the final `else`:
+(b) Emit the research SSE result. In the terminal `if (result.kind === "result") { ... } else if (...) { ... } else { ... }` chain, add before the final `else`:
 
 ```ts
         } else if (result.kind === "research") {
@@ -936,7 +872,7 @@ Expected: clean.
 
 - [ ] **Manual E2E (dev)**
 
-`npm run dev` (port 3005). Open the copilot, ask something external (e.g. "any recent bond or funding news for Austin ISD?"). Confirm: it searches, streams a prose answer, and shows a numbered Sources list with working links. Ask an internal question ("how many open tasks do I have?") and confirm it still returns a table (no web search). `web_fetch` requires the beta — confirm no 400 on the beta header (the route sends `web-fetch-2025-09-10`).
+`npm run dev` (port 3005). Open the copilot, ask something external (e.g. "any recent bond or funding news for Austin ISD?"). Confirm: it searches, streams a prose answer, and shows a numbered Sources list with working links. Ask an internal question ("how many open tasks do I have?") and confirm it still returns a table (no web search). Confirm no 4xx from the Anthropic API on the web-tool calls (both tools run on the stable endpoint — verified accepted in this SDK).
 
 ---
 

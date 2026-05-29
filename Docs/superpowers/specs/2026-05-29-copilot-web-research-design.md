@@ -84,16 +84,24 @@ blast radius near zero:
 
 ### 1. Tool definitions — `src/features/copilot/lib/tools.ts`
 
-Add two server-tool definitions and append them to the copilot tool set:
+> **SDK note (verified by live probe against `@anthropic-ai/sdk@0.90`):** both
+> `web_search_20250305` and `web_fetch_20250910` are accepted on the **stable**
+> `anthropic.messages` endpoint with **no beta header** (both returned HTTP 200).
+> The stable `Anthropic.ToolUnion` already includes `WebFetchTool20250910` and
+> `WebSearchTool20250305`. There is **no beta endpoint, no `betas` arg, and no
+> `web-fetch-2025-09-10` header** in this design.
+
+Add two server-tool definitions (stable SDK types) and append them to the
+copilot tool set:
 
 ```ts
-const webSearch: Anthropic.Tool = {
+const webSearch: Anthropic.WebSearchTool20250305 = {
   type: "web_search_20250305",
   name: "web_search",
   max_uses: 5,
-} as unknown as Anthropic.Tool; // server-tool shape; cast as needed for SDK types
+};
 
-const webFetch = {
+const webFetch: Anthropic.WebFetchTool20250910 = {
   type: "web_fetch_20250910",
   name: "web_fetch",
   max_uses: 5,
@@ -101,25 +109,28 @@ const webFetch = {
   max_content_tokens: 50_000,
 };
 
-export const COPILOT_TOOLS = [...AGENT_TOOLS, webSearch, webFetch, proposeActions];
+export const COPILOT_TOOLS: Anthropic.ToolUnion[] = [
+  ...AGENT_TOOLS,
+  webSearch,
+  webFetch,
+  proposeActions,
+];
 ```
 
-- `web_search` is GA (`web_search_20250305`), no beta header.
-- `web_fetch` is **beta** (`web_fetch_20250910`) → requires the
-  `web-fetch-2025-09-10` beta (see loop change below).
 - No `allowed_domains` / `blocked_domains`. Authority preference is a
   system-prompt steer.
 - `max_content_tokens` caps how much fetched page content enters context.
 
 ### 2. Agent loop — `src/features/reports/lib/agent/agent-loop.ts`
 
-- **`betas?: string[]` arg.** When non-empty, call
-  `anthropic.beta.messages.stream({ betas, ... })`; otherwise the existing
-  `anthropic.messages.stream(...)`. Copilot passes `["web-fetch-2025-09-10"]`;
-  reports/list-builder pass nothing → unchanged endpoint and behavior.
+- **Tool-arg type widened.** No endpoint change — keep `anthropic.messages.stream`.
+  The `tools` arg widens from `Anthropic.Tool[]` to `Anthropic.ToolUnion[]` so the
+  web tools fit with no casts; `Anthropic.Tool[]` (reports/list-builder) is
+  assignable to it, so their behavior is unchanged.
 - **`pause_turn` continuation.** After `finalMessage()`, if
   `stop_reason === "pause_turn"`: push `response.content` onto `messages` and
-  `continue`. The existing iteration ceiling bounds it so it cannot spin.
+  `continue` (server tools can pause the turn on the stable endpoint too).
+  A pause-continuation cap bounds it so it cannot spin.
 - **Server-tool awareness.** Set a `usedServerTools` flag whenever a response
   contains a `server_tool_use` block. Server-tool *result* blocks are not
   `type: "tool_use"`, so the existing client-tool loop already ignores them — we
@@ -161,12 +172,11 @@ export interface CopilotCitation {
 ```
 
 The stream route (`src/app/api/copilot/chat/stream/route.ts`):
-- Passes `betas: ["web-fetch-2025-09-10"]` into `runAgentLoop`.
 - Maps `result.kind === "research"` → `send("result", { kind: "research", ... })`.
-- `saveCopilotTurn` persists research turns (`assistantText` + a sources `note`,
-  mirroring how answer turns store a `note` for read-only replay). Live
-  citation links are not persisted; replay shows the prose + a "Researched the
-  web — N sources" note.
+- `saveCopilotTurn` persists research turns (`assistantText` + telemetry). Live
+  citation links are not persisted; replay shows the prose. The "researched the
+  web — N sources" replay note is deferred (needs a `copilotTurn` discriminator
+  column).
 
 ### 4. Frontend — `ResearchAnswer.tsx` + `CopilotPanel.tsx`
 
