@@ -6,6 +6,9 @@ import { render, screen, fireEvent } from "@testing-library/react";
 vi.mock("@/features/home/components/dashboard/ToplineStatStrip", () => ({
   default: () => <div data-testid="topline-strip" />,
 }));
+vi.mock("@/features/home/components/dashboard/RankTrajectoryCard", () => ({
+  default: () => <div data-testid="rank-trajectory-card" />,
+}));
 
 import DashboardTab from "../DashboardTab";
 import { getCurrentFY } from "@/lib/fiscal-year";
