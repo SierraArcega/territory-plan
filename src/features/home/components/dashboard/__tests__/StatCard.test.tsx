@@ -33,4 +33,15 @@ describe("StatCard", () => {
     render(<StatCard label="Take" value={98000} rank={5} totalReps={34} inRoster segments={[]} sparkline={spark(null)} priorFyLabel="FY25" />);
     expect(screen.queryByText(/vs FY25/i)).toBeNull();
   });
+
+  it("renders the last-7d WoW chip when a delta is provided", () => {
+    render(<StatCard label="Open Pipeline" value={480000} rank={3} totalReps={34} inRoster segments={[]} wow={0.18} />);
+    expect(screen.getByText("+18%")).toBeTruthy();
+    expect(screen.getByText(/7d/i)).toBeTruthy();
+  });
+
+  it("omits the WoW chip when there is no 7d delta (unsupported metric)", () => {
+    render(<StatCard label="Take" value={98000} rank={5} totalReps={34} inRoster segments={[]} wow={null} />);
+    expect(screen.queryByText(/7d/i)).toBeNull();
+  });
 });

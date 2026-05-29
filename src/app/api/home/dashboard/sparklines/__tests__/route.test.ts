@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ getUser: vi.fn() }));
-vi.mock("@/features/home/lib/trajectory-source", () => ({ fetchTrajectoryRows: vi.fn() }));
+vi.mock("@/features/home/lib/trajectory-source", () => ({ fetchTrajectoryRows: vi.fn(), fetchWowSnapshots: vi.fn() }));
 
 import { GET } from "../route";
 import { getUser } from "@/lib/supabase/server";
-import { fetchTrajectoryRows } from "@/features/home/lib/trajectory-source";
+import { fetchTrajectoryRows, fetchWowSnapshots } from "@/features/home/lib/trajectory-source";
 
 const mockGetUser = vi.mocked(getUser);
 const mockFetchRows = vi.mocked(fetchTrajectoryRows);
+const mockWow = vi.mocked(fetchWowSnapshots);
 const d = (iso: string) => new Date(iso + "T12:00:00Z");
 type Rows = Record<string, { email: string; date: Date; value: number }[]>;
 const empty = (): Rows => ({ targets: [], openPipeline: [], bookings: [], revenue: [], take: [] });
@@ -34,6 +35,10 @@ describe("GET /api/home/dashboard/sparklines", () => {
     const prior = empty();
     prior.bookings = [{ email: "me@x", date: d("2024-08-01"), value: 50 }];
     mockFetchRows.mockResolvedValueOnce(current as never).mockResolvedValueOnce(prior as never);
+    mockWow.mockResolvedValue([
+      { date: "2026-05-22", openPipeline: 400, bookings: 500 },
+      { date: "2026-05-29", openPipeline: 480, bookings: 500 },
+    ]);
 
     const res = await GET(req("2026"));
     const body = await res.json();
@@ -43,6 +48,8 @@ describe("GET /api/home/dashboard/sparklines", () => {
     expect(body.sparklines.bookings.current[12]).toBe(100);
     expect(body.sparklines.bookings.prior[12]).toBe(50);
     expect(body.sparklines.bookings.yoy).toBeCloseTo(1, 5); // (100-50)/50
+    expect(body.wow.openPipeline).toBeCloseTo(0.2, 5); // (480-400)/400
+    expect(body.wow.bookings).toBe(0); // unchanged
     // scoped to the caller for both years
     expect(mockFetchRows).toHaveBeenCalledWith("2025-26", 2026, "me@x");
     expect(mockFetchRows).toHaveBeenCalledWith("2024-25", 2025, "me@x");

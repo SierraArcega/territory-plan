@@ -3,6 +3,7 @@ import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { ToplineCard } from "./topline";
 import type { RankTrajectoryPayload, TrajectoryMetricKey } from "./rank-trajectory";
 import type { Sparkline } from "./sparkline";
+import type { WowDeltas } from "./wow";
 
 // Types for the alerts response
 
@@ -93,6 +94,7 @@ export interface SparklinesResponse {
   fy: number;
   schoolYr: string;
   sparklines: Record<TrajectoryMetricKey, Sparkline>;
+  wow: WowDeltas;
 }
 
 export function useSparklines(fy: number) {

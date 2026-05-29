@@ -22,6 +22,19 @@ import prisma from "@/lib/prisma";
 import type { DatedValueRow } from "./monthly";
 import type { TrajectoryMetricKey } from "./rank-trajectory";
 
+// Stage→bucket prefix (mirrors the DOA matview): numeric prefix 0–5 = open
+// pipeline, ≥6 = closed-won, closed-lost = -1, else NULL. Shared by the opp
+// trajectory query and the snapshot WoW query so the bucketing never drifts.
+export function stagePrefixSql(stage: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`CASE
+    WHEN ${stage} ~ '^[0-9]' THEN (regexp_match(${stage}, '^([0-9]+)'))[1]::int
+    WHEN LOWER(${stage}) IN ('closed won','active','position purchased',
+      'requisition received','return position pending') THEN 6
+    WHEN LOWER(${stage}) = 'closed lost' THEN -1
+    ELSE NULL
+  END`;
+}
+
 // `category` constant per district+school_yr, read straight off the matview.
 const categoryJoin = (sy: string) => Prisma.sql`
   LEFT JOIN (
@@ -82,13 +95,7 @@ export async function fetchTrajectoryRows(
              o.close_date AS "closeDate",
              o.net_booking_amount::float AS value,
              c.category,
-             CASE
-               WHEN o.stage ~ '^[0-9]' THEN (regexp_match(o.stage, '^([0-9]+)'))[1]::int
-               WHEN LOWER(o.stage) IN ('closed won','active','position purchased',
-                 'requisition received','return position pending') THEN 6
-               WHEN LOWER(o.stage) = 'closed lost' THEN -1
-               ELSE NULL
-             END AS "stagePrefix"
+             ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix"
       FROM opportunities o
       ${categoryJoin(sy)}
       WHERE o.school_yr = ${sy} AND o.net_booking_amount IS NOT NULL ${oppEmail}`,
@@ -172,4 +179,27 @@ export async function fetchTrajectoryRows(
   }
 
   return { targets: targetRows, openPipeline, bookings, revenue, take };
+}
+
+import type { WowSnapshotRow } from "./wow";
+
+// The caller's Open-Pipeline and Bookings totals on the two snapshot dates that
+// power the "last 7d" WoW delta: the latest snapshot and the latest one at least
+// 7 days earlier. Snapshots key by sales_rep_id = user_profiles.id (== user.id).
+export async function fetchWowSnapshots(salesRepId: string, sy: string): Promise<WowSnapshotRow[]> {
+  return prisma.$queryRaw<WowSnapshotRow[]>`
+    SELECT snapshot_date::text AS date,
+           COALESCE(SUM(CASE WHEN sp BETWEEN 0 AND 5 THEN net_booking_amount END), 0)::float AS "openPipeline",
+           COALESCE(SUM(CASE WHEN sp >= 6 THEN net_booking_amount END), 0)::float AS "bookings"
+    FROM (
+      SELECT snapshot_date, net_booking_amount, ${stagePrefixSql(Prisma.sql`stage`)} AS sp
+      FROM opportunity_snapshots
+      WHERE sales_rep_id = ${salesRepId}::uuid AND school_yr = ${sy}
+        AND snapshot_date IN (
+          (SELECT MAX(snapshot_date) FROM opportunity_snapshots),
+          (SELECT MAX(snapshot_date) FROM opportunity_snapshots
+             WHERE snapshot_date <= (SELECT MAX(snapshot_date) FROM opportunity_snapshots) - 7)
+        )
+    ) s
+    GROUP BY snapshot_date`;
 }

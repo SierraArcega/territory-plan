@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
-import { fetchTrajectoryRows } from "@/features/home/lib/trajectory-source";
+import { fetchTrajectoryRows, fetchWowSnapshots } from "@/features/home/lib/trajectory-source";
 import { buildSparklines } from "@/features/home/lib/sparkline";
+import { buildWowDeltas, type WowDeltas } from "@/features/home/lib/wow";
 
 export const dynamic = "force-dynamic";
 
@@ -29,5 +30,13 @@ export async function GET(request: Request) {
   ]);
 
   const sparklines = buildSparklines({ currentRows, priorRows, email, fy });
-  return NextResponse.json({ fy, schoolYr, sparklines });
+
+  // "Last 7d" WoW delta is only meaningful for the in-progress FY (snapshots are
+  // ~6 weeks deep) and only for the two snapshot-backed metrics.
+  let wow: WowDeltas = { openPipeline: null, bookings: null };
+  if (fy === getCurrentFY()) {
+    wow = buildWowDeltas(await fetchWowSnapshots(user.id, schoolYr));
+  }
+
+  return NextResponse.json({ fy, schoolYr, sparklines, wow });
 }

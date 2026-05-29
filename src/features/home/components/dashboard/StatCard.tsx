@@ -15,18 +15,23 @@ interface StatCardProps {
   segments: ToplineSegment[];
   sparkline?: SparklineData;
   priorFyLabel?: string;
+  wow?: number | null;
 }
 
 const DELTA_UP = "#2E7D5B";
 const DELTA_DOWN = "#F37167";
 const MUTED = "#8A80A8";
 
+function deltaColor(pct: number) {
+  return pct === 0 ? MUTED : pct > 0 ? DELTA_UP : DELTA_DOWN;
+}
+
 // Topline financial card: label, value, source segment bar, a current-vs-prior-FY
 // sparkline, a YoY same-point delta chip, and a subtle rank-vs-team line.
-export default function StatCard({ label, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel }: StatCardProps) {
+export default function StatCard({ label, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, wow }: StatCardProps) {
   const yoy = sparkline?.yoy;
   const yoyPct = yoy != null ? Math.round(yoy * 100) : null;
-  const yoyColor = yoyPct == null || yoyPct === 0 ? MUTED : yoyPct > 0 ? DELTA_UP : DELTA_DOWN;
+  const wowPct = wow != null ? Math.round(wow * 100) : null;
 
   return (
     <div className="group rounded-lg bg-white border border-[#D4CFE2] shadow-sm p-4 transition-colors hover:border-[#B8B0D0] flex flex-col gap-3 min-w-[180px]">
@@ -40,10 +45,18 @@ export default function StatCard({ label, value, rank, totalReps, inRoster, segm
         </span>
         {yoyPct != null && priorFyLabel && (
           <span className="flex items-center gap-1 text-[10px] font-semibold whitespace-nowrap">
-            <span style={{ color: yoyColor }} className="tabular-nums">
+            <span style={{ color: deltaColor(yoyPct) }} className="tabular-nums">
               {yoyPct > 0 ? "+" : ""}{yoyPct}%
             </span>
             <span className="text-[#A69DC0]">vs {priorFyLabel}</span>
+          </span>
+        )}
+        {wowPct != null && (
+          <span className="flex items-center gap-1 text-[10px] font-semibold whitespace-nowrap">
+            <span style={{ color: deltaColor(wowPct) }} className="tabular-nums">
+              {wowPct > 0 ? "+" : ""}{wowPct}%
+            </span>
+            <span className="text-[#A69DC0]">7d</span>
           </span>
         )}
       </div>
