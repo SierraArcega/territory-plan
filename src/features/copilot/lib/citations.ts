@@ -6,7 +6,7 @@ export interface CopilotCitation {
 
 /** Minimal structural shape of an assistant content block carrying citations.
  *  Endpoint-agnostic so it accepts both stable and beta SDK content blocks. */
-interface CitationCarrier {
+export interface CitationCarrier {
   type: string;
   citations?: Array<{ url?: string | null; title?: string | null }> | null;
 }

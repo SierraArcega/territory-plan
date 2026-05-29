@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { extractCitations, type CopilotCitation } from "@/features/copilot/lib/citations";
+import { extractCitations, type CopilotCitation, type CitationCarrier } from "@/features/copilot/lib/citations";
 import { handleListTables } from "@/features/reports/lib/tools/list-tables";
 import { handleDescribeTable } from "@/features/reports/lib/tools/describe-table";
 import { handleSearchMetadata } from "@/features/reports/lib/tools/search-metadata";
@@ -311,9 +311,9 @@ export async function runAgentLoop<TTerminal = unknown>(
   let usedServerTools = false;
   let pauseContinuations = 0;
   const MAX_PAUSE_CONTINUATIONS = 10;
-  // Accumulated assistant content across pause_turn continuations, for citation
-  // extraction at the research exit.
-  const serverContent: Array<{ type: string; citations?: Array<{ url?: string | null; title?: string | null }> | null }> = [];
+  // Accumulated assistant content across iterations, for citation extraction at
+  // the research exit. extractCitations ignores non-text blocks.
+  const serverContent: CitationCarrier[] = [];
   let iteration = 0;
   const events: TurnEvent[] = [];
   // Push helper that also forwards to the streaming callback. Keeps the
@@ -414,9 +414,7 @@ export async function runAgentLoop<TTerminal = unknown>(
     if (response.content.some((b) => (b as { type?: string }).type === "server_tool_use")) {
       usedServerTools = true;
     }
-    serverContent.push(
-      ...(response.content as Array<{ type: string; citations?: Array<{ url?: string | null; title?: string | null }> | null }>),
-    );
+    serverContent.push(...(response.content as CitationCarrier[]));
 
     // Server tools (web_search/web_fetch) pause the turn while Anthropic runs
     // them. Re-send the partial assistant content and continue — the model
@@ -424,7 +422,7 @@ export async function runAgentLoop<TTerminal = unknown>(
     if ((response as { stop_reason?: string | null }).stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: response.content as Anthropic.MessageParam["content"] });
       pauseContinuations++;
-      if (pauseContinuations > MAX_PAUSE_CONTINUATIONS) {
+      if (pauseContinuations >= MAX_PAUSE_CONTINUATIONS) {
         const text = assistantText || "I wasn't able to finish researching that. Could you narrow it down?";
         return { kind: "surrender", text, events, usage: totalUsage };
       }
