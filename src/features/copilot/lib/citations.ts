@@ -32,7 +32,7 @@ export function extractCitations(content: CitationCarrier[]): CopilotCitation[] 
   return out;
 }
 
-function hostOf(url: string): string {
+export function hostOf(url: string): string {
   try {
     return new URL(url).host.replace(/^www\./, "");
   } catch {

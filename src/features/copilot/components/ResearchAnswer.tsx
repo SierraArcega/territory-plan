@@ -3,15 +3,7 @@
 import { useState } from "react";
 import { Globe } from "lucide-react";
 import { AssistantMarkdown } from "@/features/shared/components/AssistantMarkdown";
-import type { CopilotCitation } from "../lib/citations";
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
+import { hostOf, type CopilotCitation } from "../lib/citations";
 
 function SourceFavicon({ url }: { url: string }) {
   const [failed, setFailed] = useState(false);
