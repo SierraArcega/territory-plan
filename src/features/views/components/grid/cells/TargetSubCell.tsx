@@ -37,6 +37,10 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
   const inputRef = useRef<HTMLInputElement>(null);
   const mutation = useUpdateDistrictTargets();
 
+  // Optimistic display: reflects the saved value immediately while the
+  // mutation + refetch completes in the background.
+  const [optimisticValue, setOptimisticValue] = useState<number | null>(value);
+
   function enterEdit() {
     setDraft(value != null ? String(value) : "");
     setEditing(true);
@@ -44,6 +48,7 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
 
   function commit() {
     const parsed = parseInput(draft);
+    setOptimisticValue(parsed); // instant feedback before network round-trip
     mutation.mutate({
       planId,
       leaid,
@@ -75,6 +80,11 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
     }
   }, [editing]);
 
+  // Sync from parent prop when not editing (picks up refetch updates).
+  useEffect(() => {
+    if (!editing) setOptimisticValue(value);
+  }, [value, editing]);
+
   if (editing) {
     return (
       <div className="flex items-center justify-end">
@@ -99,12 +109,12 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
       onClick={enterEdit}
       className={[
         "w-full rounded px-1.5 py-0.5 text-right text-[12px] font-semibold transition-colors",
-        value != null && value !== 0
+        optimisticValue != null && optimisticValue !== 0
           ? "text-[#5B3FC8] hover:bg-[#EDE8FF]"
           : "text-[#C4B5D0] font-normal hover:bg-[#EDE8FF] hover:text-[#5B3FC8]",
       ].join(" ")}
     >
-      {formatDisplay(value)}
+      {formatDisplay(optimisticValue)}
     </button>
   );
 }
