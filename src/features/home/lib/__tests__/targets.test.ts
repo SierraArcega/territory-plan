@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { districtSegment, buildTargetsRollups } from "../targets";
+import { districtSegment, buildTargetsRollups, workedLeaidsForRep } from "../targets";
 
 describe("districtSegment", () => {
   it("returns the largest of new/winback/expansion", () => {
@@ -51,5 +51,18 @@ describe("buildTargetsRollups", () => {
       targetDollars: 70,
       segments: { new: 0, winback: 0, expansion: 1 },
     });
+  });
+});
+
+describe("workedLeaidsForRep", () => {
+  const rows = [
+    { repId: "me", leaid: "A", newBusinessTarget: 30, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0 },
+    { repId: "me", leaid: "C", newBusinessTarget: 0, winbackTarget: 0, expansionTarget: 0, renewalTarget: 100 },
+    { repId: "u2", leaid: "D", newBusinessTarget: 10, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0 },
+  ];
+
+  it("returns only the rep's non-renewal-only worked leaids", () => {
+    expect(workedLeaidsForRep(rows, "me")).toEqual(["A"]); // C is renewal-only → excluded
+    expect(workedLeaidsForRep(rows, "u2")).toEqual(["D"]);
   });
 });

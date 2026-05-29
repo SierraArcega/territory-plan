@@ -42,9 +42,9 @@ export function districtSegment(t: SegmentTargets): TargetSegment | null {
   return best;
 }
 
-export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, TargetsRollup> {
-  // Dedupe a district that appears in multiple of a rep's plans: sum its target
-  // columns so it's counted once with combined targets.
+// Dedupe a district that appears in multiple of a rep's plans: sum its target
+// columns so it's counted once with combined targets.
+function dedupeByRepDistrict(rows: PlanDistrictTargets[]): Map<string, PlanDistrictTargets> {
   const byRepDistrict = new Map<string, PlanDistrictTargets>();
   for (const r of rows) {
     const key = `${r.repId}::${r.leaid}`;
@@ -65,9 +65,12 @@ export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, Ta
       });
     }
   }
+  return byRepDistrict;
+}
 
+export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, TargetsRollup> {
   const rollups = new Map<string, TargetsRollup>();
-  for (const d of byRepDistrict.values()) {
+  for (const d of dedupeByRepDistrict(rows).values()) {
     const seg = districtSegment(d);
     if (!seg) continue;
     let rollup = rollups.get(d.repId);
@@ -80,4 +83,14 @@ export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, Ta
     rollup.targetDollars += d.newBusinessTarget + d.winbackTarget + d.expansionTarget;
   }
   return rollups;
+}
+
+// The deduped worked-district leaids for one rep — the set the "converted to
+// pipeline" and "active · 90d" sub-counts are computed against.
+export function workedLeaidsForRep(rows: PlanDistrictTargets[], repId: string): string[] {
+  const leaids: string[] = [];
+  for (const d of dedupeByRepDistrict(rows).values()) {
+    if (d.repId === repId && districtSegment(d)) leaids.push(d.leaid);
+  }
+  return leaids;
 }
