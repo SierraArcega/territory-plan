@@ -189,6 +189,15 @@ export async function POST(request: NextRequest): Promise<Response> {
               events: result.events,
               usage: result.usage,
             });
+          } else if (result.kind === "research") {
+            await saveCopilotTurn({
+              userId,
+              conversationId,
+              question,
+              assistantText: result.assistantText,
+              events: result.events,
+              usage: result.usage,
+            });
           } else {
             await saveCopilotTurn({
               userId,
@@ -224,6 +233,13 @@ export async function POST(request: NextRequest): Promise<Response> {
             conversationId,
             assistantText: result.assistantText,
             proposedActions: result.terminalResult.proposedActions,
+          });
+        } else if (result.kind === "research") {
+          send("result", {
+            kind: "research",
+            conversationId,
+            assistantText: result.assistantText,
+            citations: result.citations,
           });
         } else {
           send("result", {

@@ -1,5 +1,6 @@
 import type { TurnEvent } from "@/features/reports/lib/agent/types";
 import type { QuerySummary } from "@/features/reports/lib/agent/types";
+import type { CopilotCitation } from "./citations";
 
 /** Object types the copilot can write. Districts ("accounts") are read-only;
  *  they're touched only via `district_note`. */
@@ -117,6 +118,12 @@ export type CopilotTurnResult =
       conversationId: string;
       assistantText: string;
       proposedActions: ProposedAction[];
+    }
+  | {
+      kind: "research";
+      conversationId: string;
+      assistantText: string;
+      citations: CopilotCitation[];
     }
   | {
       kind: "clarifying";
