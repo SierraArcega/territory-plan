@@ -84,8 +84,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         error,
       });
     }
-    // terminal_result is unreachable here — this route never opts into a
-    // non-reports variant. New variants must add their own save path.
+    // terminal_result and research are unreachable here — this route never opts
+    // into a non-reports variant and never enables server tools (web_search/
+    // web_fetch). New variants must add their own save path.
   } catch (err) {
     console.error("[chat route] saveTurn failed", err);
   }
