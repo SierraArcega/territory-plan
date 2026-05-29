@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Maximize2, Info } from "lucide-react";
 import { useRankTrajectory } from "@/features/home/lib/queries";
 import RankTrajectoryChart, { type RankSeries } from "./charts/RankTrajectoryChart";
+import RankTrajectoryModal from "./RankTrajectoryModal";
 
 // Positive rank movement (moved up the board) reads green; negative coral.
 const DELTA_UP = "#2E7D5B";
@@ -19,7 +20,7 @@ function deltaChip(entryRank: number, nowRank: number) {
 
 export default function RankTrajectoryCard({ fy }: { fy: number }) {
   const { data, isLoading, isError, refetch } = useRankTrajectory(fy);
-  const [, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   if (isError) {
     return (
@@ -115,6 +116,8 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
         </span>
         <span className="whitespace-nowrap">Lower is better · #1 = top of {totalReps} reps</span>
       </div>
+
+      <RankTrajectoryModal open={expanded} onClose={() => setExpanded(false)} fy={fy} />
     </div>
   );
 }

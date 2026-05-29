@@ -38,10 +38,12 @@ describe("RankTrajectoryCard", () => {
     expect(screen.getAllByText("Open pipeline").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders an Expand control", () => {
+  it("renders an Expand control that opens the full-screen modal", () => {
     mockHook.mockReturnValue(result({ data: payload }));
     render(<RankTrajectoryCard fy={2026} />);
-    expect(screen.getByRole("button", { name: /expand/i })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /expand/i }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
   it("shows a loading state while fetching", () => {
