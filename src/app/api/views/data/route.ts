@@ -349,6 +349,10 @@ export async function GET(req: NextRequest) {
           return {
             ...r,
             target: e?.target ?? null,
+            renewalTarget: e?.renewalTarget ?? null,
+            winbackTarget: e?.winbackTarget ?? null,
+            expansionTarget: e?.expansionTarget ?? null,
+            newBusinessTarget: e?.newBusinessTarget ?? null,
             pipeline_min: e?.pipelineMin ?? null,
             pipeline_max: e?.pipelineMax ?? null,
             won_min: e?.wonMin ?? null,
@@ -426,6 +430,11 @@ function camelizeRow(row: Record<string, unknown>): Record<string, unknown> {
  */
 interface DistrictEnrichmentEntry {
   target: number | null;
+  /** Individual target sub-fields for the breakdown popover. NULL = not set. */
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   /** Min net_booking_amount across this district's open (not Closed Won /
    *  Closed Lost) deals for the plan's school year. */
   pipelineMin: number | null;
@@ -459,6 +468,10 @@ async function fetchDistrictPlanEnrichment(
   const byLeaid = new Map<string, DistrictEnrichmentEntry>();
   const blank = (): DistrictEnrichmentEntry => ({
     target: null,
+    renewalTarget: null,
+    winbackTarget: null,
+    expansionTarget: null,
+    newBusinessTarget: null,
     pipelineMin: null,
     pipelineMax: null,
     wonMin: null,
@@ -484,7 +497,11 @@ async function fetchDistrictPlanEnrichment(
 
   type TargetRow = {
     district_leaid: string;
-    target: number | null;
+    target: number;
+    renewal_target: number | null;
+    winback_target: number | null;
+    expansion_target: number | null;
+    new_business_target: number | null;
   };
   type OppsAggRow = {
     district_lea_id: string;
@@ -522,7 +539,11 @@ async function fetchDistrictPlanEnrichment(
              COALESCE(renewal_target, 0)
                + COALESCE(winback_target, 0)
                + COALESCE(expansion_target, 0)
-               + COALESCE(new_business_target, 0) AS target
+               + COALESCE(new_business_target, 0) AS target,
+             renewal_target,
+             winback_target,
+             expansion_target,
+             new_business_target
       FROM territory_plan_districts
       WHERE plan_id = ${planId}
         AND district_leaid = ANY(${leaids})
@@ -597,6 +618,10 @@ async function fetchDistrictPlanEnrichment(
   for (const r of targetRows) {
     const cur = byLeaid.get(r.district_leaid) ?? blank();
     cur.target = r.target == null ? null : Number(r.target);
+    cur.renewalTarget = r.renewal_target == null ? null : Number(r.renewal_target);
+    cur.winbackTarget = r.winback_target == null ? null : Number(r.winback_target);
+    cur.expansionTarget = r.expansion_target == null ? null : Number(r.expansion_target);
+    cur.newBusinessTarget = r.new_business_target == null ? null : Number(r.new_business_target);
     byLeaid.set(r.district_leaid, cur);
   }
   for (const r of oppsRows) {
