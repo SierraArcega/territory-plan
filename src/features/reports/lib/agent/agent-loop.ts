@@ -115,9 +115,11 @@ interface RunAgentLoopArgs<TTerminal = unknown> {
   /**
    * Optional override for the tool set. When omitted, the reports variant
    * uses AGENT_TOOLS; list-builder must supply its own (read-only schema
-   * introspection + emit_list_spec).
+   * introspection + emit_list_spec). The copilot passes BetaToolUnion[] so
+   * the agent loop accepts the wider union; callers using the beta messages
+   * path cast accordingly at the call site.
    */
-  tools?: Anthropic.Tool[];
+  tools?: Anthropic.Tool[] | Anthropic.Beta.BetaToolUnion[];
   /**
    * Optional terminal-tool config. When provided, the loop substitutes the
    * default `run_sql` terminal for this one. The 'reports' variant ignores
@@ -352,7 +354,7 @@ export async function runAgentLoop<TTerminal = unknown>(
       thinking: { type: "adaptive" },
       ...(effort ? { output_config: { effort } } : {}),
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } }],
-      tools: toolSet,
+      tools: toolSet as Anthropic.Tool[],
       messages,
     });
     modelStream.on("text", (delta) => {
