@@ -32,6 +32,7 @@ export default function TargetsCard({ fy }: TargetsCardProps) {
   const total = card.value;
   const convertedFrac = total > 0 ? card.convertedToPipeline / total : 0;
   const activeFrac = total > 0 ? card.active90 / total : 0;
+  const untargetedFrac = total > 0 ? card.untargeted / total : 0;
   const segments: Segment[] = SEGMENT_LABELS.map(({ key, label }) => ({
     key,
     label,
@@ -68,6 +69,13 @@ export default function TargetsCard({ fy }: TargetsCardProps) {
           frac={activeFrac}
           color="#6BA368"
           stale={card.stale}
+        />
+        <SubRow
+          label="No targets set"
+          num={card.untargeted}
+          total={total}
+          frac={untargetedFrac}
+          color="#C2BBD4"
         />
       </div>
     </div>

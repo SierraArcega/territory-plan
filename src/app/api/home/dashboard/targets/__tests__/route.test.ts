@@ -42,7 +42,8 @@ describe("GET /api/home/dashboard/targets", () => {
     mockPlanDistricts.mockResolvedValue([
       { districtLeaid: "A", newBusinessTarget: 30, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
       { districtLeaid: "B", newBusinessTarget: 0, winbackTarget: 50, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
-      { districtLeaid: "C", newBusinessTarget: 0, winbackTarget: 0, expansionTarget: 0, renewalTarget: 100, plan: { ownerId: "me", userId: null } },
+      // untargeted (no New/Win-back/Expansion target) — still counted as worked
+      { districtLeaid: "C", newBusinessTarget: 0, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
       { districtLeaid: "D", newBusinessTarget: 200, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "u2", userId: null } },
     ] as never);
     // Converted-to-pipeline: district A has open pipeline.
@@ -58,15 +59,34 @@ describe("GET /api/home/dashboard/targets", () => {
     expect(body.card).toMatchObject({
       metricKey: "targets",
       label: "Targets",
-      value: 2, // me works A + B (C is renewal-only)
+      value: 3, // me works A + B + C (all plan districts count now)
       rank: 2, // me target$ = 80, u2 = 200 → me is #2
       totalReps: 2,
       inRoster: true,
       segments: { new: 1, winback: 1, expansion: 0 },
+      untargeted: 1, // C has no New/Win-back/Expansion target
       convertedToPipeline: 1,
       active90: 1,
-      stale: 1, // workedCount(2) - active90(1)
+      stale: 2, // workedCount(3) - active90(1)
     });
+  });
+
+  it("includes the caller's own plan even when they aren't a rep (admin viewing own dashboard)", async () => {
+    mockGetUser.mockResolvedValue({ id: "adminUser" } as never);
+    // Roster has no reps including the caller.
+    mockGetActiveReps.mockResolvedValue([{ id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null }]);
+    mockPlanDistricts.mockResolvedValue([
+      { districtLeaid: "A", newBusinessTarget: 0, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "adminUser", userId: null } },
+    ] as never);
+    mockQueryRaw.mockResolvedValue([] as never);
+    mockActivityDistricts.mockResolvedValue([] as never);
+
+    const res = await GET(req("2026"));
+    const body = await res.json();
+
+    expect(body.card.value).toBe(1); // admin's own plan district shows
+    expect(body.card.untargeted).toBe(1);
+    expect(body.card.inRoster).toBe(false); // not ranked, but count still shows
   });
 
   it("rejects a non-numeric fy param", async () => {

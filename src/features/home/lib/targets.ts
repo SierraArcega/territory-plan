@@ -1,9 +1,11 @@
-// Targets card rollups. "Districts being worked" = plan-districts the rep owns
-// with a non-zero new/winback/expansion target; renewal-only districts are
-// EXCLUDED (locked 2026-05-29). Each district is bucketed into the segment with
-// its largest such target (ties: new > winback > expansion). Rank-vs-team is by
-// total target $ committed (sum of new+winback+expansion over worked districts);
-// the card headline is the worked-district count.
+// Targets card rollups. "Districts being worked" = ALL plan-districts the rep
+// owns (membership), counted whether or not a target $ is set (revised 2026-05-29,
+// supersedes the earlier renewal-only exclusion). Districts WITH a
+// new/winback/expansion target are bucketed into the segment with their largest
+// such target (ties: new > winback > expansion); districts with none are tracked
+// as `untargetedCount` (surfaced as its own sub-row, not guessed into a segment).
+// Rank-vs-team is by total target $ committed (sum of new+winback+expansion); the
+// card headline is the total worked-district count.
 
 export type TargetSegment = "new" | "winback" | "expansion";
 
@@ -21,6 +23,7 @@ export interface PlanDistrictTargets extends SegmentTargets {
 
 export interface TargetsRollup {
   workedCount: number;
+  untargetedCount: number;
   targetDollars: number;
   segments: Record<TargetSegment, number>;
 }
@@ -71,26 +74,26 @@ function dedupeByRepDistrict(rows: PlanDistrictTargets[]): Map<string, PlanDistr
 export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, TargetsRollup> {
   const rollups = new Map<string, TargetsRollup>();
   for (const d of dedupeByRepDistrict(rows).values()) {
-    const seg = districtSegment(d);
-    if (!seg) continue;
     let rollup = rollups.get(d.repId);
     if (!rollup) {
-      rollup = { workedCount: 0, targetDollars: 0, segments: { new: 0, winback: 0, expansion: 0 } };
+      rollup = { workedCount: 0, untargetedCount: 0, targetDollars: 0, segments: { new: 0, winback: 0, expansion: 0 } };
       rollups.set(d.repId, rollup);
     }
     rollup.workedCount += 1;
-    rollup.segments[seg] += 1;
+    const seg = districtSegment(d);
+    if (seg) rollup.segments[seg] += 1;
+    else rollup.untargetedCount += 1;
     rollup.targetDollars += d.newBusinessTarget + d.winbackTarget + d.expansionTarget;
   }
   return rollups;
 }
 
-// The deduped worked-district leaids for one rep — the set the "converted to
-// pipeline" and "active · 90d" sub-counts are computed against.
+// All of a rep's deduped worked-district leaids (every plan district, targeted or
+// not) — the set the "converted to pipeline" and "active · 90d" sub-counts run over.
 export function workedLeaidsForRep(rows: PlanDistrictTargets[], repId: string): string[] {
   const leaids: string[] = [];
   for (const d of dedupeByRepDistrict(rows).values()) {
-    if (d.repId === repId && districtSegment(d)) leaids.push(d.leaid);
+    if (d.repId === repId) leaids.push(d.leaid);
   }
   return leaids;
 }

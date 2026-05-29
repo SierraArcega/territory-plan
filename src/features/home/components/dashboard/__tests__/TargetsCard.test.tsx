@@ -24,6 +24,7 @@ describe("TargetsCard", () => {
           totalReps: 12,
           inRoster: true,
           segments: { new: 142, winback: 89, expansion: 56 },
+          untargeted: 12,
           convertedToPipeline: 84,
           active90: 187,
           stale: 100,
@@ -43,6 +44,7 @@ describe("TargetsCard", () => {
     // sub-rows
     expect(screen.getByText("Converted to pipeline")).toBeInTheDocument();
     expect(screen.getByText("Active · 90d")).toBeInTheDocument();
+    expect(screen.getByText("No targets set")).toBeInTheDocument();
     expect(screen.getByText(/100 stale/)).toBeInTheDocument();
   });
 

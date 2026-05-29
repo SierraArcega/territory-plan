@@ -35,10 +35,14 @@ export async function GET(request: Request) {
   const repIds = reps.map((r) => r.id);
   const callerEmail = reps.find((r) => r.id === user.id)?.email ?? null;
 
+  // Always include the caller's own plans even if they aren't in the rep roster
+  // (e.g. an admin/manager viewing their own dashboard) so their worked count shows.
+  const ownerIds = Array.from(new Set([...repIds, user.id]));
+
   const planDistrictRows = await prisma.territoryPlanDistrict.findMany({
     where: {
       plan: {
-        OR: [{ ownerId: { in: repIds } }, { userId: { in: repIds }, ownerId: null }],
+        OR: [{ ownerId: { in: ownerIds } }, { userId: { in: ownerIds }, ownerId: null }],
         fiscalYear: fy,
       },
     },
@@ -77,6 +81,7 @@ export async function GET(request: Request) {
 
   const callerRollup = rollups.get(user.id) ?? {
     workedCount: 0,
+    untargetedCount: 0,
     targetDollars: 0,
     segments: { new: 0, winback: 0, expansion: 0 },
   };
@@ -121,6 +126,7 @@ export async function GET(request: Request) {
       totalReps: ranking.totalReps,
       inRoster: standing.inRoster,
       segments: callerRollup.segments,
+      untargeted: callerRollup.untargetedCount,
       convertedToPipeline,
       active90,
       stale: callerRollup.workedCount - active90,

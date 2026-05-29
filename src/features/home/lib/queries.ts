@@ -58,6 +58,7 @@ export interface TargetsCardData {
   totalReps: number;
   inRoster: boolean;
   segments: { new: number; winback: number; expansion: number };
+  untargeted: number;
   convertedToPipeline: number;
   active90: number;
   stale: number;
