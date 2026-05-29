@@ -178,12 +178,11 @@ describe("GridView — districts source", () => {
       </Wrapper>,
     );
 
-    const headers = container.querySelectorAll("th");
-    const headerTexts = Array.from(headers).map((h) => h.textContent?.trim());
-
-    // Target (order: 0) should appear before District (order: 99) in the rendered header row.
-    const targetIdx = headerTexts.indexOf("Target");
-    const districtIdx = headerTexts.indexOf("District");
+    const headers = Array.from(container.querySelectorAll("th"));
+    // Target header now contains a chevron button + "Target" text, so use
+    // includes() rather than exact match.
+    const targetIdx = headers.findIndex((h) => h.textContent?.includes("Target"));
+    const districtIdx = headers.findIndex((h) => h.textContent?.trim() === "District");
     expect(targetIdx).toBeGreaterThanOrEqual(0);
     expect(districtIdx).toBeGreaterThanOrEqual(0);
     expect(targetIdx).toBeLessThan(districtIdx);
