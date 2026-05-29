@@ -6,6 +6,12 @@ vi.mock("@/features/home/lib/queries", () => ({
   useTopline: (fy: number) => mockUseTopline(fy),
 }));
 
+// The Targets card owns its own query; stub it here so this test stays focused
+// on the four financial cards (covered separately in TargetsCard.test).
+vi.mock("@/features/home/components/dashboard/TargetsCard", () => ({
+  default: () => <div data-testid="targets-card" />,
+}));
+
 import ToplineStatStrip from "../ToplineStatStrip";
 
 describe("ToplineStatStrip", () => {

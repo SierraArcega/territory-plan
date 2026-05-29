@@ -49,3 +49,30 @@ export function useTopline(fy: number) {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+export interface TargetsCardData {
+  metricKey: "targets";
+  label: string;
+  value: number;
+  rank: number;
+  totalReps: number;
+  inRoster: boolean;
+  segments: { new: number; winback: number; expansion: number };
+  convertedToPipeline: number;
+  active90: number;
+  stale: number;
+}
+
+export interface TargetsResponse {
+  fy: number;
+  schoolYr: string;
+  card: TargetsCardData;
+}
+
+export function useTargets(fy: number) {
+  return useQuery({
+    queryKey: ["dashboard", "targets", fy],
+    queryFn: () => fetchJson<TargetsResponse>(`${API_BASE}/home/dashboard/targets?fy=${fy}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
