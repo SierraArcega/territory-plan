@@ -526,6 +526,8 @@ export function useUpdateDistrictTargets() {
       // Refresh dashboards that aggregate target data
       queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      // Refresh GridView so target sum column reflects new total
+      queryClient.invalidateQueries({ queryKey: ["views", "data"] });
     },
   });
 }
