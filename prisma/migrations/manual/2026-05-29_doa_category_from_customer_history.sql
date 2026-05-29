@@ -1,29 +1,24 @@
--- scripts/district-opportunity-actuals-view.sql
--- Materialized view: district_opportunity_actuals
--- Aggregates opportunities by district, school year, sales rep, and category.
--- Refreshed after each scheduler sync cycle (hourly).
+-- Re-create district_opportunity_actuals deriving `category` (sales motion) from
+-- the district's CLOSED-WON HISTORY instead of keyword-matching contract_type.
 --
--- Subscription handling: Elevate K12 contracts (acquired post-merger) live in
--- the opportunities table but their session-derived revenue columns are zero
--- because EK12 uses subscriptions, not sessions. The opp_subscriptions CTE
--- pre-aggregates subscription net_total per opportunity (signed sums so
--- credits offset positives), and that revenue is added into total_revenue
--- and completed_revenue at the final SELECT level. Take is intentionally
--- left untouched — we don't have an educator-cost / take rate concept for
--- subscriptions, so adding sub revenue to take would be invented data.
+-- Why: opportunities have no sales-motion field. contract_type encodes the
+-- product tier ("Tier 1", "Hybrid Staffing", "Mixed", …), so the old CASE matched
+-- none of renewal/winback/expansion and dumped ~100% of opps into new_business
+-- (e.g. Jenn Russart FY27 showed 100% new biz though Rockdale etc. are returning
+-- customers). Verified read-only before applying: with this logic Jenn FY27 splits
+-- renewal 23 / new 11, Rockdale FY27 → renewal, FY27 overall renewal 253 / new 159
+-- / winback 21.
 --
--- Category (sales motion) derivation: opportunities have NO sales-motion field
--- (contract_type encodes the PRODUCT TIER — "Tier 1", "Hybrid Staffing", …), so
--- the old keyword match on contract_type mislabeled ~100% of opps as
--- new_business. Category is now derived from the district's closed-won history,
--- per (district, school_yr): a district that closed-won in the prior school year
--- is a renewal (Return); one that closed-won in an older year but not the prior
--- year is a winback; one with no prior closed-won is new_business. Expansion is
--- folded into renewal (no signal separates incremental-vs-renewal). Closed-won =
--- stage_prefix >= 6. Category is constant across a (district, school_yr) — every
--- rep working that district in that year sees the same motion. Totals (bookings,
--- pipeline, revenue, take) are unchanged; this only relabels which category
--- bucket they sum into, so category-agnostic consumers (leaderboard) are unaffected.
+-- New derivation, per (district, school_yr) — closed-won = stage_prefix >= 6:
+--   renewal      → district had closed-won in the PRIOR school year (Return)
+--   winback      → closed-won in an older year but NOT the prior year (lapsed)
+--   new_business → no prior closed-won
+-- Expansion folds into renewal (no signal separates incremental-vs-renewal).
+--
+-- Totals (bookings/pipeline/revenue/take) are unchanged — this only relabels the
+-- category each row sums into. Category-agnostic consumers (leaderboard) are
+-- unaffected. Source of truth: scripts/district-opportunity-actuals-view.sql.
+-- Apply, then REFRESH MATERIALIZED VIEW district_opportunity_actuals.
 
 DROP MATERIALIZED VIEW IF EXISTS district_opportunity_actuals;
 
@@ -33,10 +28,6 @@ WITH stage_weights AS (
          unnest(ARRAY[0.05, 0.10, 0.25, 0.50, 0.75, 0.90]) AS weight
 ),
 opp_subscriptions AS (
-  -- Pre-aggregate subscriptions per opportunity. Done in a separate CTE so
-  -- the LEFT JOIN below contributes one row per opportunity (avoiding the
-  -- row multiplication that would happen if we joined the raw subscriptions
-  -- table directly into base_opps).
   SELECT
     opportunity_id,
     COALESCE(SUM(net_total), 0) AS sub_revenue,
@@ -49,18 +40,6 @@ base_opps AS (
     o.*,
     COALESCE(os.sub_revenue, 0) AS sub_revenue,
     COALESCE(os.sub_count, 0)   AS sub_count,
-    -- Contract chain key for min-purchase aggregation. Add-on opportunities
-    -- share a chain_key with their parent contract so we can MAX their
-    -- cumulative min_purchase per chain, then SUM across chains in a bucket.
-    --
-    -- Two normalizations, applied in order:
-    --   1. Strip the district-name prefix (everything up to and including the
-    --      first underscore) so inconsistent district names within the same
-    --      district_lea_id don't split a single contract into two chains.
-    --   2. Strip " Add-On [N]" / "_AddOn" / " Add On" (case-insensitive) so
-    --      add-ons collapse into their parent chain.
-    -- Falls back to the opp id when name is NULL so orphan opps become their
-    -- own singleton chains.
     COALESCE(
       regexp_replace(
         regexp_replace(o.name, '^[^_]*_', ''),
@@ -68,10 +47,6 @@ base_opps AS (
       ),
       o.id
     ) AS chain_key,
-    -- Stage prefix bucket (matches the logic in refresh_fullmind_financials).
-    -- Numeric prefix 0-5 → open pipeline; 6+ → closed-won.
-    -- Text "Closed Won" / "Active" / "Position Purchased" / etc → closed-won (6).
-    -- Text "Closed Lost" → -1 (excluded from both bookings and pipeline).
     CASE
       WHEN o.stage ~ '^\d' THEN (regexp_match(o.stage, '^(\d+)'))[1]::int
       WHEN LOWER(o.stage) IN ('closed won', 'active', 'position purchased',
@@ -82,8 +57,6 @@ base_opps AS (
   FROM opportunities o
   LEFT JOIN opp_subscriptions os ON os.opportunity_id = o.id
 ),
--- School-year start-years (e.g. "2025-26" → 2025) in which each district had a
--- closed-won booking. The basis for the customer-history category below.
 won_years AS (
   SELECT DISTINCT
     COALESCE(district_lea_id, '_NOMAP') AS district_lea_id,
@@ -110,9 +83,6 @@ categorized_opps AS (
     END AS category
   FROM base_opps b
 ),
--- Per-chain closed-won contract floor. MAX per chain picks the final cumulative
--- value = true contract floor; SUM across chains handles multiple independent
--- contracts within a (district, rep, year, category) bucket.
 chain_floors AS (
   SELECT
     COALESCE(district_lea_id, '_NOMAP') AS district_lea_id,
@@ -139,34 +109,23 @@ SELECT
   co.school_yr,
   co.sales_rep_email,
   co.category,
-  -- Bookings: closed-won (stage prefix >= 6)
   COALESCE(SUM(co.net_booking_amount) FILTER (WHERE co.stage_prefix >= 6), 0) AS bookings,
-  -- Min-purchase bookings: SUM over chains, MAX within each chain (see chain_floors CTE).
   COALESCE(MAX(bmp.min_purchase_bookings), 0) AS min_purchase_bookings,
-  -- Open pipeline: stages 0-5, unweighted
   COALESCE(SUM(co.net_booking_amount) FILTER (WHERE co.stage_prefix BETWEEN 0 AND 5), 0) AS open_pipeline,
-  -- Weighted pipeline
   COALESCE(SUM(co.net_booking_amount * sw.weight) FILTER (WHERE co.stage_prefix BETWEEN 0 AND 5), 0) AS weighted_pipeline,
-  -- Revenue: Fullmind session-derived totals + Elevate K12 subscription revenue
-  -- (sub_revenue is signed so credits/cancellations offset positives)
   COALESCE(SUM(co.total_revenue), 0)     + COALESCE(SUM(co.sub_revenue), 0) AS total_revenue,
   COALESCE(SUM(co.completed_revenue), 0) + COALESCE(SUM(co.sub_revenue), 0) AS completed_revenue,
   COALESCE(SUM(co.scheduled_revenue), 0) AS scheduled_revenue,
   COALESCE(SUM(co.sub_revenue), 0) AS sub_revenue,
-  -- Take (unchanged — no take rate concept for subscriptions)
   COALESCE(SUM(co.total_take), 0) AS total_take,
   COALESCE(SUM(co.completed_take), 0) AS completed_take,
   COALESCE(SUM(co.scheduled_take), 0) AS scheduled_take,
-  -- Take rate against session-only revenue base (raw column, not the output that
-  -- now includes sub_revenue) so it stays a meaningful session-margin metric.
   CASE WHEN SUM(co.total_revenue) > 0
     THEN SUM(co.total_take) / SUM(co.total_revenue)
     ELSE NULL
   END AS avg_take_rate,
-  -- Financial
   COALESCE(SUM(co.invoiced), 0) AS invoiced,
   COALESCE(SUM(co.credited), 0) AS credited,
-  -- Counts
   COUNT(*)::int AS opp_count,
   COALESCE(SUM(co.sub_count), 0)::int AS subscription_count
 FROM categorized_opps co
@@ -178,21 +137,12 @@ LEFT JOIN bucket_min_purchase bmp
  AND bmp.category = co.category
 GROUP BY COALESCE(co.district_lea_id, '_NOMAP'), co.school_yr, co.sales_rep_email, co.category;
 
--- Indexes for query patterns
 CREATE INDEX idx_doa_district ON district_opportunity_actuals (district_lea_id);
 CREATE INDEX idx_doa_school_yr ON district_opportunity_actuals (school_yr);
 CREATE INDEX idx_doa_rep ON district_opportunity_actuals (sales_rep_email);
 CREATE INDEX idx_doa_category ON district_opportunity_actuals (category);
 CREATE INDEX idx_doa_district_yr ON district_opportunity_actuals (district_lea_id, school_yr);
 CREATE INDEX idx_doa_district_yr_rep ON district_opportunity_actuals (district_lea_id, school_yr, sales_rep_email);
-
--- Unique index required for REFRESH CONCURRENTLY
 CREATE UNIQUE INDEX idx_doa_unique ON district_opportunity_actuals (district_lea_id, school_yr, sales_rep_email, category);
 
 ANALYZE district_opportunity_actuals;
-
--- Verify
-SELECT COUNT(*) AS row_count,
-       COUNT(DISTINCT district_lea_id) AS district_count,
-       COUNT(DISTINCT school_yr) AS fy_count
-FROM district_opportunity_actuals;
