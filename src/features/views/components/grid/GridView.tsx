@@ -153,10 +153,26 @@ interface GridViewProps {
   onLayoutChange?: (next: GridViewLayout) => void;
 }
 
+// State machine for TargetSumCell pending lifecycle.
+// Defined at module scope so the type is available without re-declaring per render.
+type SumPendingState = "idle" | "mutating" | "settled" | "fetching";
+
 /**
  * Dims the target sum while a target mutation for this row is in-flight AND
  * through the subsequent refetch — so the italic/opacity and the updated
  * number both clear at the same moment.
+ *
+ * Uses a 4-state machine rather than a simple boolean latch because the latch
+ * approach fails for concurrent row edits:
+ *
+ *   Row A settles → refetch 1 starts → refetch 1 completes (isFetching → 0)
+ *   → latch for Row B clears, even though Row B's refetch hasn't started yet.
+ *
+ * The state machine fixes this by requiring a fetch to START *after* this row's
+ * mutation has settled before it can advance to "idle". A fetch that was already
+ * in-flight when the mutation settled is ignored.
+ *
+ *   idle → mutating → settled → fetching → idle
  */
 function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null }) {
   const isMutating = useIsMutating({
@@ -167,25 +183,40 @@ function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null 
   });
   const isFetching = useIsFetching({ queryKey: ["views", "data"] });
 
-  // Latch: stays true from mutation start until the subsequent refetch completes.
-  // This keeps the dim alive through the full optimistic → network → refetch cycle,
-  // including the brief gap between a mutation settling and its refetch starting.
-  //
-  // Key rules:
-  //  1. Clear BEFORE set — so an active mutation always wins if both fire together
-  //     (e.g. Row A's refetch completes while Row B's mutation is still in-flight).
-  //  2. Clear only on a fetch TRANSITION (prevFetching > 0 → isFetching === 0),
-  //     not on every render where isFetching happens to be 0. Without this, the
-  //     latch resets prematurely in the gap between mutation settle and refetch start.
-  //  3. Formula uses `|| wasMutatingRef.current` directly (not gated on isFetching)
-  //     so the gap window also stays pending.
-  const wasMutatingRef = useRef(false);
+  const stateRef = useRef<SumPendingState>("idle");
+  const prevMutatingRef = useRef(0);
   const prevFetchingRef = useRef(0);
-  if (isFetching === 0 && prevFetchingRef.current > 0) wasMutatingRef.current = false;
-  prevFetchingRef.current = isFetching;
-  if (isMutating > 0) wasMutatingRef.current = true;
 
-  const isPending = isMutating > 0 || wasMutatingRef.current;
+  // All transition logic runs inline (not in effects) so isPending is correct on
+  // the same render frame without needing an extra render cycle.
+
+  let nextState = stateRef.current;
+
+  // Mutation transitions — highest priority; evaluated first.
+  if (isMutating > 0) {
+    nextState = "mutating";
+  } else if (prevMutatingRef.current > 0 && isMutating === 0) {
+    // All mutations for this row just settled.
+    nextState = "settled";
+  }
+  prevMutatingRef.current = isMutating;
+
+  // Fetch transitions — run on the already-updated nextState so that a
+  // settle + fetch-start in the same render (common when onSettled fires
+  // synchronously) advances all the way to "fetching" in one pass.
+  if (nextState === "settled" && isFetching > 0 && prevFetchingRef.current === 0) {
+    // A new fetch started after this row settled — this is the one that will
+    // carry the new data.
+    nextState = "fetching";
+  }
+  if (nextState === "fetching" && isFetching === 0 && prevFetchingRef.current > 0) {
+    // The post-settle fetch completed — data is fresh, clear pending.
+    nextState = "idle";
+  }
+  prevFetchingRef.current = isFetching;
+
+  stateRef.current = nextState;
+  const isPending = nextState !== "idle";
 
   if (value == null) return <span className="text-[#A69DC0]">—</span>;
   return (
