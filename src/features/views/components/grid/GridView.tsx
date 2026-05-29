@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -26,6 +26,7 @@ import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
 import { RowActionsMenu } from "./actions/RowActionsMenu";
 import { BulkActionsMenu, type SelectionState } from "./actions/BulkActionsMenu";
+import { AddDistrictsModal } from "./actions/AddDistrictsModal";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
@@ -37,7 +38,7 @@ import {
   ViewScroll,
 } from "../views/_shared";
 import GridPager from "./GridPager";
-import { GRID_PAGE_SIZE } from "./grid-pagination";
+import { DEFAULT_PAGE_SIZE, BULK_SELECT_CAP, type PageSize } from "./grid-pagination";
 
 function FilteredEmptyState({ onClear }: { onClear: () => void }) {
   return (
@@ -190,6 +191,7 @@ export default function GridView(props: GridViewProps) {
     : (onLayoutChangeProp ?? (() => {}));
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
@@ -199,6 +201,7 @@ export default function GridView(props: GridViewProps) {
   // like `has_target` can compile their EXISTS subquery on the backend.
   const planId = parentKind === "plan" ? parentId ?? null : null;
   const showRowActions = parentKind === "plan" && source === "districts" && planId != null;
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Reset to the first page whenever the query that defines the result set
   // changes (scope, filters, sort, or grouping). Done during render — React's
@@ -213,6 +216,7 @@ export default function GridView(props: GridViewProps) {
     JSON.stringify(layout.filters),
     JSON.stringify(layout.sort),
     layout.groupBy?.id ?? "",
+    String(pageSize),
   ].join("|");
   const [prevQuerySig, setPrevQuerySig] = useState(querySig);
   let effectivePage = page;
@@ -234,9 +238,9 @@ export default function GridView(props: GridViewProps) {
   }
 
   // One fixed-size window per fetch (offset paging), so we never exceed the
-  // backend's 200-row LIMIT cap and every page is reachable.
-  const limit = GRID_PAGE_SIZE;
-  const offset = (effectivePage - 1) * GRID_PAGE_SIZE;
+  // backend's 1000-row LIMIT cap and every page is reachable.
+  const limit = pageSize;
+  const offset = (effectivePage - 1) * pageSize;
   const q = useViewsData({ source, leaids, listId, planId, layout, limit, offset });
 
   function handleSortChange(columnId: string, dir: "asc" | "desc" | null, shift: boolean) {
@@ -419,7 +423,15 @@ export default function GridView(props: GridViewProps) {
         return prev;
       }
       const next = new Set(prev.mode === "explicit" ? prev.leaids : []);
-      next.has(leaid) ? next.delete(leaid) : next.add(leaid);
+      if (!next.has(leaid) && next.size >= BULK_SELECT_CAP) {
+        // Hard cap reached — do not add more rows.
+        return prev;
+      }
+      if (next.has(leaid)) {
+        next.delete(leaid);
+      } else {
+        next.add(leaid);
+      }
       return next.size === 0 ? { mode: "none" } : { mode: "explicit", leaids: next };
     });
   }
@@ -433,20 +445,25 @@ export default function GridView(props: GridViewProps) {
       (selection.mode === "explicit" &&
         leaid != null &&
         selection.leaids.has(leaid));
+    const atCap =
+      selection.mode === "explicit" &&
+      selection.leaids.size >= BULK_SELECT_CAP;
+    const lockedOut = atCap && !checked;
     return (
       <td
         className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
         onClick={(e) => {
           e.stopPropagation();
-          if (leaid) toggleRowLeaid(leaid);
+          if (leaid && !lockedOut) toggleRowLeaid(leaid);
         }}
       >
         <input
           type="checkbox"
           aria-label={`Select ${name}`}
-          className="h-3.5 w-3.5 rounded accent-[#403770] cursor-pointer"
+          className={`h-3.5 w-3.5 rounded accent-[#403770] ${lockedOut ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
           readOnly
           checked={checked}
+          disabled={lockedOut}
         />
       </td>
     );
@@ -509,15 +526,19 @@ export default function GridView(props: GridViewProps) {
       });
     }
 
-    // Walk rows, splitting into groups by changing key. Null group is
-    // captured separately and re-emitted at the end under "— No value —".
+    // Collect rows into group buckets using a Map so non-adjacent rows with
+    // the same key (which can happen when Postgres picks a merge-join plan
+    // that interleaves group values) land in the same bucket. Buckets are
+    // emitted in first-seen key order, which preserves the server's primary
+    // sort ordering across groups. Null group is captured separately and
+    // re-emitted at the end under "— No value —".
     type Bucket = {
       key: string;
       rows: { row: (typeof tableRows)[number] }[];
     };
     const ordered: Bucket[] = [];
     let nullBucket: Bucket | null = null;
-    let current: Bucket | null = null;
+    const byKey = new Map<string, Bucket>();
 
     for (const row of tableRows) {
       const original = row.original as Record<string, unknown>;
@@ -530,12 +551,13 @@ export default function GridView(props: GridViewProps) {
         continue;
       }
 
-      if (!current || current.key !== key) {
-        current = { key, rows: [entry] };
-        ordered.push(current);
-      } else {
-        current.rows.push(entry);
+      let bucket = byKey.get(key);
+      if (!bucket) {
+        bucket = { key, rows: [] };
+        byKey.set(key, bucket);
+        ordered.push(bucket);
       }
+      bucket.rows.push(entry);
     }
 
     const buckets: Bucket[] = nullBucket ? [...ordered, nullBucket] : ordered;
@@ -629,7 +651,17 @@ export default function GridView(props: GridViewProps) {
             onChange={setLayout}
           />
         </div>
-        <div className="shrink-0 px-2 py-2">
+        <div className="shrink-0 flex items-center gap-1 px-2 py-2">
+          {showRowActions && (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#D4CFE2] bg-white px-2.5 py-1 text-[12px] font-medium text-[#403770] transition-colors hover:border-[#403770] whitespace-nowrap"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              Add districts
+            </button>
+          )}
           <GridColumnMenu
             source={source}
             layout={layout}
@@ -666,12 +698,15 @@ export default function GridView(props: GridViewProps) {
           ) : (
             <>
               <span className="font-semibold whitespace-nowrap">
-                {selection.leaids.size} of {rows.length} on this page selected
+                {selection.leaids.size >= BULK_SELECT_CAP
+                  ? `${BULK_SELECT_CAP} (max) selected`
+                  : `${selection.leaids.size} of ${rows.length} on this page selected`}
               </span>
-              {/* Show "Select all N" promote link only when all page rows checked AND more exist */}
+              {/* Show "Select all N" promote link only when all page rows checked,
+                  more exist beyond the page, AND total is within the cap. */}
               {rows.every(
                 (r) => typeof r.leaid === "string" && selection.leaids.has(r.leaid)
-              ) && total > rows.length && (
+              ) && total > rows.length && total <= BULK_SELECT_CAP && (
                 <>
                   <span className="text-[#A69DC0]">·</span>
                   <button
@@ -773,11 +808,16 @@ export default function GridView(props: GridViewProps) {
                         return;
                       }
                       if (e.target.checked) {
-                        const pageLeaids = new Set(
-                          rows
+                        const currentLeaids =
+                          selection.mode === "explicit" ? selection.leaids : new Set<string>();
+                        const remainingCap = BULK_SELECT_CAP - currentLeaids.size;
+                        const pageLeaids = new Set([
+                          ...currentLeaids,
+                          ...rows
                             .map((r) => r.leaid)
                             .filter((l): l is string => typeof l === "string")
-                        );
+                            .slice(0, Math.max(0, remainingCap)),
+                        ]);
                         setSelection({ mode: "explicit", leaids: pageLeaids });
                       } else {
                         setSelection({ mode: "none" });
@@ -836,12 +876,20 @@ export default function GridView(props: GridViewProps) {
           </tbody>
         </table>
       </div>
-      {total > GRID_PAGE_SIZE && (
+      {total > pageSize && (
         <GridPager
           total={total}
           page={effectivePage}
-          pageSize={GRID_PAGE_SIZE}
+          pageSize={pageSize}
           onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
+      {showRowActions && planId && (
+        <AddDistrictsModal
+          planId={planId}
+          open={showAddModal}
+          onClose={() => setShowAddModal(false)}
         />
       )}
     </div>

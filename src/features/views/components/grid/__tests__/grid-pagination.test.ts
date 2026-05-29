@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { GRID_PAGE_SIZE, pageMeta } from "../grid-pagination";
+import { DEFAULT_PAGE_SIZE, pageMeta } from "../grid-pagination";
 
 describe("pageMeta", () => {
   it("page size constant is 50", () => {
-    expect(GRID_PAGE_SIZE).toBe(50);
+    expect(DEFAULT_PAGE_SIZE).toBe(50);
   });
 
   it("first page of a multi-page result reports the 1-based row range", () => {
