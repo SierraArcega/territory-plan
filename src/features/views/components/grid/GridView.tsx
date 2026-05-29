@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -26,6 +26,7 @@ import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
 import { RowActionsMenu } from "./actions/RowActionsMenu";
 import { BulkActionsMenu, type SelectionState } from "./actions/BulkActionsMenu";
+import { AddDistrictsModal } from "./actions/AddDistrictsModal";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
@@ -200,6 +201,7 @@ export default function GridView(props: GridViewProps) {
   // like `has_target` can compile their EXISTS subquery on the backend.
   const planId = parentKind === "plan" ? parentId ?? null : null;
   const showRowActions = parentKind === "plan" && source === "districts" && planId != null;
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Reset to the first page whenever the query that defines the result set
   // changes (scope, filters, sort, or grouping). Done during render — React's
@@ -631,7 +633,17 @@ export default function GridView(props: GridViewProps) {
             onChange={setLayout}
           />
         </div>
-        <div className="shrink-0 px-2 py-2">
+        <div className="shrink-0 flex items-center gap-1 px-2 py-2">
+          {showRowActions && (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#D4CFE2] bg-white px-2.5 py-1 text-[12px] font-medium text-[#403770] transition-colors hover:border-[#403770] whitespace-nowrap"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              Add districts
+            </button>
+          )}
           <GridColumnMenu
             source={source}
             layout={layout}
@@ -845,6 +857,13 @@ export default function GridView(props: GridViewProps) {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+        />
+      )}
+      {showRowActions && planId && (
+        <AddDistrictsModal
+          planId={planId}
+          open={showAddModal}
+          onClose={() => setShowAddModal(false)}
         />
       )}
     </div>
