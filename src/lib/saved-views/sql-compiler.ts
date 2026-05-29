@@ -379,5 +379,15 @@ export function buildOrderBy(
     })
     .filter(Boolean);
   if (parts.length === 0) return "";
+  // Append a stable tie-breaker on the primary key so that rows with the
+  // same value in the user-chosen sort column(s) are returned in a
+  // deterministic order regardless of which query plan Postgres picks.
+  // This is especially important for boolean columns (is_customer, etc.)
+  // where a large limit can cause Postgres to switch to a merge-join plan
+  // that interleaves rows from both values.
+  const alreadySortedByLeaid = parts.some((p) => p.includes('"leaid"'));
+  if (!alreadySortedByLeaid) {
+    parts.push(`${safeAlias}."leaid" ASC`);
+  }
   return `ORDER BY ${parts.join(", ")}`;
 }

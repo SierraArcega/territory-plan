@@ -526,15 +526,19 @@ export default function GridView(props: GridViewProps) {
       });
     }
 
-    // Walk rows, splitting into groups by changing key. Null group is
-    // captured separately and re-emitted at the end under "— No value —".
+    // Collect rows into group buckets using a Map so non-adjacent rows with
+    // the same key (which can happen when Postgres picks a merge-join plan
+    // that interleaves group values) land in the same bucket. Buckets are
+    // emitted in first-seen key order, which preserves the server's primary
+    // sort ordering across groups. Null group is captured separately and
+    // re-emitted at the end under "— No value —".
     type Bucket = {
       key: string;
       rows: { row: (typeof tableRows)[number] }[];
     };
     const ordered: Bucket[] = [];
     let nullBucket: Bucket | null = null;
-    let current: Bucket | null = null;
+    const byKey = new Map<string, Bucket>();
 
     for (const row of tableRows) {
       const original = row.original as Record<string, unknown>;
@@ -547,12 +551,13 @@ export default function GridView(props: GridViewProps) {
         continue;
       }
 
-      if (!current || current.key !== key) {
-        current = { key, rows: [entry] };
-        ordered.push(current);
-      } else {
-        current.rows.push(entry);
+      let bucket = byKey.get(key);
+      if (!bucket) {
+        bucket = { key, rows: [] };
+        byKey.set(key, bucket);
+        ordered.push(bucket);
       }
+      bucket.rows.push(entry);
     }
 
     const buckets: Bucket[] = nullBucket ? [...ordered, nullBucket] : ordered;
