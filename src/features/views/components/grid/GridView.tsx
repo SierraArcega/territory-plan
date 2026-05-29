@@ -30,6 +30,7 @@ import { AddDistrictsModal } from "./actions/AddDistrictsModal";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
+import { TargetSubCell, type TargetField } from "./cells/TargetSubCell";
 import { noteTypeMeta } from "../../lib/note-types";
 import {
   LoadingState,
@@ -151,6 +152,13 @@ interface GridViewProps {
   onLayoutChange?: (next: GridViewLayout) => void;
 }
 
+const SUB_TARGET_IDS = new Set([
+  "renewalTarget",
+  "expansionTarget",
+  "winbackTarget",
+  "newBusinessTarget",
+]);
+
 export default function GridView(props: GridViewProps) {
   const {
     source,
@@ -192,6 +200,7 @@ export default function GridView(props: GridViewProps) {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [targetExpanded, setTargetExpanded] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
@@ -289,66 +298,115 @@ export default function GridView(props: GridViewProps) {
     [source, columnsKey],
   );
 
-  const tanCols: TanColumnDef<Record<string, unknown>>[] = useMemo(() =>
-    visibleCols.map((c) => ({
-      id: c.id,
-      header: c.header,
-      accessorKey: c.accessor,
-      cell: (info) => {
-        const v = info.getValue();
-        const row = info.row.original as Record<string, unknown>;
-        const leaid = typeof row.leaid === "string" ? row.leaid : null;
+  const tanCols: TanColumnDef<Record<string, unknown>>[] = useMemo(() => {
+    const SUB_COLS = [
+      { id: "renewalTarget",     label: "Renewal",   accessor: "renewalTarget"   },
+      { id: "expansionTarget",   label: "Expansion", accessor: "expansionTarget" },
+      { id: "winbackTarget",     label: "Win Back",  accessor: "winbackTarget"   },
+      { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
+    ] as const;
 
-        if (c.id === "customer_rank") {
-          return <CustomerRankCell value={typeof v === "string" ? v : null} />;
+    return visibleCols.flatMap((c) => {
+      if (c.id === "target") {
+        if (!targetExpanded) {
+          // Collapsed: single read-only sum column
+          return [{
+            id: "target",
+            header: c.header,
+            accessorKey: c.accessor,
+            cell: (info: { getValue: () => unknown }) => {
+              const v = info.getValue();
+              if (v == null) return <span className="text-[#A69DC0]">—</span>;
+              return <span>{formatCellValue(v, c.format)}</span>;
+            },
+          }];
         }
-        if (c.id === "churn_risk" && leaid) {
-          return (
-            <ChurnRiskCell
-              value={typeof v === "string" ? v : null}
-              planId={planId}
-              leaid={leaid}
-              disabled={planId == null}
-            />
-          );
-        }
-        if (c.id === "plan_notes" && leaid) {
-          return (
-            <DistrictNotesCell
-              leaid={leaid}
-              districtName={typeof row.name === "string" ? row.name : leaid}
-              latest={typeof row.notesLatest === "string" ? row.notesLatest : null}
-              count={typeof row.notesCount === "number" ? row.notesCount : 0}
-              latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
-            />
-          );
-        }
-        if (c.id === "note_type") {
-          const t = typeof row.notesLatestType === "string" ? row.notesLatestType : null;
-          return t
-            ? <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${noteTypeMeta(t).pill}`}>{noteTypeMeta(t).label}</span>
-            : <span className="text-[#A69DC0]">—</span>;
-        }
-        if (c.id === "name" && showRowActions && leaid) {
-          // Action trigger sits in front of the district name (replaces the
-          // old right-edge column) so the add affordance hugs each row's label.
-          return (
-            <span className="flex items-center gap-2">
-              <RowActionsMenu
-                planId={planId!}
+        // Expanded: 4 inline-editable sub-columns
+        return SUB_COLS.map((sub) => ({
+          id: sub.id,
+          header: sub.label,
+          accessorKey: sub.accessor,
+          cell: (info: { row: { original: Record<string, unknown> } }) => {
+            const row = info.row.original as Record<string, unknown>;
+            const leaid = typeof row.leaid === "string" ? row.leaid : null;
+            if (!planId || !leaid) return <span className="text-[#A69DC0]">—</span>;
+            return (
+              <TargetSubCell
+                planId={planId}
                 leaid={leaid}
-                districtName={typeof v === "string" ? v : String(row.name ?? "")}
+                field={sub.id as TargetField}
+                value={typeof row[sub.accessor] === "number" ? row[sub.accessor] as number : null}
+                siblingValues={{
+                  renewalTarget:     typeof row.renewalTarget     === "number" ? row.renewalTarget     as number : null,
+                  expansionTarget:   typeof row.expansionTarget   === "number" ? row.expansionTarget   as number : null,
+                  winbackTarget:     typeof row.winbackTarget     === "number" ? row.winbackTarget     as number : null,
+                  newBusinessTarget: typeof row.newBusinessTarget === "number" ? row.newBusinessTarget as number : null,
+                }}
               />
-              <span className="truncate">{formatCellValue(v, c.format)}</span>
-            </span>
-          );
-        }
-        if (v == null) return <span className="text-[#A69DC0]">—</span>;
-        return <span>{formatCellValue(v, c.format)}</span>;
-      },
-    })),
-    [visibleCols, planId],
-  );
+            );
+          },
+        }));
+      }
+
+      return [{
+        id: c.id,
+        header: c.header,
+        accessorKey: c.accessor,
+        cell: (info: { getValue: () => unknown; row: { original: Record<string, unknown> } }) => {
+          const v = info.getValue();
+          const row = info.row.original as Record<string, unknown>;
+          const leaid = typeof row.leaid === "string" ? row.leaid : null;
+
+          if (c.id === "customer_rank") {
+            return <CustomerRankCell value={typeof v === "string" ? v : null} />;
+          }
+          if (c.id === "churn_risk" && leaid) {
+            return (
+              <ChurnRiskCell
+                value={typeof v === "string" ? v : null}
+                planId={planId}
+                leaid={leaid}
+                disabled={planId == null}
+              />
+            );
+          }
+          if (c.id === "plan_notes" && leaid) {
+            return (
+              <DistrictNotesCell
+                leaid={leaid}
+                districtName={typeof row.name === "string" ? row.name : leaid}
+                latest={typeof row.notesLatest === "string" ? row.notesLatest : null}
+                count={typeof row.notesCount === "number" ? row.notesCount : 0}
+                latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
+              />
+            );
+          }
+          if (c.id === "note_type") {
+            const t = typeof row.notesLatestType === "string" ? row.notesLatestType : null;
+            return t
+              ? <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${noteTypeMeta(t).pill}`}>{noteTypeMeta(t).label}</span>
+              : <span className="text-[#A69DC0]">—</span>;
+          }
+          if (c.id === "name" && showRowActions && leaid) {
+            // Action trigger sits in front of the district name (replaces the
+            // old right-edge column) so the add affordance hugs each row's label.
+            return (
+              <span className="flex items-center gap-2">
+                <RowActionsMenu
+                  planId={planId!}
+                  leaid={leaid}
+                  districtName={typeof v === "string" ? v : String(row.name ?? "")}
+                />
+                <span className="truncate">{formatCellValue(v, c.format)}</span>
+              </span>
+            );
+          }
+          if (v == null) return <span className="text-[#A69DC0]">—</span>;
+          return <span>{formatCellValue(v, c.format)}</span>;
+        },
+      }];
+    });
+  }, [visibleCols, planId, targetExpanded]);
 
   // Compute contiguous group spans for the optional grouped header row.
   // Adjacent visible columns sharing the same `group` merge into one span.
@@ -497,7 +555,7 @@ export default function GridView(props: GridViewProps) {
     });
   }
 
-  const colCount = visibleCols.length + 1 + (showRowActions ? 1 : 0);
+  const colCount = tanCols.length + 1 + (showRowActions ? 1 : 0);
 
   function renderBody() {
     const tableRows = table.getRowModel().rows;
@@ -838,26 +896,63 @@ export default function GridView(props: GridViewProps) {
                   <th
                     key={h.id}
                     style={{ width: colWidth ? `${colWidth}px` : undefined, position: "relative" }}
-                    className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left"
+                    className={[
+                      "text-[10px] font-semibold uppercase tracking-[0.06em] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left",
+                      SUB_TARGET_IDS.has(colId) ? "text-[#5B3FC8] bg-[#F3EFFE]" : "text-[#8A80A8]",
+                    ].join(" ")}
                   >
-                    <GridHeaderCell
-                      label={colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}
-                      sortable={colDef?.sortable ?? false}
-                      sortDir={sortDir}
-                      sortIndex={showIndex ? sortIndexInStack + 1 : undefined}
-                      onSortChange={(dir, shift) => handleSortChange(h.column.id, dir, shift)}
-                      width={colWidth}
-                      onWidthChange={(w) => {
-                        const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);
-                        const merged = allColIds.map((id) => {
-                          const existing = layout.columns.find((c) => c.id === id);
-                          const def = SOURCE_COLUMNS[source].find((c) => c.id === id)!;
-                          const base = existing ?? { id, order: def.defaultOrder, visible: def.defaultVisible };
-                          return id === colId ? { ...base, width: w } : base;
-                        });
-                        setLayout({ ...layout, columns: merged });
-                      }}
-                    />
+                    {colId === "target" ? (
+                      // Collapsed target header — ▶ expand button
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          aria-label="Expand target breakdown"
+                          onClick={() => setTargetExpanded(true)}
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[9px] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
+                        >
+                          ▶
+                        </button>
+                        <span className="whitespace-nowrap">Target</span>
+                      </div>
+                    ) : colId === "renewalTarget" ? (
+                      // First sub-column header — ◀ collapse button
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          aria-label="Collapse target breakdown"
+                          onClick={() => setTargetExpanded(false)}
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#EFEDF5] text-[9px] text-[#7C5CDB] hover:bg-[#DDD5F5] transition-colors"
+                        >
+                          ◀
+                        </button>
+                        <span className="whitespace-nowrap">Renewal</span>
+                      </div>
+                    ) : SUB_TARGET_IDS.has(colId) ? (
+                      // Other sub-column headers — just the label
+                      <span className="whitespace-nowrap">
+                        {colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}
+                      </span>
+                    ) : (
+                      // All other columns — existing GridHeaderCell with sort + resize
+                      <GridHeaderCell
+                        label={colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}
+                        sortable={colDef?.sortable ?? false}
+                        sortDir={sortDir}
+                        sortIndex={showIndex ? sortIndexInStack + 1 : undefined}
+                        onSortChange={(dir, shift) => handleSortChange(h.column.id, dir, shift)}
+                        width={colWidth}
+                        onWidthChange={(w) => {
+                          const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);
+                          const merged = allColIds.map((id) => {
+                            const existing = layout.columns.find((c) => c.id === id);
+                            const def = SOURCE_COLUMNS[source].find((c) => c.id === id)!;
+                            const base = existing ?? { id, order: def.defaultOrder, visible: def.defaultVisible };
+                            return id === colId ? { ...base, width: w } : base;
+                          });
+                          setLayout({ ...layout, columns: merged });
+                        }}
+                      />
+                    )}
                   </th>
                 );
               })}
