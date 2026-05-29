@@ -4,6 +4,7 @@ import {
   cumulativeColumns,
   flatCarry,
   todayColumnIndex,
+  buildMetricTrajectory,
   FY_COLUMN_LABELS,
 } from "../monthly";
 
@@ -113,5 +114,47 @@ describe("flatCarry", () => {
   it("leaves the array unchanged when today is the final column", () => {
     const cols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
     expect(flatCarry(cols, 12)).toEqual(cols);
+  });
+});
+
+describe("buildMetricTrajectory", () => {
+  const d = (iso: string) => new Date(iso + "T12:00:00Z");
+  const reps = [
+    { id: "me", email: "me@x" },
+    { id: "u2", email: "u2@x" },
+    { id: "u3", email: "u3@x" },
+  ];
+  // Jan 15 2026 is inside FY26 → today column = 7 (Jan).
+  const now = d("2026-01-15");
+  const rows = [
+    { email: "me@x", date: d("2025-08-10"), value: 100 }, // Aug (col 2)
+    { email: "me@x", date: d("2025-12-05"), value: 100 }, // Dec (col 6)
+    { email: "u2@x", date: d("2025-07-15"), value: 150 }, // Jul (col 1)
+    { email: "u3@x", date: d("2025-09-20"), value: 500 }, // Sep (col 3)
+  ];
+
+  it("ranks every rep per column on cumulative values, flat-carried after today", () => {
+    const t = buildMetricTrajectory({ rows, fy: 2026, reps, callerId: "me", now });
+
+    expect(t.todayIndex).toBe(7);
+    expect(t.caller.inRoster).toBe(true);
+    expect(t.caller.values).toEqual([0, 0, 100, 100, 100, 100, 200, 200, 200, 200, 200, 200, 200]);
+    // Pre-FY all tie #1; u3 overtakes at Sep; me passes u2 once Dec lands; flat from Jan on.
+    expect(t.caller.ranks).toEqual([1, 2, 2, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2]);
+  });
+
+  it("returns all reps for the modal team breakdown", () => {
+    const t = buildMetricTrajectory({ rows, fy: 2026, reps, callerId: "me", now });
+    expect(t.reps.map((r) => r.email).sort()).toEqual(["me@x", "u2@x", "u3@x"]);
+    const u3 = t.reps.find((r) => r.email === "u3@x")!;
+    expect(u3.values[12]).toBe(500); // Sep $500 carried to year-end
+    expect(u3.ranks[12]).toBe(1); // highest cumulative → #1
+  });
+
+  it("reports a caller outside the roster as not in roster, ranked last+1", () => {
+    const t = buildMetricTrajectory({ rows, fy: 2026, reps, callerId: "ghost", now });
+    expect(t.caller.inRoster).toBe(false);
+    expect(t.caller.values).toEqual(new Array(13).fill(0));
+    expect(t.caller.ranks).toEqual(new Array(13).fill(reps.length + 1));
   });
 });
