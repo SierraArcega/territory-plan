@@ -10,7 +10,8 @@ import { fetchTrajectoryRows } from "@/features/home/lib/trajectory-source";
 const mockGetUser = vi.mocked(getUser);
 const mockFetchRows = vi.mocked(fetchTrajectoryRows);
 const d = (iso: string) => new Date(iso + "T12:00:00Z");
-const empty = () => ({ targets: [], openPipeline: [], bookings: [], revenue: [], take: [] });
+type Rows = Record<string, { email: string; date: Date; value: number }[]>;
+const empty = (): Rows => ({ targets: [], openPipeline: [], bookings: [], revenue: [], take: [] });
 const req = (fy?: string) => new Request(`http://localhost/api/home/dashboard/sparklines${fy != null ? `?fy=${fy}` : ""}`);
 
 describe("GET /api/home/dashboard/sparklines", () => {
@@ -32,7 +33,7 @@ describe("GET /api/home/dashboard/sparklines", () => {
     current.bookings = [{ email: "me@x", date: d("2025-08-01"), value: 100 }];
     const prior = empty();
     prior.bookings = [{ email: "me@x", date: d("2024-08-01"), value: 50 }];
-    mockFetchRows.mockResolvedValueOnce(current).mockResolvedValueOnce(prior);
+    mockFetchRows.mockResolvedValueOnce(current as never).mockResolvedValueOnce(prior as never);
 
     const res = await GET(req("2026"));
     const body = await res.json();
