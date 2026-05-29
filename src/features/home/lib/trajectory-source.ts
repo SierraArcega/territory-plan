@@ -66,7 +66,13 @@ interface TargetRow {
 export async function fetchTrajectoryRows(
   sy: string,
   fy: number,
+  email?: string,
 ): Promise<Record<TrajectoryMetricKey, DatedValueRow[]>> {
+  // Optional rep scoping — the trajectory needs every rep (for ranking), but the
+  // caller-only sparklines pass an email to avoid fetching the whole team's rows.
+  const oppEmail = email ? Prisma.sql`AND o.sales_rep_email = ${email}` : Prisma.empty;
+  const tgtEmail = email ? Prisma.sql`AND u.email = ${email}` : Prisma.empty;
+
   const [opps, sessions, subs, targets] = await Promise.all([
     // Opps once; split into open-pipeline / bookings in JS by the same stage
     // bucketing the DOA matview uses (numeric prefix 0–5 open, ≥6 closed-won).
@@ -85,7 +91,7 @@ export async function fetchTrajectoryRows(
              END AS "stagePrefix"
       FROM opportunities o
       ${categoryJoin(sy)}
-      WHERE o.school_yr = ${sy} AND o.net_booking_amount IS NOT NULL`,
+      WHERE o.school_yr = ${sy} AND o.net_booking_amount IS NOT NULL ${oppEmail}`,
 
     prisma.$queryRaw<SessionRow[]>`
       SELECT o.sales_rep_email AS email,
@@ -103,7 +109,7 @@ export async function fetchTrajectoryRows(
       ) d ON d.district_lea_id = o.district_lea_id AND d.sales_rep_email = o.sales_rep_email
       WHERE session_fy(s.start_time) = ${sy}
         AND s.status NOT IN ('cancelled','canceled')
-        AND s.session_price IS NOT NULL`,
+        AND s.session_price IS NOT NULL ${oppEmail}`,
 
     prisma.$queryRaw<SubRow[]>`
       SELECT o.sales_rep_email AS email,
@@ -113,7 +119,7 @@ export async function fetchTrajectoryRows(
       FROM subscriptions sub
       JOIN opportunities o ON o.id = sub.opportunity_id
       ${categoryJoin(sy)}
-      WHERE o.school_yr = ${sy} AND sub.net_total IS NOT NULL AND o.close_date IS NOT NULL`,
+      WHERE o.school_yr = ${sy} AND sub.net_total IS NOT NULL AND o.close_date IS NOT NULL ${oppEmail}`,
 
     prisma.$queryRaw<TargetRow[]>`
       SELECT u.email AS email,
@@ -125,7 +131,7 @@ export async function fetchTrajectoryRows(
       FROM territory_plan_districts tpd
       JOIN territory_plans p ON p.id = tpd.plan_id
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
-      WHERE p.fiscal_year = ${fy}`,
+      WHERE p.fiscal_year = ${fy} ${tgtEmail}`,
   ]);
 
   const openPipeline: DatedValueRow[] = [];

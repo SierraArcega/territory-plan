@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { ToplineCard } from "./topline";
-import type { RankTrajectoryPayload } from "./rank-trajectory";
+import type { RankTrajectoryPayload, TrajectoryMetricKey } from "./rank-trajectory";
+import type { Sparkline } from "./sparkline";
 
 // Types for the alerts response
 
@@ -84,6 +85,20 @@ export function useRankTrajectory(fy: number) {
     queryKey: ["dashboard", "rankTrajectory", fy],
     queryFn: () =>
       fetchJson<RankTrajectoryPayload>(`${API_BASE}/home/dashboard/rank-trajectory?fy=${fy}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface SparklinesResponse {
+  fy: number;
+  schoolYr: string;
+  sparklines: Record<TrajectoryMetricKey, Sparkline>;
+}
+
+export function useSparklines(fy: number) {
+  return useQuery({
+    queryKey: ["dashboard", "sparklines", fy],
+    queryFn: () => fetchJson<SparklinesResponse>(`${API_BASE}/home/dashboard/sparklines?fy=${fy}`),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 const mockUseTopline = vi.fn();
 vi.mock("@/features/home/lib/queries", () => ({
   useTopline: (fy: number) => mockUseTopline(fy),
+  useSparklines: () => ({ data: undefined }),
 }));
 
 // The Targets card owns its own query; stub it here so this test stays focused

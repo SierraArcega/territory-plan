@@ -1,6 +1,6 @@
 "use client";
 
-import { useTopline } from "@/features/home/lib/queries";
+import { useTopline, useSparklines } from "@/features/home/lib/queries";
 import StatCard from "./StatCard";
 import TargetsCard from "./TargetsCard";
 
@@ -10,6 +10,8 @@ interface ToplineStatStripProps {
 
 export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
   const { data, isLoading, isError, refetch } = useTopline(fy);
+  const { data: sparkData } = useSparklines(fy);
+  const priorFyLabel = `FY${String(fy - 1).slice(-2)}`;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -42,6 +44,8 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
             totalReps={card.totalReps}
             inRoster={card.inRoster}
             segments={card.segments}
+            sparkline={sparkData?.sparklines[card.metricKey]}
+            priorFyLabel={priorFyLabel}
           />
         ))
       )}
