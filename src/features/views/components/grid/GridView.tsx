@@ -336,12 +336,6 @@ export default function GridView(props: GridViewProps) {
                 leaid={leaid}
                 field={sub.id as TargetField}
                 value={typeof row[sub.accessor] === "number" ? row[sub.accessor] as number : null}
-                siblingValues={{
-                  renewalTarget:     typeof row.renewalTarget     === "number" ? row.renewalTarget     as number : null,
-                  expansionTarget:   typeof row.expansionTarget   === "number" ? row.expansionTarget   as number : null,
-                  winbackTarget:     typeof row.winbackTarget     === "number" ? row.winbackTarget     as number : null,
-                  newBusinessTarget: typeof row.newBusinessTarget === "number" ? row.newBusinessTarget as number : null,
-                }}
               />
             );
           },

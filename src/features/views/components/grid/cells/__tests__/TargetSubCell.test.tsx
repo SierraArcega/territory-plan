@@ -7,19 +7,11 @@ vi.mock("@/features/plans/lib/queries", () => ({
   useUpdateDistrictTargets: () => ({ mutate: mockMutate, isPending: false }),
 }));
 
-const SIBLING_VALUES = {
-  renewalTarget:     20000,
-  expansionTarget:   5000,
-  winbackTarget:     5000,
-  newBusinessTarget: null,
-};
-
 const BASE = {
   planId: "1",
   leaid: "0601234",
   field: "renewalTarget" as const,
   value: 20000,
-  siblingValues: SIBLING_VALUES,
 };
 
 describe("TargetSubCell", () => {
@@ -44,7 +36,7 @@ describe("TargetSubCell", () => {
     expect((input as HTMLInputElement).value).toBe("20000");
   });
 
-  it("blur fires mutation with updated field and all sibling values", () => {
+  it("blur fires mutation with only this field — no sibling values", () => {
     render(<TargetSubCell {...BASE} />);
     fireEvent.click(screen.getByText("$20K"));
     const input = screen.getByRole("textbox");
@@ -53,11 +45,13 @@ describe("TargetSubCell", () => {
     expect(mockMutate).toHaveBeenCalledWith({
       planId: "1",
       leaid: "0601234",
-      renewalTarget:     15000,
-      expansionTarget:   5000,
-      winbackTarget:     5000,
-      newBusinessTarget: null,
+      renewalTarget: 15000,
     });
+    // Siblings must NOT be present — sending them risks clobbering a
+    // concurrent edit on another sub-cell with a stale value.
+    expect(mockMutate.mock.calls[0][0]).not.toHaveProperty("expansionTarget");
+    expect(mockMutate.mock.calls[0][0]).not.toHaveProperty("winbackTarget");
+    expect(mockMutate.mock.calls[0][0]).not.toHaveProperty("newBusinessTarget");
   });
 
   it("Enter key fires mutation", () => {
@@ -78,7 +72,6 @@ describe("TargetSubCell", () => {
     fireEvent.change(input, { target: { value: "99999" } });
     fireEvent.keyDown(input, { key: "Escape" });
     expect(mockMutate).not.toHaveBeenCalled();
-    // Returns to display mode
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 

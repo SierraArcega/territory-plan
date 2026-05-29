@@ -9,12 +9,6 @@ interface Props {
   leaid: string;
   field: TargetField;
   value: number | null;
-  siblingValues: {
-    renewalTarget:     number | null;
-    expansionTarget:   number | null;
-    winbackTarget:     number | null;
-    newBusinessTarget: number | null;
-  };
 }
 
 function formatDisplay(v: number | null): string {
@@ -31,7 +25,7 @@ function parseInput(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Props) {
+export function TargetSubCell({ planId, leaid, field, value }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,12 +50,10 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
     const parsed = parseInput(draft);
     editingRef.current = false;
     setOptimisticValue(parsed); // instant feedback before network round-trip
-    mutation.mutate({
-      planId,
-      leaid,
-      ...siblingValues,
-      [field]: parsed,
-    });
+    // Send only this field — the API ignores undefined fields, so sibling
+    // values are left untouched. This avoids overwriting a concurrent edit
+    // on another sub-cell with a stale sibling value.
+    mutation.mutate({ planId, leaid, [field]: parsed });
     setEditing(false);
   }
 
