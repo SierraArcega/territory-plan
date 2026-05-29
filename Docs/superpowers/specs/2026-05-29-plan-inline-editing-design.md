@@ -10,12 +10,14 @@ Editing per-district targets and churn risk in the plan detail table requires tw
 
 ## Scope
 
-`PlanDistrictsTab` — the Table view inside the plan detail modal. Two cells in the collapsed district row become directly interactive. The expand-row panel (YoY pacing, services, notes) is **not touched**.
+**`GridView` (the plan Table view)** — the full-page plan workspace reachable from the portfolio, with Map/Table/Kanban/Signals tabs. `TableView` is a thin wrapper over `GridView`; all changes land in `GridView`. The plan detail modal's Districts tab (`PlanDistrictsTab`) is out of scope.
+
+> **Correction from initial brainstorm:** The screenshot targets the views GridView, not `PlanDistrictsTab`. `ChurnRiskCell` is already wired in `GridView` — zero new work needed for churn risk.
 
 | Cell | Before | After |
 |---|---|---|
-| Target | Static formatted total | Clickable chip → `TargetBreakdownPopover` |
-| Churn Risk | Static colour pill | `ChurnRiskCell` (exists in views, unwired here) |
+| Target (`c.id === "target"`) | Static formatted sum | Clickable chip → `TargetBreakdownPopover` |
+| Churn Risk | ✅ Already inline-editable via `ChurnRiskCell` | No change |
 
 ## Design
 
@@ -51,41 +53,58 @@ const [targetOpen, setTargetOpen] = useState(false)
 ```
 The target cell renders a clickable chip when `!targetOpen`; renders `<TargetBreakdownPopover>` when `targetOpen`. Popover's `onClose` sets `targetOpen` to false.
 
-### Wiring `ChurnRiskCell`
+### Wiring into `GridView`
 
-`ChurnRiskCell` (`src/features/views/components/grid/cells/ChurnRiskCell.tsx`) already handles:
-- Click-to-edit with native `<select>` dropdown
-- `useUpdatePlanDistrict(planId, leaid)` mutation with auto-save on change
-- Disabled/read-only display mode
+In `GridView.tsx`, the `cell` renderer already handles `churn_risk` via `ChurnRiskCell`. Add a parallel case for `target`:
 
-In the collapsed `DistrictRow`, replace the static churn pill with:
 ```tsx
-<ChurnRiskCell
-  value={row.churnRisk}
-  planId={String(plan.id)}
-  leaid={row.leaid}
-  disabled={false}
-/>
+if (c.id === "target" && planId != null && leaid) {
+  return (
+    <TargetCell
+      planId={planId}
+      leaid={leaid}
+      row={row}
+    />
+  );
+}
 ```
 
-**One import, one line change — zero new logic.**
+`TargetCell` is a small wrapper (defined in `GridView.tsx` or extracted alongside) that manages `targetOpen` state and renders either the clickable chip or `TargetBreakdownPopover`.
+
+### Views data route — individual fields
+
+The GridView row currently carries `target` (the sum) but not the 4 sub-fields. The popover needs the breakdown. Extend `fetchDistrictPlanEnrichment` in `src/app/api/views/data/route.ts`:
+
+- Extend `TargetRow` type and SQL to also select `renewal_target`, `winback_target`, `expansion_target`, `new_business_target`
+- Extend `DistrictEnrichmentEntry` with `renewalTarget`, `winbackTarget`, `expansionTarget`, `newBusinessTarget`
+- Map them in the `for (const r of targetRows)` loop
+- Include in the row data enrichment at line ~351
+
+### Cache invalidation
+
+`useUpdateDistrictTargets.onSettled` (in `plans/lib/queries.ts`) must also invalidate the views data cache so the target sum re-fetches after a save:
+
+```ts
+queryClient.invalidateQueries({ queryKey: ["views", "data"] });
+```
 
 ## Data Flow
-
-Both mutations hit the existing API route `PUT /api/territory-plans/[id]/districts/[leaid]`. No new API work, no schema changes.
 
 ```
 Target popover  →  useUpdateDistrictTargets()   (plans/lib/queries.ts:431)
                    mutate({ planId, leaid, renewalTarget, expansionTarget,
                              winbackTarget, newBusinessTarget })
+                   onSettled: invalidates ["territoryPlan"], ["planDistrict"],
+                              ["teamProgress"], ["leaderboard"], ["views","data"]
 
-Churn dropdown  →  useUpdatePlanDistrict()       (views/lib/queries.ts:416)
-                   mutate({ churnRisk })
+Churn dropdown  →  ChurnRiskCell already wired in GridView — no changes
 ```
+
+API route: existing `PUT /api/territory-plans/[id]/districts/[leaid]`. No schema changes.
 
 ## Error Handling
 
-Both mutations use TanStack Query's `onError` callback. The existing hooks roll back optimistic updates and surface errors via the app's existing toast pattern. No additional error-handling code needed in the new components.
+`useUpdateDistrictTargets` uses TanStack Query's `onError` callback with optimistic rollback already implemented. No additional error handling needed in `TargetBreakdownPopover`.
 
 ## Files Changed
 
@@ -93,9 +112,11 @@ Both mutations use TanStack Query's `onError` callback. The existing hooks roll 
 |---|---|
 | **Create** | `src/features/plans/components/TargetBreakdownPopover.tsx` |
 | **Create** | `src/features/plans/components/__tests__/TargetBreakdownPopover.test.tsx` |
-| **Modify** | `src/features/map/components/SearchResults/PlanDistrictsTab.tsx` |
+| **Modify** | `src/app/api/views/data/route.ts` — extend TargetRow + DistrictEnrichmentEntry |
+| **Modify** | `src/features/plans/lib/queries.ts` — add `["views","data"]` invalidation |
+| **Modify** | `src/features/views/components/grid/GridView.tsx` — add `target` cell case |
 
-No API routes, no Prisma schema, no migrations.
+No Prisma schema changes, no migrations.
 
 ## Testing
 
@@ -106,14 +127,13 @@ No API routes, no Prisma schema, no migrations.
 - Escape key calls `onClose`
 - Click-outside calls `onClose`
 
-### `PlanDistrictsTab`
-Existing tests are unchanged. `ChurnRiskCell` already has its own test suite in the views feature. No new integration test needed for the churn wiring.
+### `GridView` / `views data route`
+Existing tests unchanged. No new integration test needed — `ChurnRiskCell` and `useUpdateDistrictTargets` already have unit coverage.
 
 ## What We Explicitly Did Not Do
 
 - No generic `<InlineEditCell>` abstraction — YAGNI
-- No custom-styled dropdown for churn — native `<select>` in `ChurnRiskCell` is the established pattern
-- No changes to the expand-row panel — it still serves pacing, services, notes
+- No custom-styled dropdown for churn — `ChurnRiskCell` is already the pattern and already wired
+- No changes to `PlanDistrictsTab` or its expand-row panel
 - No keyboard navigation beyond Escape-to-close and Tab between target fields
-- No movement of `useUpdateDistrictTargets` from `plans/lib/queries.ts`
 - No new API endpoints or schema changes
