@@ -35,6 +35,7 @@ describe("buildToplineCards", () => {
       }),
       SY,
       "me",
+      [],
     );
     const byKey = Object.fromEntries(cards.map((c) => [c.metricKey, c]));
 
@@ -50,9 +51,24 @@ describe("buildToplineCards", () => {
   });
 
   it("treats a rep with no actuals as zero", () => {
-    const cards = buildToplineCards(reps, batch({ "u2@x": { openPipeline: 300 } }), SY, "me");
+    const cards = buildToplineCards(reps, batch({ "u2@x": { openPipeline: 300 } }), SY, "me", []);
     const op = cards.find((c) => c.metricKey === "openPipeline")!;
     expect(op.value).toBe(0);
     expect(op.rank).toBe(2); // me(0) & u3(0) tie behind u2(300)
+  });
+
+  it("attaches the caller's per-category segments (Return/New/Win-back/Expansion), non-zero only, in order", () => {
+    const cards = buildToplineCards(reps, batch({}), SY, "me", [
+      { category: "renewal", openPipeline: 280, bookings: 0, take: 0, revenue: 0 },
+      { category: "new_business", openPipeline: 140, bookings: 0, take: 0, revenue: 0 },
+      { category: "winback", openPipeline: 60, bookings: 0, take: 0, revenue: 0 },
+      { category: "expansion", openPipeline: 0, bookings: 0, take: 0, revenue: 0 },
+    ]);
+    const op = cards.find((c) => c.metricKey === "openPipeline")!;
+    expect(op.segments).toEqual([
+      { key: "return", label: "Return", value: 280 },
+      { key: "new", label: "New biz", value: 140 },
+      { key: "winback", label: "Win-back", value: 60 },
+    ]); // expansion (0) dropped; order Return→New→Win-back→Expansion
   });
 });

@@ -1,16 +1,17 @@
 "use client";
 
-import { useTargets, type TargetsCardData } from "@/features/home/lib/queries";
+import { useTargets } from "@/features/home/lib/queries";
 import { formatNumber, formatPercent } from "@/features/shared/lib/format";
+import SegmentBar, { type Segment } from "./charts/SegmentBar";
 
 interface TargetsCardProps {
   fy: number;
 }
 
-const SEGMENTS: { key: keyof TargetsCardData["segments"]; label: string; color: string }[] = [
-  { key: "new", label: "New biz", color: "#F37167" },
-  { key: "winback", label: "Win-back", color: "#6EA3BE" },
-  { key: "expansion", label: "Expansion", color: "#FFCF70" },
+const SEGMENT_LABELS: { key: "new" | "winback" | "expansion"; label: string }[] = [
+  { key: "new", label: "New biz" },
+  { key: "winback", label: "Win-back" },
+  { key: "expansion", label: "Expansion" },
 ];
 
 export default function TargetsCard({ fy }: TargetsCardProps) {
@@ -31,6 +32,11 @@ export default function TargetsCard({ fy }: TargetsCardProps) {
   const total = card.value;
   const convertedFrac = total > 0 ? card.convertedToPipeline / total : 0;
   const activeFrac = total > 0 ? card.active90 / total : 0;
+  const segments: Segment[] = SEGMENT_LABELS.map(({ key, label }) => ({
+    key,
+    label,
+    value: card.segments[key],
+  })).filter((s) => s.value > 0);
 
   return (
     <div className="group rounded-lg bg-white border border-[#D4CFE2] shadow-sm p-4 transition-colors hover:border-[#B8B0D0] flex flex-col gap-3 min-w-[180px]">
@@ -44,25 +50,7 @@ export default function TargetsCard({ fy }: TargetsCardProps) {
       </div>
 
       {/* Segment bar */}
-      <div className="flex h-3.5 w-full overflow-hidden rounded-full border border-[#E2DEEC]">
-        {SEGMENTS.map((s) => {
-          const count = card.segments[s.key];
-          const pct = total > 0 ? (count / total) * 100 : 0;
-          if (pct === 0) return null;
-          return <div key={s.key} style={{ width: `${pct}%`, backgroundColor: s.color }} />;
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {SEGMENTS.map((s) => (
-          <span key={s.key} className="flex items-center gap-1 text-[11px] whitespace-nowrap">
-            <span className="h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: s.color }} />
-            <span style={{ color: s.color }} className="font-medium">{s.label}</span>
-            <span className="font-bold text-[#403770] tabular-nums">{formatNumber(card.segments[s.key])}</span>
-          </span>
-        ))}
-      </div>
+      <SegmentBar segments={segments} format={formatNumber} />
 
       {/* Sub-rows */}
       <div className="flex flex-col gap-1.5 pt-1">

@@ -5,6 +5,12 @@ import { rankReps, rankForRep } from "./ranking";
 // (card 1) is count-based from territory_plan_districts and is built separately.
 export type ToplineMetricKey = "openPipeline" | "bookings" | "take" | "revenue";
 
+export interface ToplineSegment {
+  key: "return" | "new" | "winback" | "expansion";
+  label: string;
+  value: number;
+}
+
 export interface ToplineCard {
   metricKey: ToplineMetricKey;
   label: string;
@@ -12,7 +18,29 @@ export interface ToplineCard {
   rank: number;
   totalReps: number;
   inRoster: boolean;
+  // The caller's value split by source (non-zero segments only, in display order).
+  segments: ToplineSegment[];
 }
+
+// The caller's DOA actuals grouped by category, for the segment bars. NOTE:
+// revenue here is DOA scheduled+completed revenue per category, which can differ
+// slightly from the blended headline (session revenue isn't categorized in the
+// matview) — reconciled in the Phase 3 revenue work.
+export interface CategoryActuals {
+  category: string;
+  openPipeline: number;
+  bookings: number;
+  take: number;
+  revenue: number;
+}
+
+// Maps DOA category → the design's segment, in display order Return→New→Win-back→Expansion.
+const SEGMENT_DEFS: { category: string; key: ToplineSegment["key"]; label: string }[] = [
+  { category: "renewal", key: "return", label: "Return" },
+  { category: "new_business", key: "new", label: "New biz" },
+  { category: "winback", key: "winback", label: "Win-back" },
+  { category: "expansion", key: "expansion", label: "Expansion" },
+];
 
 const ZERO: RepActuals = {
   totalRevenue: 0, totalTake: 0, completedTake: 0, scheduledTake: 0,
@@ -22,20 +50,38 @@ const ZERO: RepActuals = {
 
 // Card 4 (revenue) uses blended totalRevenue so it reconciles with the leaderboard
 // (locked decision 2026-05-28). Card 5 (take) = scheduled + delivered take.
-const METRICS: { key: ToplineMetricKey; label: string; value: (a: RepActuals) => number }[] = [
-  { key: "openPipeline", label: "Open Pipeline", value: (a) => a.openPipeline },
-  { key: "bookings", label: "Closed Won Bookings", value: (a) => a.bookings },
-  { key: "take", label: "Sched + Delivered Take", value: (a) => a.completedTake + a.scheduledTake },
-  { key: "revenue", label: "Sched + Delivered Rev.", value: (a) => a.totalRevenue },
+const METRICS: {
+  key: ToplineMetricKey;
+  label: string;
+  value: (a: RepActuals) => number;
+  categoryValue: (c: CategoryActuals) => number;
+}[] = [
+  { key: "openPipeline", label: "Open Pipeline", value: (a) => a.openPipeline, categoryValue: (c) => c.openPipeline },
+  { key: "bookings", label: "Closed Won Bookings", value: (a) => a.bookings, categoryValue: (c) => c.bookings },
+  { key: "take", label: "Sched + Delivered Take", value: (a) => a.completedTake + a.scheduledTake, categoryValue: (c) => c.take },
+  { key: "revenue", label: "Sched + Delivered Rev.", value: (a) => a.totalRevenue, categoryValue: (c) => c.revenue },
 ];
+
+function segmentsFor(
+  callerCategories: CategoryActuals[],
+  categoryValue: (c: CategoryActuals) => number,
+): ToplineSegment[] {
+  return SEGMENT_DEFS.map(({ category, key, label }) => {
+    const value = callerCategories
+      .filter((c) => c.category === category)
+      .reduce((sum, c) => sum + categoryValue(c), 0);
+    return { key, label, value };
+  }).filter((s) => s.value > 0);
+}
 
 export function buildToplineCards(
   reps: { id: string; email: string }[],
   actualsByEmail: Map<string, Map<string, RepActuals>>,
   schoolYr: string,
   callerId: string,
+  callerCategories: CategoryActuals[],
 ): ToplineCard[] {
-  return METRICS.map(({ key, label, value }) => {
+  return METRICS.map(({ key, label, value, categoryValue }) => {
     const values = reps.map((r) => ({
       id: r.id,
       email: r.email,
@@ -50,6 +96,7 @@ export function buildToplineCards(
       rank: standing.rank,
       totalReps: ranking.totalReps,
       inRoster: standing.inRoster,
+      segments: segmentsFor(callerCategories, categoryValue),
     };
   });
 }

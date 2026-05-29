@@ -41,6 +41,7 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
             rank={card.rank}
             totalReps={card.totalReps}
             inRoster={card.inRoster}
+            segments={card.segments}
           />
         ))
       )}

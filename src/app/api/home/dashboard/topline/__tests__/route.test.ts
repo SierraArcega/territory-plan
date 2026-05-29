@@ -3,15 +3,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase/server", () => ({ getUser: vi.fn() }));
 vi.mock("@/lib/reps", () => ({ getActiveReps: vi.fn() }));
 vi.mock("@/lib/opportunity-actuals", () => ({ getRepActualsBatch: vi.fn() }));
+vi.mock("@/lib/prisma", () => ({ default: { $queryRaw: vi.fn() } }));
 
 import { GET } from "../route";
 import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
 import { getRepActualsBatch } from "@/lib/opportunity-actuals";
+import prisma from "@/lib/prisma";
 
 const mockGetUser = vi.mocked(getUser);
 const mockGetActiveReps = vi.mocked(getActiveReps);
 const mockBatch = vi.mocked(getRepActualsBatch);
+const mockQueryRaw = vi.mocked(prisma.$queryRaw);
 
 const ZERO = {
   totalRevenue: 0, totalTake: 0, completedTake: 0, scheduledTake: 0,
@@ -52,6 +55,11 @@ describe("GET /api/home/dashboard/topline", () => {
         "u2@x": { [yrs[0]]: { openPipeline: 300 } },
       }),
     );
+    // Caller's per-category breakdown for the segment bars.
+    mockQueryRaw.mockResolvedValue([
+      { category: "renewal", openPipeline: 120, bookings: 0, take: 0, revenue: 0 },
+      { category: "new_business", openPipeline: 80, bookings: 0, take: 0, revenue: 0 },
+    ] as never);
 
     const res = await GET(req("2026"));
     const body = await res.json();
@@ -60,11 +68,12 @@ describe("GET /api/home/dashboard/topline", () => {
     expect(body.fy).toBe(2026);
     expect(body.schoolYr).toBe("2025-26");
     expect(body.cards).toHaveLength(4);
-    expect(body.cards.find((c: { metricKey: string }) => c.metricKey === "openPipeline")).toMatchObject({
-      value: 200,
-      rank: 2,
-      totalReps: 2,
-    });
+    const op = body.cards.find((c: { metricKey: string }) => c.metricKey === "openPipeline");
+    expect(op).toMatchObject({ value: 200, rank: 2, totalReps: 2 });
+    expect(op.segments).toEqual([
+      { key: "return", label: "Return", value: 120 },
+      { key: "new", label: "New biz", value: 80 },
+    ]);
   });
 
   it("rejects a non-numeric fy param", async () => {

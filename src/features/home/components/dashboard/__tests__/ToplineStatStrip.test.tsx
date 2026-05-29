@@ -23,8 +23,8 @@ describe("ToplineStatStrip", () => {
         fy: 2026,
         schoolYr: "2025-26",
         cards: [
-          { metricKey: "openPipeline", label: "Open Pipeline", value: 480000, rank: 3, totalReps: 12, inRoster: true },
-          { metricKey: "bookings", label: "Closed Won Bookings", value: 612000, rank: 1, totalReps: 12, inRoster: true },
+          { metricKey: "openPipeline", label: "Open Pipeline", value: 480000, rank: 3, totalReps: 12, inRoster: true, segments: [{ key: "return", label: "Return", value: 280000 }] },
+          { metricKey: "bookings", label: "Closed Won Bookings", value: 612000, rank: 1, totalReps: 12, inRoster: true, segments: [] },
         ],
       },
       isLoading: false,

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
 import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
-import { buildToplineCards } from "@/features/home/lib/topline";
+import { buildToplineCards, type CategoryActuals } from "@/features/home/lib/topline";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,25 @@ export async function GET(request: Request) {
 
   const schoolYr = schoolYearForFY(fy);
   const reps = await getActiveReps();
+  const callerEmail = reps.find((r) => r.id === user.id)?.email ?? null;
+
   const actualsByEmail = await getRepActualsBatch(reps.map((r) => r.email), [schoolYr]);
-  const cards = buildToplineCards(reps, actualsByEmail, schoolYr, user.id);
+
+  // Caller-only per-category breakdown for the segment bars.
+  const callerCategories: CategoryActuals[] = callerEmail
+    ? await prisma.$queryRaw<CategoryActuals[]>`
+        SELECT category,
+          COALESCE(SUM(open_pipeline), 0)::float AS "openPipeline",
+          COALESCE(SUM(bookings), 0)::float AS "bookings",
+          COALESCE(SUM(completed_take + scheduled_take), 0)::float AS "take",
+          COALESCE(SUM(completed_revenue + scheduled_revenue), 0)::float AS "revenue"
+        FROM district_opportunity_actuals
+        WHERE sales_rep_email = ${callerEmail} AND school_yr = ${schoolYr}
+        GROUP BY category
+      `
+    : [];
+
+  const cards = buildToplineCards(reps, actualsByEmail, schoolYr, user.id, callerCategories);
 
   return NextResponse.json({ fy, schoolYr, cards });
 }
