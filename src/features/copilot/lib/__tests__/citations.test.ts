@@ -44,4 +44,9 @@ describe("extractCitations", () => {
     ];
     expect(extractCitations(content)).toEqual([]);
   });
+
+  it("handles a text block with null citations", () => {
+    const content = [{ type: "text", text: "z", citations: null }];
+    expect(extractCitations(content)).toEqual([]);
+  });
 });
