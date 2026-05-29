@@ -111,10 +111,11 @@ export function TargetSubCell({ planId, leaid, field, value }: Props) {
       type="button"
       onClick={enterEdit}
       className={[
-        "w-full rounded px-1.5 py-0.5 text-right text-[12px] font-semibold transition-colors",
+        "w-full rounded px-1.5 py-0.5 text-right text-[12px] font-semibold transition-all",
         optimisticValue != null && optimisticValue !== 0
           ? "text-[#5B3FC8] hover:bg-[#EDE8FF]"
           : "text-[#C4B5D0] font-normal hover:bg-[#EDE8FF] hover:text-[#5B3FC8]",
+        mutation.isPending ? "opacity-50 italic" : "",
       ].join(" ")}
     >
       {formatDisplay(optimisticValue)}
