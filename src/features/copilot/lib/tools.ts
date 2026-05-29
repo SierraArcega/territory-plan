@@ -56,17 +56,16 @@ const proposeActions: Anthropic.Tool = {
   },
 };
 
-// Anthropic server-side tools. `web_search` is GA; `web_fetch` is beta and
-// requires the `web-fetch-2025-09-10` beta header (supplied by the stream
-// route via runAgentLoop's `betas`). They run Anthropic-side — we never execute
-// them — and return text blocks with `citations`.
-const webSearch: Anthropic.Beta.BetaWebSearchTool20250305 = {
+// Anthropic server-side tools. Both are accepted on the stable messages
+// endpoint in @anthropic-ai/sdk 0.90 (no beta header). They run Anthropic-side —
+// we never execute them — and return text blocks with `citations`.
+const webSearch: Anthropic.WebSearchTool20250305 = {
   type: "web_search_20250305",
   name: "web_search",
   max_uses: 5,
 };
 
-const webFetch: Anthropic.Beta.BetaWebFetchTool20250910 = {
+const webFetch: Anthropic.WebFetchTool20250910 = {
   type: "web_fetch_20250910",
   name: "web_fetch",
   max_uses: 5,
@@ -80,8 +79,8 @@ const webFetch: Anthropic.Beta.BetaWebFetchTool20250910 = {
  * `run_sql` and `propose_actions` are terminal for the copilot variant — the
  * agent loop picks the path by which one the model calls.
  */
-export const COPILOT_TOOLS: Anthropic.Beta.BetaToolUnion[] = [
-  ...(AGENT_TOOLS as Anthropic.Beta.BetaToolUnion[]),
+export const COPILOT_TOOLS: Anthropic.ToolUnion[] = [
+  ...AGENT_TOOLS,
   webSearch,
   webFetch,
   proposeActions,
