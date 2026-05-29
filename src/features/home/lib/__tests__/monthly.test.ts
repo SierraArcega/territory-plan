@@ -5,6 +5,7 @@ import {
   flatCarry,
   todayColumnIndex,
   buildMetricTrajectory,
+  buildSegmentedTrajectory,
   FY_COLUMN_LABELS,
 } from "../monthly";
 
@@ -156,5 +157,41 @@ describe("buildMetricTrajectory", () => {
     expect(t.caller.inRoster).toBe(false);
     expect(t.caller.values).toEqual(new Array(13).fill(0));
     expect(t.caller.ranks).toEqual(new Array(13).fill(reps.length + 1));
+  });
+});
+
+describe("buildSegmentedTrajectory", () => {
+  const d = (iso: string) => new Date(iso + "T12:00:00Z");
+  const reps = [
+    { id: "me", email: "me@x" },
+    { id: "u2", email: "u2@x" },
+  ];
+  const now = d("2026-06-30"); // end of FY26 → today column 12, no flat-carry
+  const rows = [
+    { email: "me@x", date: d("2025-08-01"), value: 100, category: "renewal" },
+    { email: "me@x", date: d("2025-08-01"), value: 20, category: "new_business" },
+    { email: "u2@x", date: d("2025-08-01"), value: 200, category: "new_business" },
+  ];
+
+  it("builds an 'all' trajectory plus one per category present", () => {
+    const seg = buildSegmentedTrajectory({ rows, fy: 2026, reps, callerId: "me", now });
+
+    // 'all' ranks on the combined total: me=120 vs u2=200 → me #2.
+    expect(seg.all.caller.values[12]).toBe(120);
+    expect(seg.all.caller.ranks[12]).toBe(2);
+
+    expect([...seg.byCategory.keys()].sort()).toEqual(["new_business", "renewal"]);
+  });
+
+  it("ranks within a single category using only that category's rows", () => {
+    const seg = buildSegmentedTrajectory({ rows, fy: 2026, reps, callerId: "me", now });
+
+    // renewal: only me has rows (100) → me #1.
+    expect(seg.byCategory.get("renewal")!.caller.values[12]).toBe(100);
+    expect(seg.byCategory.get("renewal")!.caller.ranks[12]).toBe(1);
+
+    // new_business: u2(200) > me(20) → me #2.
+    expect(seg.byCategory.get("new_business")!.caller.values[12]).toBe(20);
+    expect(seg.byCategory.get("new_business")!.caller.ranks[12]).toBe(2);
   });
 });

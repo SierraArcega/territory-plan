@@ -128,3 +128,32 @@ export function buildMetricTrajectory(params: {
 
   return { todayIndex, caller, reps: repSeries };
 }
+
+export interface SegmentedTrajectory {
+  all: MetricTrajectory;
+  byCategory: Map<string, MetricTrajectory>;
+}
+
+// Builds the combined ("all") trajectory plus one trajectory per DOA category
+// present in the rows, each ranked across the full roster using only that
+// category's rows. Powers the modal's segment filter.
+export function buildSegmentedTrajectory(params: {
+  rows: DatedValueRow[];
+  fy: number;
+  reps: { id: string; email: string }[];
+  callerId: string;
+  now?: Date;
+}): SegmentedTrajectory {
+  const { rows, ...rest } = params;
+  const all = buildMetricTrajectory({ rows, ...rest });
+
+  const categories = [...new Set(rows.map((r) => r.category).filter((c): c is string => c != null))];
+  const byCategory = new Map<string, MetricTrajectory>(
+    categories.map((cat) => [
+      cat,
+      buildMetricTrajectory({ rows: rows.filter((r) => r.category === cat), ...rest }),
+    ]),
+  );
+
+  return { all, byCategory };
+}
