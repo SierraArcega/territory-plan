@@ -1,6 +1,7 @@
 // Tiny cumulative-trend sparkline for the topline cards — ported from the design
 // prototype (Docs/Dashboard.zip · hifi-charts.jsx · Sparkline). Current FY solid,
-// prior FY dashed/muted. Presentational only.
+// prior FY dashed/muted. Fluid width (scales to its container, fixed height) so it
+// never overflows a narrow card. `width` is the viewBox coordinate space only.
 
 interface SparklineProps {
   data: number[];
@@ -14,7 +15,7 @@ interface SparklineProps {
 export default function Sparkline({
   data,
   priorData,
-  width = 120,
+  width = 160,
   height = 32,
   color = "#403770",
   priorColor = "#A69DC0",
@@ -36,7 +37,13 @@ export default function Sparkline({
   const lastY = height - 4 - ((data[data.length - 1] - min) / range) * (height - 8);
 
   return (
-    <svg width={width} height={height} style={{ display: "block", overflow: "visible" }}>
+    <svg
+      width="100%"
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMinYMid meet"
+      style={{ display: "block", maxWidth: width }}
+    >
       {priorData && priorData.length >= 2 && (
         <polyline points={pts(priorData)} fill="none" stroke={priorColor} strokeWidth="1.5" strokeDasharray="3 3" strokeLinejoin="round" strokeLinecap="round" />
       )}

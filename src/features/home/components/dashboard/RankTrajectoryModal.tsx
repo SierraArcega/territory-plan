@@ -175,9 +175,11 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
           })}
         </div>
 
-        {/* Chart */}
-        <div className="px-5 pt-4">
-          <RankTrajectoryChart series={chartSeries} months={columns as string[]} carryover todayIndex={todayIndex} totalRanks={totalReps} hideEndLabels height={420} />
+        {/* Chart — horizontal scroll on narrow widths keeps axis text legible. */}
+        <div className="overflow-x-auto px-5 pt-4">
+          <div className="min-w-[640px]">
+            <RankTrajectoryChart series={chartSeries} months={columns as string[]} carryover todayIndex={todayIndex} totalRanks={totalReps} hideEndLabels height={420} />
+          </div>
         </div>
 
         {/* Summary strip */}

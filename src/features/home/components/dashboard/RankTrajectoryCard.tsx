@@ -77,8 +77,11 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
 
       {/* Chart + legend */}
       <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="min-w-0 flex-1">
-          <RankTrajectoryChart series={series} months={columns as string[]} carryover todayIndex={todayIndex} totalRanks={totalReps} hideEndLabels />
+        {/* Horizontal scroll on narrow widths keeps the axis text legible. */}
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="min-w-[560px]">
+            <RankTrajectoryChart series={series} months={columns as string[]} carryover todayIndex={todayIndex} totalRanks={totalReps} hideEndLabels />
+          </div>
         </div>
         <div className="w-full shrink-0 lg:w-[248px]">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">

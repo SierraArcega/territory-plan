@@ -30,12 +30,16 @@ export default function StatCard({ label, value, rank, totalReps, inRoster, segm
 
   return (
     <div className="group rounded-lg bg-white border border-[#D4CFE2] shadow-sm p-4 transition-colors hover:border-[#B8B0D0] flex flex-col gap-3 min-w-[180px]">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">
-          {label}
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">
+        {label}
+      </span>
+
+      <div className="flex flex-col gap-0.5">
+        <span className="text-2xl font-bold text-[#403770] tabular-nums whitespace-nowrap">
+          {formatCurrency(value, true)}
         </span>
         {yoyPct != null && priorFyLabel && (
-          <span className="flex items-center gap-1 whitespace-nowrap text-[10px] font-semibold">
+          <span className="flex items-center gap-1 text-[10px] font-semibold whitespace-nowrap">
             <span style={{ color: yoyColor }} className="tabular-nums">
               {yoyPct > 0 ? "+" : ""}{yoyPct}%
             </span>
@@ -43,10 +47,6 @@ export default function StatCard({ label, value, rank, totalReps, inRoster, segm
           </span>
         )}
       </div>
-
-      <span className="text-2xl font-bold text-[#403770] tabular-nums whitespace-nowrap">
-        {formatCurrency(value, true)}
-      </span>
 
       {segments.length > 0 && <SegmentBar segments={segments} format={(v) => formatCurrency(v, true)} />}
 

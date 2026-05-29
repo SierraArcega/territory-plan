@@ -18,4 +18,10 @@ describe("Sparkline", () => {
     const { container } = render(<Sparkline data={[]} />);
     expect(container.querySelector("svg")).toBeNull();
   });
+
+  it("scales to its container width (fluid) so it never overflows a narrow card", () => {
+    const { container } = render(<Sparkline data={[1, 2, 3]} />);
+    expect(container.querySelector("svg")?.getAttribute("width")).toBe("100%");
+    expect(container.querySelector("svg")?.getAttribute("viewBox")).toBeTruthy();
+  });
 });
