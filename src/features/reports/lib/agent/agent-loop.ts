@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { extractCitations, type CopilotCitation, type CitationCarrier } from "@/features/copilot/lib/citations";
 import { handleListTables } from "@/features/reports/lib/tools/list-tables";
 import { handleDescribeTable } from "@/features/reports/lib/tools/describe-table";
 import { handleSearchMetadata } from "@/features/reports/lib/tools/search-metadata";
@@ -84,6 +85,11 @@ export type AgentResult<TTerminal = unknown> = AgentTelemetry &
         terminalResult: TTerminal;
         assistantText: string;
       }
+    | {
+        kind: "research";
+        assistantText: string;
+        citations: CopilotCitation[];
+      }
     | { kind: "clarifying"; text: string }
     | { kind: "surrender"; text: string }
   );
@@ -113,11 +119,12 @@ interface RunAgentLoopArgs<TTerminal = unknown> {
    */
   systemPrompt?: string;
   /**
-   * Optional override for the tool set. When omitted, the reports variant
-   * uses AGENT_TOOLS; list-builder must supply its own (read-only schema
-   * introspection + emit_list_spec).
+   * Optional override for the tool set. Widened from `Tool[]` to `ToolUnion[]`
+   * so server tools (WebSearchTool20250305, WebFetchTool20250910) fit without a
+   * cast. Callers using only local tools (reports, list-builder) pass `Tool[]`,
+   * which is assignable to `ToolUnion[]`.
    */
-  tools?: Anthropic.Tool[];
+  tools?: Anthropic.ToolUnion[];
   /**
    * Optional terminal-tool config. When provided, the loop substitutes the
    * default `run_sql` terminal for this one. The 'reports' variant ignores
@@ -301,6 +308,12 @@ export async function runAgentLoop<TTerminal = unknown>(
   let ghostReportRetriesUsed = 0;
   let exploratoryCalls = 0;
   let assistantText = "";
+  let usedServerTools = false;
+  let pauseContinuations = 0;
+  const MAX_PAUSE_CONTINUATIONS = 10;
+  // Accumulated assistant content across iterations, for citation extraction at
+  // the research exit. extractCitations ignores non-text blocks.
+  const serverContent: CitationCarrier[] = [];
   let iteration = 0;
   const events: TurnEvent[] = [];
   // Push helper that also forwards to the streaming callback. Keeps the
@@ -398,6 +411,24 @@ export async function runAgentLoop<TTerminal = unknown>(
       toolUses: toolUses.map((t) => ({ id: t.id, name: t.name, input: t.input })),
     });
 
+    if (response.content.some((b) => (b as { type?: string }).type === "server_tool_use")) {
+      usedServerTools = true;
+    }
+    serverContent.push(...(response.content as CitationCarrier[]));
+
+    // Server tools (web_search/web_fetch) pause the turn while Anthropic runs
+    // them. Re-send the partial assistant content and continue — the model
+    // resumes with the results. Bounded so a runaway sequence surrenders.
+    if ((response as { stop_reason?: string | null }).stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: response.content as Anthropic.MessageParam["content"] });
+      pauseContinuations++;
+      if (pauseContinuations >= MAX_PAUSE_CONTINUATIONS) {
+        const text = assistantText || "I wasn't able to finish researching that. Could you narrow it down?";
+        return { kind: "surrender", text, events, usage: totalUsage };
+      }
+      continue;
+    }
+
     if (toolUses.length === 0) {
       const text = assistantText || "(no text)";
 
@@ -438,6 +469,18 @@ export async function runAgentLoop<TTerminal = unknown>(
         return {
           kind: "surrender",
           text,
+          events,
+          usage: totalUsage,
+        };
+      }
+
+      // A turn that used server tools (web_search/web_fetch) and finished with
+      // text is a researched answer, not a clarifying question.
+      if (usedServerTools) {
+        return {
+          kind: "research",
+          assistantText: text,
+          citations: extractCitations(serverContent),
           events,
           usage: totalUsage,
         };

@@ -141,4 +141,80 @@ describe("agent-loop copilot variant (two terminals)", () => {
     });
     expect(res.kind).toBe("clarifying");
   });
+
+  it("continues across pause_turn, then returns research on the final text", async () => {
+    const anthropic = scripted([
+      {
+        stop_reason: "pause_turn",
+        content: [{ type: "server_tool_use", id: "s1", name: "web_search", input: { query: "x" } }],
+      },
+      {
+        stop_reason: "end_turn",
+        content: [
+          {
+            type: "text",
+            text: "Austin ISD passed a $2.4B bond in 2024.",
+            citations: [{ url: "https://austinisd.org/bond", title: "2024 Bond" }],
+          },
+        ],
+      },
+    ]);
+    const res = await runAgentLoop({
+      anthropic: anthropic as never,
+      userMessage: "any recent Austin ISD news?",
+      priorTurns: [],
+      userId: "u1",
+      agentVariant: "copilot",
+      systemPrompt: SYS,
+      tools: TOOLS,
+      terminalTool: { name: "propose_actions", handle: vi.fn() },
+    });
+    expect(res.kind).toBe("research");
+    if (res.kind === "research") {
+      expect(res.assistantText).toContain("bond");
+      expect(res.citations).toEqual([{ url: "https://austinisd.org/bond", title: "2024 Bond" }]);
+    }
+    expect(anthropic.messages.stream).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns research when server tools ran without a pause_turn", async () => {
+    const anthropic = scripted([
+      {
+        stop_reason: "end_turn",
+        content: [
+          { type: "server_tool_use", id: "s1", name: "web_search", input: {} },
+          { type: "text", text: "done", citations: [] },
+        ],
+      },
+    ]);
+    const res = await runAgentLoop({
+      anthropic: anthropic as never,
+      userMessage: "search the web",
+      priorTurns: [],
+      userId: "u1",
+      agentVariant: "copilot",
+      systemPrompt: SYS,
+      tools: TOOLS,
+      terminalTool: { name: "propose_actions", handle: vi.fn() },
+    });
+    expect(res.kind).toBe("research");
+    if (res.kind === "research") expect(res.citations).toEqual([]);
+  });
+
+  it("still treats a no-tool text turn as clarifying when no server tools ran", async () => {
+    const anthropic = scripted([
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Which district?" }] },
+    ]);
+    const res = await runAgentLoop({
+      anthropic: anthropic as never,
+      userMessage: "tell me about it",
+      priorTurns: [],
+      userId: "u1",
+      agentVariant: "copilot",
+      systemPrompt: SYS,
+      tools: TOOLS,
+      terminalTool: { name: "propose_actions", handle: vi.fn() },
+    });
+    expect(res.kind).toBe("clarifying");
+  });
 });

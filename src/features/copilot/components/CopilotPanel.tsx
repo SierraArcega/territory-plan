@@ -19,6 +19,8 @@ import { extractDistrictLeaids, statesForLeaids } from "@/features/copilot/lib/p
 import { COPILOT_PANEL_WIDTH } from "../lib/constants";
 import { CopilotLauncher } from "./CopilotLauncher";
 import { AnswerBlock, type AnswerPayload } from "./AnswerBlock";
+import { ResearchAnswer } from "./ResearchAnswer";
+import type { CopilotCitation } from "../lib/citations";
 import { CopilotActivityLog } from "./CopilotActivityLog";
 import { CopilotHomeState } from "./CopilotHomeState";
 import { CopilotProgress } from "./CopilotProgress";
@@ -45,6 +47,7 @@ interface ChatMessage {
   note?: string;
   proposedActions?: ProposedAction[];
   answer?: AnswerPayload;
+  citations?: CopilotCitation[];
   events?: TurnEvent[];
   streaming?: boolean;
   error?: boolean;
@@ -124,6 +127,14 @@ export default function CopilotPanel() {
           streaming: false,
           text: res.assistantText,
           proposedActions: res.proposedActions,
+        };
+      }
+      if (res.kind === "research") {
+        return {
+          ...prev,
+          streaming: false,
+          text: res.assistantText,
+          citations: res.citations,
         };
       }
       return { ...prev, streaming: false, text: res.assistantText };
@@ -417,6 +428,10 @@ function MessageBlock({
 
       {msg.answer && (
         <AnswerBlock answer={msg.answer} onViewOnMap={() => onViewOnMap?.(msg.answer!)} />
+      )}
+
+      {msg.citations && msg.citations.length > 0 && (
+        <ResearchAnswer text="" citations={msg.citations} />
       )}
 
       {msg.proposedActions && msg.proposedActions.length > 0 && (

@@ -179,8 +179,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             error: result.text,
           });
         } else {
-          // result.kind === "result" — unreachable; list-builder doesn't use
-          // run_sql, but guarded for completeness.
+          // result.kind === "result" | "research" — both unreachable:
+          // list-builder doesn't use run_sql and never enables server tools.
+          // Guarded for completeness.
           send("error", { error: "Unexpected result kind from list-builder agent." });
         }
       } catch (err) {
