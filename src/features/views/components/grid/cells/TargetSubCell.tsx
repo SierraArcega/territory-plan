@@ -35,6 +35,11 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  // Ref mirrors `editing` state so the value-sync effect can read it without
+  // depending on it — if `editing` were in the dep array, setEditing(false)
+  // inside commit() would immediately trigger the effect and overwrite the
+  // just-set optimistic value with the still-stale `value` prop.
+  const editingRef = useRef(false);
   const mutation = useUpdateDistrictTargets();
 
   // Optimistic display: reflects the saved value immediately while the
@@ -42,12 +47,14 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
   const [optimisticValue, setOptimisticValue] = useState<number | null>(value);
 
   function enterEdit() {
+    editingRef.current = true;
     setDraft(value != null ? String(value) : "");
     setEditing(true);
   }
 
   function commit() {
     const parsed = parseInput(draft);
+    editingRef.current = false;
     setOptimisticValue(parsed); // instant feedback before network round-trip
     mutation.mutate({
       planId,
@@ -59,6 +66,7 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
   }
 
   function cancel() {
+    editingRef.current = false;
     setEditing(false);
   }
 
@@ -80,10 +88,13 @@ export function TargetSubCell({ planId, leaid, field, value, siblingValues }: Pr
     }
   }, [editing]);
 
-  // Sync from parent prop when not editing (picks up refetch updates).
+  // Sync from parent prop — only fires when `value` changes (i.e. after a
+  // background refetch). Intentionally does NOT depend on `editing` so that
+  // setEditing(false) in commit() cannot trigger this and clobber the
+  // optimistic value before the network round-trip completes.
   useEffect(() => {
-    if (!editing) setOptimisticValue(value);
-  }, [value, editing]);
+    if (!editingRef.current) setOptimisticValue(value);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (editing) {
     return (
