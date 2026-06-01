@@ -321,8 +321,11 @@ export default function GridView(props: GridViewProps) {
 
   // Live column widths during a drag are applied imperatively to the <col>
   // elements (no per-move React re-render). Keyed by column id. The committed
-  // width is persisted to layout on pointer-up via onWidthChange.
+  // width is persisted to layout on pointer-up via onWidthChange. The table
+  // width is bumped in lockstep so a widening drag scrolls instead of being
+  // capped by the committed total.
   const colRefs = useRef<Map<string, HTMLTableColElement | null>>(new Map());
+  const tableRef = useRef<HTMLTableElement>(null);
   const [targetExpanded, setTargetExpanded] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
@@ -684,6 +687,21 @@ export default function GridView(props: GridViewProps) {
   // checkbox column when present, otherwise flush against the left edge.
   const frozenNameLeft = showRowActions ? 36 : 0;
 
+  // Sum of all visible column widths (+ checkbox). Drives the explicit table
+  // width so columns keep their `table-layout: fixed` widths: when this is
+  // narrower than the viewport, `min-width: 100%` stretches the table and the
+  // trailing auto <col> absorbs the slack; when wider, the table overflows and
+  // the scroll container scrolls horizontally. (Using `width: max-content`
+  // here instead lets columns grow to their content, which silently breaks
+  // shrinking a column below its text — verified in-browser.)
+  const headerColumns = table.getHeaderGroups()[0]?.headers ?? [];
+  const totalColWidth =
+    (showRowActions ? 36 : 0) +
+    headerColumns.reduce(
+      (sum, h) => sum + resolveColWidth(source, h.column.id, layout.columns),
+      0,
+    );
+
   // One data row. Used by both the flat and grouped body renderers so the
   // sticky/frozen name cell, truncation, and hover styling stay in one place.
   function renderDataRow(row: TanRow<Record<string, unknown>>) {
@@ -930,13 +948,15 @@ export default function GridView(props: GridViewProps) {
       <div className="flex-1 min-h-0 overflow-auto">
         {/* `table-layout: fixed` makes <colgroup> widths authoritative so
             columns resize predictably (grow AND shrink); content past a
-            column's width truncates. `width: max-content` lets the table grow
-            wider than the viewport (horizontal scroll) while `min-width: 100%`
-            keeps it filling a narrow viewport — the trailing auto <col> then
-            absorbs any slack so real columns keep their set widths. */}
+            column's width truncates. An explicit px `width` (sum of the column
+            widths) lets the table grow wider than the viewport for horizontal
+            scroll, while `min-width: 100%` keeps it filling a narrow viewport —
+            the trailing auto <col> then absorbs the slack so real columns keep
+            their set widths. */}
         <table
+          ref={tableRef}
           className="border-collapse text-[13px]"
-          style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
+          style={{ tableLayout: "fixed", width: totalColWidth, minWidth: "100%" }}
         >
           <colgroup>
             {showRowActions && <col style={{ width: 36 }} />}
@@ -1121,9 +1141,15 @@ export default function GridView(props: GridViewProps) {
                         width={resolvedWidth}
                         onWidthPreview={(w) => {
                           // Live feedback without a React re-render: set the
-                          // matching <col> width imperatively during the drag.
+                          // matching <col> width imperatively during the drag,
+                          // and adjust the table width by the same delta so a
+                          // widening drag grows the scroll width immediately.
                           const el = colRefs.current.get(colId);
                           if (el) el.style.width = `${w}px`;
+                          if (tableRef.current) {
+                            const delta = w - resolvedWidth;
+                            tableRef.current.style.width = `${totalColWidth + delta}px`;
+                          }
                         }}
                         onWidthChange={(w) => {
                           const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);

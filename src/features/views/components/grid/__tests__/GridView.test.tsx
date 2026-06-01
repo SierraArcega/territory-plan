@@ -985,6 +985,16 @@ describe("GridView — column resize (table-layout: fixed + colgroup)", () => {
     expect(cols.length).toBeGreaterThan(0);
   });
 
+  it("sizes the table to an explicit px total + min-width:100% (not max-content)", () => {
+    // `width: max-content` lets columns grow to content and silently breaks
+    // shrinking a column below its text. The width must be an explicit px sum.
+    const { container } = renderDistricts();
+    const table = container.querySelector("table") as HTMLElement;
+    expect(table.style.width).not.toBe("max-content");
+    expect(table.style.width).toMatch(/^\d+px$/);
+    expect(table.style.minWidth).toBe("100%");
+  });
+
   it("applies an explicit column width from layout to the matching <col>", () => {
     const layout: GridViewLayout = {
       ...emptyLayout(),
