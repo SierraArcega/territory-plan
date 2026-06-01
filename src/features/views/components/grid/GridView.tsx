@@ -1,19 +1,19 @@
 "use client";
-import { useMemo, useState, useRef, type ReactNode } from "react";
+import { useMemo, useState, useRef, type CSSProperties, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, ChevronLeft, Plus } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import type { ColumnDef as TanColumnDef } from "@tanstack/react-table";
+import type { ColumnDef as TanColumnDef, Row as TanRow } from "@tanstack/react-table";
 import { useIsMutating, useIsFetching } from "@tanstack/react-query";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type {
   GridViewLayout,
   ViewLayouts,
 } from "@/lib/saved-views/grid-layout-schema";
-import { SOURCE_COLUMNS } from "@/features/views/lib/columns";
+import { SOURCE_COLUMNS, type ColumnDef } from "@/features/views/lib/columns";
 import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/lib/format";
 import { useViewsData } from "@/features/views/hooks/useViewsData";
 import {
@@ -227,14 +227,55 @@ function TargetSumCell({ value, leaid }: { value: unknown; leaid: string | null 
 }
 
 const SUB_COLS = [
+  { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
   { id: "renewalTarget",     label: "Renewal",   accessor: "renewalTarget"   },
   { id: "expansionTarget",   label: "Expansion", accessor: "expansionTarget" },
   { id: "winbackTarget",     label: "Win Back",  accessor: "winbackTarget"   },
-  { id: "newBusinessTarget", label: "New Biz",   accessor: "newBusinessTarget"},
 ] as const;
 
 // Derived from SUB_COLS so there's a single source of truth for the four IDs.
 const SUB_TARGET_IDS = new Set<string>(SUB_COLS.map((c) => c.id));
+
+// The id of the first target sub-column — it owns the collapse chevron when the
+// breakdown is expanded. Derived so reordering SUB_COLS moves the chevron too.
+const FIRST_SUB_COL = SUB_COLS[0];
+
+// Target sub-columns are fixed-width and not user-resizable.
+const SUB_COL_WIDTH = 110;
+
+// Width used by the trailing auto-spacer's neighbours when no explicit width is
+// stored on the layout. Keyed loosely by column id then format so the table
+// reads sensibly before any manual resize. `table-layout: fixed` makes these
+// authoritative, so over-long content truncates instead of stretching.
+function defaultColWidth(col: ColumnDef): number {
+  if (col.id === "name") return 240;
+  if (col.id === "state") return 90;
+  switch (col.format) {
+    case "pill":
+      return 130;
+    case "money":
+    case "number":
+      return 110;
+    case "date":
+      return 120;
+    default:
+      return 140;
+  }
+}
+
+// Resolve the rendered width for a column: explicit layout width wins, then the
+// fixed sub-column width, then the per-column default.
+function resolveColWidth(
+  source: SavedListSource,
+  colId: string,
+  layoutColumns: GridViewLayout["columns"],
+): number {
+  const explicit = layoutColumns.find((c) => c.id === colId)?.width;
+  if (explicit != null) return explicit;
+  if (SUB_TARGET_IDS.has(colId)) return SUB_COL_WIDTH;
+  const def = SOURCE_COLUMNS[source].find((c) => c.id === colId);
+  return def ? defaultColWidth(def) : 140;
+}
 
 export default function GridView(props: GridViewProps) {
   const {
@@ -277,6 +318,11 @@ export default function GridView(props: GridViewProps) {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+
+  // Live column widths during a drag are applied imperatively to the <col>
+  // elements (no per-move React re-render). Keyed by column id. The committed
+  // width is persisted to layout on pointer-up via onWidthChange.
+  const colRefs = useRef<Map<string, HTMLTableColElement | null>>(new Map());
   const [targetExpanded, setTargetExpanded] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
@@ -456,17 +502,28 @@ export default function GridView(props: GridViewProps) {
             // Action trigger sits in front of the district name (replaces the
             // old right-edge column) so the add affordance hugs each row's label.
             return (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 overflow-hidden">
                 <RowActionsMenu
                   planId={planId!}
                   leaid={leaid}
                   districtName={typeof v === "string" ? v : String(row.name ?? "")}
                 />
-                <span className="truncate">{formatCellValue(v, c.format)}</span>
+                <span className="truncate" title={typeof v === "string" ? v : undefined}>
+                  {formatCellValue(v, c.format)}
+                </span>
               </span>
             );
           }
           if (v == null) return <span className="text-[#A69DC0]">—</span>;
+          // Frozen name column truncates with an ellipsis; surface the full
+          // name on hover so nothing is lost.
+          if (c.id === "name") {
+            return (
+              <span className="block truncate" title={typeof v === "string" ? v : undefined}>
+                {formatCellValue(v, c.format)}
+              </span>
+            );
+          }
           return <span>{formatCellValue(v, c.format)}</span>;
         },
       }];
@@ -574,7 +631,8 @@ export default function GridView(props: GridViewProps) {
     const lockedOut = atCap && !checked;
     return (
       <td
-        className="py-2.5 px-2.5 border-b border-[#EFEDF5]"
+        style={{ position: "sticky", left: 0, zIndex: 2 }}
+        className="py-2.5 px-2.5 border-b border-[#EFEDF5] bg-[#FFFCFA] group-hover:bg-[#F7F5FA]"
         onClick={(e) => {
           e.stopPropagation();
           if (leaid && !lockedOut) toggleRowLeaid(leaid);
@@ -622,31 +680,49 @@ export default function GridView(props: GridViewProps) {
 
   const colCount = tanCols.length + 1 + (showRowActions ? 1 : 0);
 
+  // Left offset for the frozen district-name column: it sits after the 36px
+  // checkbox column when present, otherwise flush against the left edge.
+  const frozenNameLeft = showRowActions ? 36 : 0;
+
+  // One data row. Used by both the flat and grouped body renderers so the
+  // sticky/frozen name cell, truncation, and hover styling stay in one place.
+  function renderDataRow(row: TanRow<Record<string, unknown>>) {
+    return (
+      <tr
+        key={row.id}
+        className="group hover:bg-[#F7F5FA] transition-colors duration-100"
+      >
+        {renderCheckboxCell(row)}
+        {row.getVisibleCells().map((cell) => {
+          const isName = cell.column.id === "name";
+          const tdStyle: CSSProperties | undefined = isName
+            ? { position: "sticky", left: frozenNameLeft, zIndex: 2 }
+            : undefined;
+          return (
+            <td
+              key={cell.id}
+              style={tdStyle}
+              className={[
+                "py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap overflow-hidden text-ellipsis",
+                isName ? "bg-[#FFFCFA] group-hover:bg-[#F7F5FA] border-r border-[#EFEDF5]" : "",
+              ].join(" ")}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </td>
+          );
+        })}
+        {/* Matching spacer cell — keeps the column count consistent so the
+            spacer header has a body counterpart. */}
+        <td aria-hidden className="border-b border-[#EFEDF5]" />
+      </tr>
+    );
+  }
+
   function renderBody() {
     const tableRows = table.getRowModel().rows;
 
     if (!groupColumn) {
-      return tableRows.map((row) => {
-        return (
-          <tr
-            key={row.id}
-            className="hover:bg-[#F7F5FA] transition-colors duration-100"
-          >
-            {renderCheckboxCell(row)}
-            {row.getVisibleCells().map((cell) => (
-              <td
-                key={cell.id}
-                className="py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap"
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            ))}
-            {/* Matching spacer cell — keeps the column count consistent
-                so the spacer header has a body counterpart. */}
-            <td aria-hidden className="border-b border-[#EFEDF5]" />
-          </tr>
-        );
-      });
+      return tableRows.map((row) => renderDataRow(row));
     }
 
     // Collect rows into group buckets using a Map so non-adjacent rows with
@@ -719,24 +795,7 @@ export default function GridView(props: GridViewProps) {
       if (collapsed) continue;
 
       for (const { row } of bucket.rows) {
-        const original = row.original as Record<string, unknown>;
-        nodes.push(
-          <tr
-            key={row.id}
-            className="hover:bg-[#F7F5FA] transition-colors duration-100"
-          >
-            {renderCheckboxCell(row)}
-            {row.getVisibleCells().map((cell) => (
-              <td
-                key={cell.id}
-                className="py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap"
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            ))}
-            <td aria-hidden className="border-b border-[#EFEDF5]" />
-          </tr>,
-        );
+        nodes.push(renderDataRow(row));
       }
     }
 
@@ -869,38 +928,82 @@ export default function GridView(props: GridViewProps) {
           vertically; horizontal scroll moves header and body together so
           columns stay aligned. */}
       <div className="flex-1 min-h-0 overflow-auto">
-        <table className="w-full border-collapse text-[13px]">
+        {/* `table-layout: fixed` makes <colgroup> widths authoritative so
+            columns resize predictably (grow AND shrink); content past a
+            column's width truncates. `width: max-content` lets the table grow
+            wider than the viewport (horizontal scroll) while `min-width: 100%`
+            keeps it filling a narrow viewport — the trailing auto <col> then
+            absorbs any slack so real columns keep their set widths. */}
+        <table
+          className="border-collapse text-[13px]"
+          style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
+        >
+          <colgroup>
+            {showRowActions && <col style={{ width: 36 }} />}
+            {table.getHeaderGroups()[0].headers.map((h) => {
+              const colId = h.column.id;
+              return (
+                <col
+                  key={colId}
+                  ref={(el) => {
+                    colRefs.current.set(colId, el);
+                  }}
+                  style={{ width: `${resolveColWidth(source, colId, layout.columns)}px` }}
+                />
+              );
+            })}
+            {/* Trailing auto spacer column — absorbs leftover width. */}
+            <col />
+          </colgroup>
           {/* `sticky` on `<thead>` keeps both the group row and the column
               header row pinned together when the body scrolls vertically. */}
           <thead className="sticky top-0 z-[1]">
             {hasGroups && (
               <tr className="bg-[#F7F5FA]">
-                {showRowActions && <th aria-hidden style={{ width: 36 }} className="py-1.5 border-b border-[#EFEDF5]" />}
-                {groupSpans.map((span, i) =>
-                  span.group ? (
-                    <th
-                      key={`group-${i}`}
-                      colSpan={span.count}
-                      className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#403770] py-1.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap text-left"
-                    >
-                      {span.group}
-                    </th>
-                  ) : (
-                    <th
-                      key={`group-${i}`}
-                      colSpan={span.count}
-                      aria-hidden
-                      className="py-1.5 border-b border-[#EFEDF5]"
-                    />
-                  ),
+                {showRowActions && (
+                  <th
+                    aria-hidden
+                    style={{ position: "sticky", left: 0, zIndex: 3, width: 36 }}
+                    className="py-1.5 border-b border-[#EFEDF5] bg-[#F7F5FA]"
+                  />
                 )}
+                {/* Frozen name cell — pinned so the group row's left edge stays
+                    aligned with the frozen name column below it. */}
+                <th
+                  aria-hidden
+                  style={{ position: "sticky", left: frozenNameLeft, zIndex: 3 }}
+                  className="py-1.5 border-b border-r border-[#EFEDF5] bg-[#F7F5FA]"
+                />
+                {/* First (ungrouped) span loses one column to the frozen name
+                    cell split out above; spans that empty out are dropped. */}
+                {groupSpans
+                  .map((span, i) => (i === 0 ? { ...span, count: span.count - 1 } : span))
+                  .filter((span) => span.count > 0)
+                  .map((span, i) =>
+                    span.group ? (
+                      <th
+                        key={`group-${i}`}
+                        colSpan={span.count}
+                        className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#403770] py-1.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap text-left"
+                      >
+                        {span.group}
+                      </th>
+                    ) : (
+                      <th
+                        key={`group-${i}`}
+                        colSpan={span.count}
+                        aria-hidden
+                        className="py-1.5 border-b border-[#EFEDF5]"
+                      />
+                    ),
+                  )}
                 <th aria-hidden className="border-b border-[#EFEDF5]" />
               </tr>
             )}
             <tr className="bg-[#F7F5FA]">
               {showRowActions && rows.length > 0 && (
                 <th
-                  style={{ width: 36 }}
+                  style={{ position: "sticky", left: 0, zIndex: 3, width: 36 }}
                   className="py-2.5 px-2.5 border-b border-[#D4CFE2] bg-[#F7F5FA]"
                 >
                   <input
@@ -956,14 +1059,24 @@ export default function GridView(props: GridViewProps) {
                 const sortDir = sortEntry?.dir ?? null;
                 const showIndex = layout.sort.length > 1 && sortIndexInStack >= 0;
                 const colId = h.column.id;
-                const colWidth = layout.columns.find((c) => c.id === colId)?.width;
+                const resolvedWidth = resolveColWidth(source, colId, layout.columns);
+                const isName = colId === "name";
+                // Name stays `sticky` (frozen left); others stay `relative` so
+                // the absolutely-positioned resize handle anchors to the cell.
+                const thStyle: CSSProperties = isName
+                  ? { position: "sticky", left: frozenNameLeft, zIndex: 3 }
+                  : { position: "relative" };
                 return (
                   <th
                     key={h.id}
-                    style={{ width: colWidth ? `${colWidth}px` : undefined, position: "relative" }}
+                    style={thStyle}
                     className={[
                       "text-[10px] font-semibold uppercase tracking-[0.06em] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left",
-                      SUB_TARGET_IDS.has(colId) ? "text-[#5B3FC8] bg-[#F3EFFE]" : "text-[#8A80A8]",
+                      isName
+                        ? "bg-[#F7F5FA] border-r border-[#EFEDF5] text-[#8A80A8]"
+                        : SUB_TARGET_IDS.has(colId)
+                          ? "text-[#5B3FC8] bg-[#F3EFFE]"
+                          : "text-[#8A80A8]",
                     ].join(" ")}
                   >
                     {colId === "target" ? (
@@ -979,7 +1092,7 @@ export default function GridView(props: GridViewProps) {
                         </button>
                         <span className="whitespace-nowrap">Target</span>
                       </div>
-                    ) : colId === "renewalTarget" ? (
+                    ) : colId === FIRST_SUB_COL.id ? (
                       // First sub-column header — collapse button
                       <div className="flex items-center gap-1.5">
                         <button
@@ -990,7 +1103,7 @@ export default function GridView(props: GridViewProps) {
                         >
                           <ChevronLeft className="h-3 w-3" aria-hidden />
                         </button>
-                        <span className="whitespace-nowrap">Renewal</span>
+                        <span className="whitespace-nowrap">{FIRST_SUB_COL.label}</span>
                       </div>
                     ) : SUB_TARGET_IDS.has(colId) ? (
                       // Other sub-column headers — just the label
@@ -1005,7 +1118,13 @@ export default function GridView(props: GridViewProps) {
                         sortDir={sortDir}
                         sortIndex={showIndex ? sortIndexInStack + 1 : undefined}
                         onSortChange={(dir, shift) => handleSortChange(h.column.id, dir, shift)}
-                        width={colWidth}
+                        width={resolvedWidth}
+                        onWidthPreview={(w) => {
+                          // Live feedback without a React re-render: set the
+                          // matching <col> width imperatively during the drag.
+                          const el = colRefs.current.get(colId);
+                          if (el) el.style.width = `${w}px`;
+                        }}
                         onWidthChange={(w) => {
                           const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);
                           const merged = allColIds.map((id) => {
@@ -1021,12 +1140,11 @@ export default function GridView(props: GridViewProps) {
                   </th>
                 );
               })}
-              {/* Spacer header — `width: 100%` claims any leftover horizontal
-                  space so the real columns can shrink to their content width
-                  instead of stretching to fill the screen. */}
+              {/* Spacer header — maps to the trailing auto <col>, which claims
+                  any leftover horizontal space so the real (fixed-width)
+                  columns keep their set widths instead of stretching. */}
               <th
                 aria-hidden
-                style={{ width: "100%" }}
                 className="border-b border-[#D4CFE2] bg-[#F7F5FA]"
               />
             </tr>
