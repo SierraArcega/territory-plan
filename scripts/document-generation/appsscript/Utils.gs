@@ -1,14 +1,15 @@
 /**
  * Formats a number as USD currency string. Returns '' for null/undefined.
+ * Uses manual formatting instead of toLocaleString() — V8 Apps Script runtime
+ * does not reliably respect locale parameters.
  * @param {number|null} amount
  * @returns {string}
  */
 function formatCurrency(amount) {
   if (amount == null) return '';
-  return '$' + Number(amount).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  var parts = Number(amount).toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return '$' + parts.join('.');
 }
 
 /**

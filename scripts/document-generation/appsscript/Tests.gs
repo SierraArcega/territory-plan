@@ -10,6 +10,7 @@ function testFormatCurrency() {
     { input: 0,        expected: '$0.00'       },
     { input: 99999.99, expected: '$99,999.99'  },
     { input: null,     expected: ''            },
+    { input: undefined, expected: ''           },
   ];
   cases.forEach(function(c) {
     var result = formatCurrency(c.input);
