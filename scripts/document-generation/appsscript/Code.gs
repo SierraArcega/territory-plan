@@ -33,6 +33,7 @@ function generateContract(payload) {
 
   try {
     replaceMergeFields(body, payload);
+    handleQuoteSection(body, payload.quote);
     handlePaymentTerms(body, payload.payment);
 
     doc.saveAndClose();
