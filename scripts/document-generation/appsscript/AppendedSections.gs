@@ -1,0 +1,1 @@
+// handleAppendedSections(doc, sections, props)
