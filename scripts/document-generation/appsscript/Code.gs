@@ -20,7 +20,7 @@ function doPost(e) {
  * Main contract generation orchestrator.
  * Call directly from the editor: generateContract(PAYLOAD_FULL)
  * @param {Object} payload
- * @returns {{ success: boolean, url: string, docId: string }}
+ * @returns {{ success: boolean, url: string, docId: string, sent?: boolean, sendError?: string }}
  */
 function generateContract(payload) {
   var props  = PropertiesService.getScriptProperties().getProperties();
@@ -39,11 +39,31 @@ function generateContract(payload) {
 
     doc.saveAndClose();
 
-    return {
-      success: true,
-      url:     'https://docs.google.com/document/d/' + copy.getId() + '/edit',
-      docId:   copy.getId(),
-    };
+    var docUrl = 'https://docs.google.com/document/d/' + copy.getId() + '/edit';
+    var result = { success: true, url: docUrl, docId: copy.getId() };
+
+    // Optional: trigger Playwright eSign automation immediately
+    if (payload.auto_send && props[PROP.PLAYWRIGHT_TRIGGER_URL]) {
+      try {
+        UrlFetchApp.fetch(props[PROP.PLAYWRIGHT_TRIGGER_URL], {
+          method:      'post',
+          contentType: 'application/json',
+          payload:     JSON.stringify({
+            docId:       copy.getId(),
+            signerEmail: payload.deal.client_email,
+            signerName:  payload.deal.signer_salut + ' ' + payload.deal.signer_first + ' ' + payload.deal.signer_last,
+          }),
+        });
+        result.sent = true;
+      } catch (sendErr) {
+        Logger.log('auto_send trigger failed: ' + sendErr.message);
+        result.sent      = false;
+        result.sendError = sendErr.message;
+      }
+    }
+
+    return result;
+
   } catch (err) {
     try { copy.setTrashed(true); } catch (e2) {}
     try {
