@@ -35,6 +35,7 @@ function generateContract(payload) {
     replaceMergeFields(body, payload);
     handleQuoteSection(body, payload.quote);
     handlePaymentTerms(body, payload.payment);
+    handleAppendedSections(doc, payload.sections, props);
 
     doc.saveAndClose();
 
