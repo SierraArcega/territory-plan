@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { ToplineCard } from "./topline";
-import type { RankTrajectoryPayload, TrajectoryMetricKey } from "./rank-trajectory";
-import type { Sparkline } from "./sparkline";
+import type { RankTrajectoryPayload } from "./rank-trajectory";
+import type { Sparkline, SparklineMetricKey } from "./sparkline";
 import type { WowDeltas } from "./wow";
 
 // Types for the alerts response
@@ -93,7 +93,7 @@ export function useRankTrajectory(fy: number) {
 export interface SparklinesResponse {
   fy: number;
   schoolYr: string;
-  sparklines: Record<TrajectoryMetricKey, Sparkline>;
+  sparklines: Record<SparklineMetricKey, Sparkline>;
   wow: WowDeltas;
 }
 

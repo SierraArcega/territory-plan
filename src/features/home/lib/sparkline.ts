@@ -7,6 +7,11 @@ import { cumulativeColumns, todayColumnIndex, COLUMN_COUNT, type DatedValueRow }
 import { TRAJECTORY_METRICS, type TrajectoryMetricKey } from "./rank-trajectory";
 import { pctChange } from "./delta";
 
+// Sparklines + YoY are for the four financial cards. Targets is count-based (its
+// card shows district counts, not a $ trend), so it has no $ sparkline.
+export type SparklineMetricKey = Exclude<TrajectoryMetricKey, "targets">;
+const SPARKLINE_METRICS = TRAJECTORY_METRICS.filter((m) => m.metricKey !== "targets");
+
 export interface Sparkline {
   current: number[]; // 13 cumulative columns, this FY
   prior: number[]; // 13 cumulative columns, prior FY (full year)
@@ -23,15 +28,15 @@ export function buildSparklines(params: {
   email: string;
   fy: number;
   now?: Date;
-}): Record<TrajectoryMetricKey, Sparkline> {
+}): Record<SparklineMetricKey, Sparkline> {
   const { currentRows, priorRows, email, fy, now } = params;
   const todayIdx = todayColumnIndex(fy, now);
 
-  const out = {} as Record<TrajectoryMetricKey, Sparkline>;
-  for (const { metricKey } of TRAJECTORY_METRICS) {
+  const out = {} as Record<SparklineMetricKey, Sparkline>;
+  for (const { metricKey } of SPARKLINE_METRICS) {
     const current = callerColumns(currentRows[metricKey] ?? [], fy, email);
     const prior = callerColumns(priorRows[metricKey] ?? [], fy - 1, email);
-    out[metricKey] = {
+    out[metricKey as SparklineMetricKey] = {
       current,
       prior,
       yoy: pctChange(current[todayIdx], prior[todayIdx]),

@@ -32,8 +32,8 @@ describe("buildSparklines", () => {
     expect(out.revenue.current[12]).toBe(200);
   });
 
-  it("produces an entry for every metric", () => {
+  it("produces an entry for each financial card metric (Targets is count-based, no $ sparkline)", () => {
     const out = buildSparklines({ currentRows: empty(), priorRows: empty(), email: "me@x", fy: 2026, now });
-    expect(Object.keys(out).sort()).toEqual(["bookings", "openPipeline", "revenue", "take", "targets"]);
+    expect(Object.keys(out).sort()).toEqual(["bookings", "openPipeline", "revenue", "take"]);
   });
 });
