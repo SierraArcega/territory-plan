@@ -77,6 +77,16 @@ export function buildStageHealth(
   });
 }
 
+export type DealHealth = "on" | "stall" | "slip";
+
+// Per-deal health (locked decision): an overdue close date is a "slip" (takes
+// priority), an otherwise-stale deal is a "stall", everything else is "on track".
+export function classifyHealth(opp: Pick<OpenOppRow, "isStale" | "overdueClose">): DealHealth {
+  if (opp.overdueClose) return "slip";
+  if (opp.isStale) return "stall";
+  return "on";
+}
+
 export interface Coverage {
   minCommit: number; // Σ minimum_purchase_amount on open opps (floor)
   maxBudget: number; // Σ maximum_budget on open opps (ceiling)

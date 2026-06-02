@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildStageHealth, buildCoverage, PIPELINE_STAGES, type OpenOppRow } from "../pipeline";
+import { buildStageHealth, buildCoverage, classifyHealth, PIPELINE_STAGES, type OpenOppRow } from "../pipeline";
 
 const reps = [
   { id: "me", email: "me@x" },
@@ -84,5 +84,20 @@ describe("buildCoverage", () => {
     expect(cov.gap).toBe(0);
     expect(cov.coverageMin).toBeNull();
     expect(cov.coverageMax).toBeNull();
+  });
+});
+
+describe("classifyHealth", () => {
+  it("flags an overdue close date as 'slip' (highest priority)", () => {
+    expect(classifyHealth(opp({ overdueClose: true, isStale: true }))).toBe("slip");
+    expect(classifyHealth(opp({ overdueClose: true, isStale: false }))).toBe("slip");
+  });
+
+  it("flags a stale (not overdue) deal as 'stall'", () => {
+    expect(classifyHealth(opp({ overdueClose: false, isStale: true }))).toBe("stall");
+  });
+
+  it("flags everything else as 'on'", () => {
+    expect(classifyHealth(opp({ overdueClose: false, isStale: false }))).toBe("on");
   });
 });
