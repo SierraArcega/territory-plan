@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("@/features/home/lib/queries", () => ({ usePipeline: vi.fn() }));
+vi.mock("@/features/leaderboard/lib/queries", () => ({
+  useLowHangingFruitList: () => ({ data: { districts: [], totalRevenueAtRisk: 0 }, isLoading: false, isError: false }),
+}));
 
 import PipelineSection from "../PipelineSection";
 import { usePipeline } from "@/features/home/lib/queries";
@@ -39,6 +42,8 @@ describe("PipelineSection", () => {
     expect(screen.getByText("Coverage")).toBeTruthy();
     expect(screen.getByText("Stage health")).toBeTruthy();
     expect(screen.getByText("Top open opportunities")).toBeTruthy();
+    expect(screen.getByText("Top targets not in pipeline")).toBeTruthy();
+    expect(screen.getByText("This week")).toBeTruthy();
     expect(screen.getByText("At risk")).toBeTruthy();
     expect(screen.getByText("Brookfield CSD")).toBeTruthy();
     expect(screen.getAllByText("Riverside USD").length).toBeGreaterThanOrEqual(1); // table + at-risk

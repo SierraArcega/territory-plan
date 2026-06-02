@@ -6,6 +6,7 @@ import StageHealthCard from "./StageHealthCard";
 import TopOpportunitiesTable from "./TopOpportunitiesTable";
 import AtRiskCard from "./AtRiskCard";
 import ThisWeekCard from "./ThisWeekCard";
+import TopTargetsCard from "./TopTargetsCard";
 
 // Pipeline tab body — owns the pipeline query and lays out its cards.
 export default function PipelineSection({ fy }: { fy: number }) {
@@ -38,6 +39,7 @@ export default function PipelineSection({ fy }: { fy: number }) {
         <CoverageCard coverage={data.coverage} />
         <StageHealthCard stageHealth={data.stageHealth} />
         <TopOpportunitiesTable opps={data.opps} />
+        <TopTargetsCard />
       </div>
       {/* Right rail (stacks under the main column when narrow) */}
       <div className="flex w-full shrink-0 flex-col gap-5 lg:w-[320px]">
