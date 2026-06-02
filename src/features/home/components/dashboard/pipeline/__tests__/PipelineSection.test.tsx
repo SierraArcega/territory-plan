@@ -14,10 +14,16 @@ const stageHealth = STAGES.map((name, i) => ({
   prefix: i, name, weight: 0.5, count: i === 4 ? 2 : 0, atStake: i === 4 ? 150 : 0,
   weighted: i === 4 ? 112.5 : 0, avgAge: i === 4 ? 25 : 0, stalled: i === 4 ? 1 : 0, rank: 2, totalReps: 2,
 }));
+const oppView = (p: Record<string, unknown>) => ({
+  account: "Acct", state: "NY", source: "return", stageName: "Negotiation", stagePrefix: 4,
+  netBooking: 100, minPurchase: 80, maxBudget: 200, weighted: 75, closeDate: null, daysInStage: 40, health: "on", ...p,
+});
 const data = {
   fy: 2026, schoolYr: "2025-26",
   coverage: { minCommit: 90, maxBudget: 260, openCount: 2, weightedPipeline: 77, gap: 400, coverageMin: 0.225, coverageMax: 0.65, byStage, wonBookings: 600, fyTarget: 1000 },
-  stageHealth, opps: [], atRisk: [],
+  stageHealth,
+  opps: [oppView({ account: "Brookfield CSD", health: "on" }), oppView({ account: "Riverside USD", health: "stall" })],
+  atRisk: [oppView({ account: "Riverside USD", health: "stall" })],
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,7 +37,10 @@ describe("PipelineSection", () => {
     render(<PipelineSection fy={2026} />);
     expect(screen.getByText("Coverage")).toBeTruthy();
     expect(screen.getByText("Stage health")).toBeTruthy();
-    expect(screen.getAllByText("Negotiation").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Top open opportunities")).toBeTruthy();
+    expect(screen.getByText("At risk")).toBeTruthy();
+    expect(screen.getByText("Brookfield CSD")).toBeTruthy();
+    expect(screen.getAllByText("Riverside USD").length).toBeGreaterThanOrEqual(1); // table + at-risk
   });
 
   it("shows skeletons while loading", () => {
