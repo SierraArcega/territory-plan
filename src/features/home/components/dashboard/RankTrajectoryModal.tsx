@@ -19,6 +19,9 @@ const GHOST = "rgba(140, 128, 168, 0.32)";
 const fmt = (v: number) => formatCurrency(v, true);
 // Color for a filter key; the "all" branch is never rendered (callers guard on segActive).
 const segColor = (k: FilterKey) => (k === "all" ? "#403770" : SEGMENT_COLORS[k]);
+// Segment's share of the all-segments total; null when there's no base to divide by
+// (so a zero-base caller shows "—", not a fabricated 0%).
+const sharePct = (seg: number, total: number): number | null => (total > 0 ? (seg / total) * 100 : null);
 
 // Resolve a metric to the active segment's series (falling back to all-segments
 // when that metric has no rows in the selected segment).
@@ -185,8 +188,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
           {visibleMetrics.map((m) => {
             const view = viewFor(m, segment);
             const todayVal = view.caller.values[refIdx];
-            const totalVal = m.caller.values[refIdx] || 1;
-            const share = segActive ? (todayVal / totalVal) * 100 : 100;
+            const share = segActive ? sharePct(todayVal, m.caller.values[refIdx]) : null;
             return (
               <div key={m.metricKey} className="rounded-lg border border-[#E2DEEC] bg-[#F7F5FA] p-3">
                 <div className="flex items-center gap-1.5">
@@ -196,7 +198,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
                 </div>
                 <div className="mt-1 text-lg font-bold tabular-nums text-[#403770]">{fmt(todayVal)}</div>
                 <div className="text-[11px] text-[#8A80A8] whitespace-nowrap">
-                  {segActive ? <><span style={{ color: segColor(segment), fontWeight: 700 }}>{share.toFixed(0)}%</span> of {m.name.toLowerCase()}</> : <>FY to date · all segments</>}
+                  {segActive ? <><span style={{ color: segColor(segment), fontWeight: 700 }}>{share != null ? `${share.toFixed(0)}%` : "—"}</span> of {m.name.toLowerCase()}</> : <>FY to date · all segments</>}
                 </div>
               </div>
             );
@@ -251,7 +253,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
                         </td>
                         {view.caller.ranks.map((r, i) => {
                           const isFuture = i > todayIndex;
-                          const share = segActive ? (view.caller.values[i] / (m.caller.values[i] || 1)) * 100 : null;
+                          const share = segActive ? sharePct(view.caller.values[i], m.caller.values[i]) : null;
                           return (
                             <td key={i} className="px-2.5 py-2 text-right tabular-nums" style={{ opacity: isFuture ? 0.7 : 1 }}>
                               <div className="text-[13px] font-bold text-[#403770]">#{r}</div>

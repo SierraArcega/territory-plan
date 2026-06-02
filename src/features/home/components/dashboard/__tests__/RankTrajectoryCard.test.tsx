@@ -46,6 +46,18 @@ describe("RankTrajectoryCard", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
+  it("shows a not-ranked state for a caller outside the rep roster (admin/manager)", () => {
+    const notRanked = {
+      ...payload,
+      metrics: payload.metrics.map((m) => ({ ...m, caller: { ...m.caller, inRoster: false } })),
+    };
+    mockHook.mockReturnValue(result({ data: notRanked }));
+    const { container } = render(<RankTrajectoryCard fy={2026} />);
+    expect(screen.getByText(/not ranked/i)).toBeTruthy();
+    // no off-chart line: the chart isn't rendered for a non-roster caller
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
   it("shows a loading state while fetching", () => {
     mockHook.mockReturnValue(result({ isLoading: true }));
     const { container } = render(<RankTrajectoryCard fy={2026} />);

@@ -184,22 +184,27 @@ export async function fetchTrajectoryRows(
 import type { WowSnapshotRow } from "./wow";
 
 // The caller's Open-Pipeline and Bookings totals on the two snapshot dates that
-// power the "last 7d" WoW delta: the latest snapshot and the latest one at least
-// 7 days earlier. Snapshots key by sales_rep_id = user_profiles.id (== user.id).
+// power the "last 7d" WoW delta: the rep's OWN latest snapshot and their latest
+// one at least 7 days earlier. Anchoring on the rep's own dates (not a global
+// MAX) keeps WoW robust when a rep has no row on the team-wide latest snapshot
+// day. Snapshots key by sales_rep_id = user_profiles.id (== user.id).
 export async function fetchWowSnapshots(salesRepId: string, sy: string): Promise<WowSnapshotRow[]> {
   return prisma.$queryRaw<WowSnapshotRow[]>`
-    SELECT snapshot_date::text AS date,
-           COALESCE(SUM(CASE WHEN sp BETWEEN 0 AND 5 THEN net_booking_amount END), 0)::float AS "openPipeline",
-           COALESCE(SUM(CASE WHEN sp >= 6 THEN net_booking_amount END), 0)::float AS "bookings"
-    FROM (
+    WITH rep_snaps AS (
       SELECT snapshot_date, net_booking_amount, ${stagePrefixSql(Prisma.sql`stage`)} AS sp
       FROM opportunity_snapshots
       WHERE sales_rep_id = ${salesRepId}::uuid AND school_yr = ${sy}
-        AND snapshot_date IN (
-          (SELECT MAX(snapshot_date) FROM opportunity_snapshots),
-          (SELECT MAX(snapshot_date) FROM opportunity_snapshots
-             WHERE snapshot_date <= (SELECT MAX(snapshot_date) FROM opportunity_snapshots) - 7)
-        )
-    ) s
+    ),
+    anchors AS (
+      SELECT MAX(snapshot_date) AS latest FROM rep_snaps
+    )
+    SELECT snapshot_date::text AS date,
+           COALESCE(SUM(CASE WHEN sp BETWEEN 0 AND 5 THEN net_booking_amount END), 0)::float AS "openPipeline",
+           COALESCE(SUM(CASE WHEN sp >= 6 THEN net_booking_amount END), 0)::float AS "bookings"
+    FROM rep_snaps, anchors
+    WHERE snapshot_date IN (
+      anchors.latest,
+      (SELECT MAX(snapshot_date) FROM rep_snaps WHERE snapshot_date <= anchors.latest - 7)
+    )
     GROUP BY snapshot_date`;
 }

@@ -38,6 +38,23 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
   }
 
   const { columns, todayIndex, metrics } = data;
+
+  // A caller outside the rep roster (admin/manager not impersonating) has no real
+  // rank — buildMetricTrajectory reports them at last+1, which would plot off the
+  // chart. Show a clear not-ranked state instead of a broken line.
+  const ranked = metrics.some((m) => m.caller.inRoster);
+  if (!ranked) {
+    return (
+      <div className="rounded-lg border border-[#D4CFE2] bg-white shadow-sm p-6 text-center">
+        <h3 className="text-sm font-bold text-[#403770] whitespace-nowrap">Rank trajectory</h3>
+        <p className="mt-2 text-sm text-[#8A80A8]">
+          You&apos;re not ranked on these metrics — the rank trajectory is scoped to sales reps.
+          Impersonate a rep to see their standing.
+        </p>
+      </div>
+    );
+  }
+
   // Active-rep roster size = the worst possible rank; caps the chart Y-axis.
   const totalReps = Math.max(1, ...metrics.map((m) => m.reps.length));
 
