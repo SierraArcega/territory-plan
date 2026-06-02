@@ -4,17 +4,22 @@
 
 import { rankReps } from "./ranking";
 
-export const PIPELINE_STAGES: { prefix: number; name: string; weight: number }[] = [
-  { prefix: 0, name: "Meeting Booked", weight: 0.05 },
-  { prefix: 1, name: "Discovery", weight: 0.1 },
-  { prefix: 2, name: "Presentation", weight: 0.25 },
-  { prefix: 3, name: "Proposal", weight: 0.5 },
-  { prefix: 4, name: "Negotiation", weight: 0.75 },
-  { prefix: 5, name: "Commitment", weight: 0.9 },
+// weight = DOA stage weight; healthyMax = days-in-stage past which a deal is
+// "stalled". (The stage_history is_stale flag is NOT usable — it's true for every
+// open opp, i.e. it marks the current/ongoing stage, not a staleness signal.)
+export const PIPELINE_STAGES: { prefix: number; name: string; weight: number; healthyMax: number }[] = [
+  { prefix: 0, name: "Meeting Booked", weight: 0.05, healthyMax: 14 },
+  { prefix: 1, name: "Discovery", weight: 0.1, healthyMax: 28 },
+  { prefix: 2, name: "Presentation", weight: 0.25, healthyMax: 32 },
+  { prefix: 3, name: "Proposal", weight: 0.5, healthyMax: 35 },
+  { prefix: 4, name: "Negotiation", weight: 0.75, healthyMax: 28 },
+  { prefix: 5, name: "Commitment", weight: 0.9, healthyMax: 14 },
 ];
 
-// A single open opportunity, rep-attributed. daysInStage / isStale / overdueClose
-// are derived from stage_history + close_date in the fetch layer.
+const HEALTHY_MAX_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.healthyMax]));
+
+// A single open opportunity, rep-attributed. daysInStage / overdueClose are
+// derived from stage_history + close_date in the fetch layer.
 export interface OpenOppRow {
   email: string;
   stagePrefix: number; // 0-5
@@ -22,9 +27,14 @@ export interface OpenOppRow {
   minPurchase: number;
   maxBudget: number;
   daysInStage: number;
-  isStale: boolean;
   overdueClose: boolean;
   category?: string;
+}
+
+// A deal is "stalled" when it's sat in its current stage past that stage's
+// healthy age.
+export function isStalled(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStage">): boolean {
+  return opp.daysInStage > (HEALTHY_MAX_BY_PREFIX.get(opp.stagePrefix) ?? Infinity);
 }
 
 export interface StageHealth {
@@ -70,7 +80,7 @@ export function buildStageHealth(
       atStake,
       weighted: atStake * weight,
       avgAge,
-      stalled: callerOpps.filter((o) => o.isStale).length,
+      stalled: callerOpps.filter(isStalled).length,
       rank,
       totalReps: ranking.totalReps,
     };
@@ -79,11 +89,11 @@ export function buildStageHealth(
 
 export type DealHealth = "on" | "stall" | "slip";
 
-// Per-deal health (locked decision): an overdue close date is a "slip" (takes
-// priority), an otherwise-stale deal is a "stall", everything else is "on track".
-export function classifyHealth(opp: Pick<OpenOppRow, "isStale" | "overdueClose">): DealHealth {
+// Per-deal health: an overdue close date is a "slip" (takes priority), a deal past
+// its stage's healthy age is a "stall", everything else is "on track".
+export function classifyHealth(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStage" | "overdueClose">): DealHealth {
   if (opp.overdueClose) return "slip";
-  if (opp.isStale) return "stall";
+  if (isStalled(opp)) return "stall";
   return "on";
 }
 

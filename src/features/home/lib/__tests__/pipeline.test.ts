@@ -8,22 +8,23 @@ const reps = [
 
 const opp = (p: Partial<OpenOppRow>): OpenOppRow => ({
   email: "me@x", stagePrefix: 0, netBooking: 0, minPurchase: 0, maxBudget: 0,
-  daysInStage: 0, isStale: false, overdueClose: false, ...p,
+  daysInStage: 0, overdueClose: false, ...p,
 });
 
 describe("PIPELINE_STAGES", () => {
-  it("defines the six open stages with DOA weights", () => {
+  it("defines the six open stages with DOA weights and per-stage healthy ages", () => {
     expect(PIPELINE_STAGES.map((s) => s.name)).toEqual([
       "Meeting Booked", "Discovery", "Presentation", "Proposal", "Negotiation", "Commitment",
     ]);
     expect(PIPELINE_STAGES.map((s) => s.weight)).toEqual([0.05, 0.1, 0.25, 0.5, 0.75, 0.9]);
+    expect(PIPELINE_STAGES.map((s) => s.healthyMax)).toEqual([14, 28, 32, 35, 28, 14]);
   });
 });
 
 describe("buildStageHealth", () => {
   const opps = [
-    opp({ email: "me@x", stagePrefix: 4, netBooking: 100, daysInStage: 10, isStale: false }),
-    opp({ email: "me@x", stagePrefix: 4, netBooking: 50, daysInStage: 40, isStale: true }),
+    opp({ email: "me@x", stagePrefix: 4, netBooking: 100, daysInStage: 10 }), // healthy (≤28)
+    opp({ email: "me@x", stagePrefix: 4, netBooking: 50, daysInStage: 40 }), // stalled (>28)
     opp({ email: "u2@x", stagePrefix: 4, netBooking: 300, daysInStage: 5 }),
     opp({ email: "me@x", stagePrefix: 1, netBooking: 20, daysInStage: 3 }),
   ];
@@ -43,7 +44,7 @@ describe("buildStageHealth", () => {
       atStake: 150, // 100 + 50
       weighted: 112.5, // 150 * 0.75
       avgAge: 25, // (10 + 40) / 2
-      stalled: 1, // one is_stale
+      stalled: 1, // one over the 28d Negotiation healthy age
     });
   });
 
@@ -88,16 +89,17 @@ describe("buildCoverage", () => {
 });
 
 describe("classifyHealth", () => {
-  it("flags an overdue close date as 'slip' (highest priority)", () => {
-    expect(classifyHealth(opp({ overdueClose: true, isStale: true }))).toBe("slip");
-    expect(classifyHealth(opp({ overdueClose: true, isStale: false }))).toBe("slip");
+  it("flags an overdue close date as 'slip' (highest priority, even if young)", () => {
+    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 2, overdueClose: true }))).toBe("slip");
   });
 
-  it("flags a stale (not overdue) deal as 'stall'", () => {
-    expect(classifyHealth(opp({ overdueClose: false, isStale: true }))).toBe("stall");
+  it("flags a deal past its stage's healthy age as 'stall'", () => {
+    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 40, overdueClose: false }))).toBe("stall"); // >28
+    expect(classifyHealth(opp({ stagePrefix: 0, daysInStage: 20, overdueClose: false }))).toBe("stall"); // >14
   });
 
-  it("flags everything else as 'on'", () => {
-    expect(classifyHealth(opp({ overdueClose: false, isStale: false }))).toBe("on");
+  it("flags a deal within its stage's healthy age as 'on'", () => {
+    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 20, overdueClose: false }))).toBe("on"); // ≤28
+    expect(classifyHealth(opp({ stagePrefix: 0, daysInStage: 10, overdueClose: false }))).toBe("on"); // ≤14
   });
 });
