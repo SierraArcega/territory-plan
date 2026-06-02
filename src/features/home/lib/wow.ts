@@ -10,6 +10,8 @@ export interface WowSnapshotRow {
   bookings: number;
 }
 
+import { pctChange } from "./delta";
+
 export interface WowDeltas {
   openPipeline: number | null;
   bookings: number | null;
@@ -20,9 +22,8 @@ export function buildWowDeltas(rows: WowSnapshotRow[]): WowDeltas {
   const sorted = [...rows].sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
   const latest = sorted[0];
   const prior = sorted[1];
-  const delta = (now: number, was: number) => (was > 0 ? (now - was) / was : null);
   return {
-    openPipeline: delta(latest.openPipeline, prior.openPipeline),
-    bookings: delta(latest.bookings, prior.bookings),
+    openPipeline: pctChange(latest.openPipeline, prior.openPipeline),
+    bookings: pctChange(latest.bookings, prior.bookings),
   };
 }

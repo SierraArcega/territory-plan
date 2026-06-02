@@ -3,6 +3,7 @@
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { ToplineSegment } from "@/features/home/lib/topline";
 import type { Sparkline as SparklineData } from "@/features/home/lib/sparkline";
+import { deltaColor } from "@/features/home/lib/delta";
 import SegmentBar from "./charts/SegmentBar";
 import Sparkline from "./charts/Sparkline";
 
@@ -16,14 +17,6 @@ interface StatCardProps {
   sparkline?: SparklineData;
   priorFyLabel?: string;
   wow?: number | null;
-}
-
-const DELTA_UP = "#2E7D5B";
-const DELTA_DOWN = "#F37167";
-const MUTED = "#8A80A8";
-
-function deltaColor(pct: number) {
-  return pct === 0 ? MUTED : pct > 0 ? DELTA_UP : DELTA_DOWN;
 }
 
 // Topline financial card: label, value, source segment bar, a current-vs-prior-FY

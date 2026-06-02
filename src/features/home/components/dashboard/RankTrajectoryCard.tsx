@@ -3,19 +3,15 @@
 import { useState } from "react";
 import { Maximize2, Info } from "lucide-react";
 import { useRankTrajectory } from "@/features/home/lib/queries";
+import { deltaColor } from "@/features/home/lib/delta";
 import RankTrajectoryChart, { type RankSeries } from "./charts/RankTrajectoryChart";
 import RankTrajectoryModal from "./RankTrajectoryModal";
 
-// Positive rank movement (moved up the board) reads green; negative coral.
-const DELTA_UP = "#2E7D5B";
-const DELTA_DOWN = "#F37167";
-const MUTED = "#8A80A8";
-
+// Rank movement over the FY: lower rank number is better, so a positive delta
+// (entry → now) is an improvement and reads green.
 function deltaChip(entryRank: number, nowRank: number) {
-  const delta = entryRank - nowRank; // lower rank number is better → positive = improved
-  if (delta > 0) return { text: `+${delta}`, color: DELTA_UP };
-  if (delta < 0) return { text: `${delta}`, color: DELTA_DOWN };
-  return { text: "—", color: MUTED };
+  const delta = entryRank - nowRank;
+  return { text: delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "—", color: deltaColor(delta) };
 }
 
 export default function RankTrajectoryCard({ fy }: { fy: number }) {

@@ -5,6 +5,7 @@
 
 import { cumulativeColumns, todayColumnIndex, COLUMN_COUNT, type DatedValueRow } from "./monthly";
 import { TRAJECTORY_METRICS, type TrajectoryMetricKey } from "./rank-trajectory";
+import { pctChange } from "./delta";
 
 export interface Sparkline {
   current: number[]; // 13 cumulative columns, this FY
@@ -30,11 +31,10 @@ export function buildSparklines(params: {
   for (const { metricKey } of TRAJECTORY_METRICS) {
     const current = callerColumns(currentRows[metricKey] ?? [], fy, email);
     const prior = callerColumns(priorRows[metricKey] ?? [], fy - 1, email);
-    const priorToDate = prior[todayIdx];
     out[metricKey] = {
       current,
       prior,
-      yoy: priorToDate > 0 ? (current[todayIdx] - priorToDate) / priorToDate : null,
+      yoy: pctChange(current[todayIdx], prior[todayIdx]),
     };
   }
   return out;
