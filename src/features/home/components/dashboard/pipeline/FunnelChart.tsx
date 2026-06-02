@@ -21,10 +21,13 @@ export default function FunnelChart({ stages, onStageClick }: { stages: StageGro
   const H = padY * 2 + active.length * rowH;
   const usableW = W - padX * 2;
   const cx = W / 2;
-  const maxAll = Math.max(...active.map((s) => s.max), 1);
-  const wFor = (max: number) => Math.max(48, (max / maxAll) * usableW);
-  const topW = active.map((s) => wFor(s.max));
-  const botW = topW.slice(1).concat([topW[topW.length - 1] * 0.6]);
+  // Width is POSITIONAL — a true funnel that always narrows top→bottom, regardless
+  // of each stage's $ (which is read from the labels + the min-inside-max fill).
+  const T_TOP = 1;
+  const T_BOT = 0.34;
+  const wAt = (idx: number) => usableW * (T_TOP - (T_TOP - T_BOT) * (idx / active.length));
+  const topW = active.map((_, i) => wAt(i));
+  const botW = active.map((_, i) => wAt(i + 1));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", width: "100%", height: "auto" }}>

@@ -26,7 +26,7 @@ export default function FunnelCard({ opps }: { opps: OppView[] }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-bold text-[#403770] whitespace-nowrap">Stage funnel</h3>
-          <p className="text-xs text-[#8A80A8]">Min commit (solid) inside max budget (band). Click a stage to drill in.</p>
+          <p className="text-xs text-[#8A80A8]">Open deals by stage · max budget (left) · min commit (right). Click a stage to drill in.</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {SOURCES.map((s) => {
