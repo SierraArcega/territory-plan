@@ -786,6 +786,40 @@ describe("GridView — group rendering", () => {
     expect(container.querySelector('tr[data-group-key="NY"]')).not.toBeNull();
   });
 
+  it("pins the group-divider label (sticky left:0) so it stays visible during horizontal scroll", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: groupedRows(), total: 4 },
+    });
+
+    const layout: GridViewLayout = {
+      ...emptyLayout(),
+      groupBy: { id: "state" },
+    };
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1", "2", "3", "4"]}
+          listId={null}
+          layout={layout}
+        />
+      </Wrapper>,
+    );
+
+    const nyRow = container.querySelector('tr[data-group-key="NY"]')!;
+    const labelSpan = Array.from(nyRow.querySelectorAll("span")).find(
+      (s) => s.textContent === "NY",
+    )!;
+    const sticky = labelSpan.closest('[style*="sticky"]') as HTMLElement | null;
+    expect(sticky).not.toBeNull();
+    expect(sticky!.style.position).toBe("sticky");
+    expect(sticky!.style.left).toBe("0px");
+  });
+
   it("no headers render when layout.groupBy is null", () => {
     mockUseViewsData.mockReturnValue({
       isLoading: false,

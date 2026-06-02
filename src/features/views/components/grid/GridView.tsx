@@ -797,7 +797,14 @@ export default function GridView(props: GridViewProps) {
             colSpan={colCount}
             className="border-b border-[#EFEDF5] px-3.5 py-2"
           >
-            <div className="flex items-center gap-2 text-[12px] font-semibold text-[#403770]">
+            {/* The divider cell spans the full width, so its label would scroll
+                away horizontally. `inline-flex` + sticky left:0 pins the label
+                to the viewport's left edge so it stays readable while scrolling,
+                matching the frozen district-name column. */}
+            <div
+              style={{ position: "sticky", left: 0 }}
+              className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#403770]"
+            >
               <Chev className="h-3.5 w-3.5" />
               <span className="whitespace-nowrap uppercase tracking-[0.06em]">
                 {groupLabelFor(bucket.key)}
