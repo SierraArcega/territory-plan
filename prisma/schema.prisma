@@ -144,6 +144,10 @@ model District {
   ownerUser          UserProfile? @relation("DistrictOwner", fields: [ownerId], references: [id])
   salesExecutiveUser UserProfile? @relation("DistrictSalesExec", fields: [salesExecutiveId], references: [id])
 
+  // ===== Collaborators & Watchers =====
+  collaborators DistrictCollaborator[]
+  watchers      DistrictWatcher[]
+
   // ===== Rollup Relationship =====
   // Self-relation for districts that roll up into a parent (e.g., NYC Geographic
   // Districts roll up into NYC DOE leaid 3620580). See docs/nyc-doe-rollup plan.
@@ -582,6 +586,39 @@ model TerritoryPlanCollaborator {
   @@map("territory_plan_collaborators")
 }
 
+// People (besides the owner) who actively work a district. `source` = 'auto'
+// rows are managed by the owner/collaborator sync (non-owner reps with an open
+// opp on, or a territory-plan target for, the district); 'manual' rows are
+// added by users and never touched by the sync.
+model DistrictCollaborator {
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  userId       String   @map("user_id") @db.Uuid
+  source       String   @default("manual")
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  district District    @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+  user     UserProfile @relation("DistrictCollaborator", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([districtLeaid, userId])
+  @@index([userId])
+  @@map("district_collaborators")
+}
+
+// People who want to stay updated on a district (no owner/edit rights implied).
+// Notification delivery is deferred; this only stores the subscription.
+model DistrictWatcher {
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  userId       String   @map("user_id") @db.Uuid
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  district District    @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+  user     UserProfile @relation("DistrictWatcher", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([districtLeaid, userId])
+  @@index([userId])
+  @@map("district_watchers")
+}
+
 // ===== Saved Views =====
 // Per-rep saved filtered queries over one of six entity sources. Paired with
 // TerritoryPlan rows in the unified "My views" sidebar. The filter tree is an
@@ -1017,6 +1054,8 @@ model UserProfile {
   // Inverse relations for normalized person FKs
   ownedDistricts      District[]                  @relation("DistrictOwner")
   assignedDistricts   District[]                  @relation("DistrictSalesExec")
+  collaboratingDistricts DistrictCollaborator[]   @relation("DistrictCollaborator")
+  watchingDistricts      DistrictWatcher[]        @relation("DistrictWatcher")
   ownedStates         State[]                     @relation("StateOwner")
   ownedSchools        School[]                    @relation("SchoolOwner")
   // Query tool audit + saved reports
