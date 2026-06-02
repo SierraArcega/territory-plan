@@ -143,6 +143,10 @@ describe("classifyHealth", () => {
     expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 2, overdueClose: true }))).toBe("slip");
   });
 
+  it("prefers 'slip' over 'stall' when a deal is BOTH overdue and past its healthy age", () => {
+    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 40, overdueClose: true }))).toBe("slip"); // 40 > 28 AND overdue → slip wins
+  });
+
   it("flags a deal past its stage's healthy age as 'stall'", () => {
     expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 40, overdueClose: false }))).toBe("stall"); // >28
     expect(classifyHealth(opp({ stagePrefix: 0, daysInStage: 20, overdueClose: false }))).toBe("stall"); // >14

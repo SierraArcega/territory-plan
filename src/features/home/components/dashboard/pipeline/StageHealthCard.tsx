@@ -1,10 +1,9 @@
 "use client";
 
 import { formatCurrency } from "@/features/shared/lib/format";
-import { PIPELINE_STAGES, type StageHealth } from "@/features/home/lib/pipeline";
+import { PIPELINE_STAGES, STAGE_ACCENTS, type StageHealth } from "@/features/home/lib/pipeline";
 
 const HEALTHY_MAX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.healthyMax]));
-const STAGE_ACCENTS = ["#C2BBD4", "#9A8FC0", "#7E72A8", "#6E5FA8", "#544A85", "#403770"];
 const fmt = (v: number) => formatCurrency(v, true);
 
 // Per-stage anatomy of the open book: $ at-stake, weighted, avg age vs the stage's

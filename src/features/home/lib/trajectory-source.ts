@@ -36,7 +36,8 @@ export function stagePrefixSql(stage: Prisma.Sql): Prisma.Sql {
 }
 
 // `category` constant per district+school_yr, read straight off the matview.
-const categoryJoin = (sy: string) => Prisma.sql`
+// Joins on the alias `o` (the opportunities row) and exposes `c.category`.
+export const categoryJoin = (sy: string) => Prisma.sql`
   LEFT JOIN (
     SELECT DISTINCT district_lea_id, category
     FROM district_opportunity_actuals

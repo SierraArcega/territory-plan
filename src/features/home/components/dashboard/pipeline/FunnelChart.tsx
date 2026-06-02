@@ -1,9 +1,8 @@
 "use client";
 
 import { formatCurrency } from "@/features/shared/lib/format";
-import type { StageGroup } from "@/features/home/lib/pipeline";
+import { STAGE_ACCENTS, type StageGroup } from "@/features/home/lib/pipeline";
 
-const ACCENTS = ["#C2BBD4", "#9A8FC0", "#7E72A8", "#6E5FA8", "#544A85", "#403770"];
 const fmt = (v: number) => formatCurrency(v, true);
 
 // Structural funnel: one centered trapezoid per active stage (outer band = max
@@ -37,7 +36,7 @@ export default function FunnelChart({ stages, onStageClick }: { stages: StageGro
         const tW = topW[i];
         const bW = botW[i];
         const ratio = s.max > 0 ? s.min / s.max : 0;
-        const accent = ACCENTS[s.prefix];
+        const accent = STAGE_ACCENTS[s.prefix];
         const outer = `M ${cx - tW / 2} ${y1} L ${cx + tW / 2} ${y1} L ${cx + bW / 2} ${y2} L ${cx - bW / 2} ${y2} Z`;
         const innerTop = tW * ratio;
         const innerBot = bW * ratio;

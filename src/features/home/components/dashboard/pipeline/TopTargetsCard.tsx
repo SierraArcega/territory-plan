@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import { useLowHangingFruitList } from "@/features/leaderboard/lib/queries";
 import type { IncreaseTargetCategory } from "@/features/leaderboard/lib/types";
@@ -15,15 +16,16 @@ const CATEGORY_LABEL: Record<IncreaseTargetCategory, string> = {
 export default function TopTargetsCard() {
   const { data, isLoading, isError } = useLowHangingFruitList();
 
-  const top = [...(data?.districts ?? [])]
-    .sort((a, b) => b.fy26Revenue - a.fy26Revenue)
-    .slice(0, 8);
+  const top = useMemo(
+    () => [...(data?.districts ?? [])].sort((a, b) => b.fy26Revenue - a.fy26Revenue).slice(0, 8),
+    [data],
+  );
 
   return (
     <div className="rounded-lg border border-[#D4CFE2] bg-white shadow-sm p-4 flex flex-col gap-3">
       <div>
         <h3 className="text-sm font-bold text-[#403770] whitespace-nowrap">Top targets not in pipeline</h3>
-        <p className="text-xs text-[#8A80A8]">Accounts worth working that have no open opp yet.</p>
+        <p className="text-xs text-[#8A80A8]">Team-wide accounts worth working — no open opp yet.</p>
       </div>
 
       {isError ? (

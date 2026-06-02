@@ -7,7 +7,7 @@
 
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { stagePrefixSql } from "./trajectory-source";
+import { stagePrefixSql, categoryJoin } from "./trajectory-source";
 import type { PipelineOpp } from "./pipeline";
 
 export interface ThisWeek {
@@ -40,18 +40,21 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
                COALESCE(o.maximum_budget, 0)::float AS "maxBudget",
                o.close_date AS "closeDate",
                ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",
-               GREATEST(0, EXTRACT(EPOCH FROM (now() - (last.elem ->> 'changed_at')::timestamptz)) / 86400)::float AS "daysInStage",
+               GREATEST(0, EXTRACT(EPOCH FROM (now() - COALESCE((last.elem ->> 'changed_at')::timestamptz, o.created_at))) / 86400)::float AS "daysInStage",
                (o.close_date IS NOT NULL AND o.close_date < now()) AS "overdueClose",
                c.category
         FROM opportunities o
+        -- Most recent stage entry by changed_at (not positional order), so a
+        -- backfilled/out-of-order stage_history still gives the right age; falls
+        -- back to created_at when there's no history.
         LEFT JOIN LATERAL (
-          SELECT o.stage_history -> (jsonb_array_length(o.stage_history) - 1) AS elem
-          WHERE jsonb_typeof(o.stage_history) = 'array' AND jsonb_array_length(o.stage_history) > 0
+          SELECT elem
+          FROM jsonb_array_elements(o.stage_history) elem
+          WHERE jsonb_typeof(o.stage_history) = 'array'
+          ORDER BY (elem ->> 'changed_at')::timestamptz DESC NULLS LAST
+          LIMIT 1
         ) last ON true
-        LEFT JOIN (
-          SELECT DISTINCT district_lea_id, category
-          FROM district_opportunity_actuals WHERE school_yr = ${sy}
-        ) c ON c.district_lea_id = o.district_lea_id
+        ${categoryJoin(sy)}
         WHERE o.school_yr = ${sy} AND o.net_booking_amount IS NOT NULL
       ) t
       WHERE t."stagePrefix" BETWEEN 0 AND 5`,

@@ -17,6 +17,10 @@ export const PIPELINE_STAGES: { prefix: number; name: string; weight: number; he
   { prefix: 5, name: "Commitment", weight: 0.9, healthyMax: 14 },
 ];
 
+// Plum-ramp accent per stage, indexed by stage prefix (shared by the coverage
+// bar, the stage-health table, and the funnel so they stay in sync).
+export const STAGE_ACCENTS = ["#C2BBD4", "#9A8FC0", "#7E72A8", "#6E5FA8", "#544A85", "#403770"];
+
 const HEALTHY_MAX_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.healthyMax]));
 
 // A single open opportunity, rep-attributed. daysInStage / overdueClose are

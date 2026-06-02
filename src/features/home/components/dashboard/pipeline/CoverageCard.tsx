@@ -1,11 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/features/shared/lib/format";
-import { SEGMENT_COLORS } from "@/features/home/lib/segments";
-import type { Coverage } from "@/features/home/lib/pipeline";
-
-// Stage accents reused for the by-stage coverage bar (plum ramp).
-const STAGE_ACCENTS = ["#C2BBD4", "#9A8FC0", "#7E72A8", "#6E5FA8", "#544A85", "#403770"];
+import { STAGE_ACCENTS, type Coverage } from "@/features/home/lib/pipeline";
 
 // Coverage card: the open book's min-commit floor / max-budget ceiling / most-likely
 // weighted vs the gap to the FY bookings target, plus a by-stage floor/ceiling bar.
@@ -45,20 +41,20 @@ export default function CoverageCard({ coverage }: { coverage: Coverage & { wonB
           By stage · max budget with min commit inside
         </span>
         <div className="flex h-5 w-full overflow-hidden rounded border border-[#E2DEEC]">
-          {byStage.map((s, i) => {
+          {byStage.map((s) => {
             if (s.max <= 0) return null;
             return (
               <div key={s.prefix} style={{ width: `${(s.max / totalMax) * 100}%` }} className="relative">
-                <div className="absolute inset-0" style={{ background: STAGE_ACCENTS[i], opacity: 0.22 }} />
-                <div className="absolute inset-y-0 left-0" style={{ width: `${(s.min / s.max) * 100}%`, background: STAGE_ACCENTS[i] }} />
+                <div className="absolute inset-0" style={{ background: STAGE_ACCENTS[s.prefix], opacity: 0.22 }} />
+                <div className="absolute inset-y-0 left-0" style={{ width: `${(s.min / s.max) * 100}%`, background: STAGE_ACCENTS[s.prefix] }} />
               </div>
             );
           })}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {byStage.filter((s) => s.max > 0).map((s, i) => (
+          {byStage.filter((s) => s.max > 0).map((s) => (
             <span key={s.prefix} className="flex items-center gap-1 text-[11px] whitespace-nowrap">
-              <span className="h-2 w-2 rounded-[2px]" style={{ background: STAGE_ACCENTS[byStage.indexOf(s)] || SEGMENT_COLORS.return }} />
+              <span className="h-2 w-2 rounded-[2px]" style={{ background: STAGE_ACCENTS[s.prefix] }} />
               <span className="font-medium text-[#5C5378]">{s.name}</span>
               <span className="font-bold tabular-nums text-[#403770]">{fmt(s.min)}</span>
               <span className="text-[#8A80A8]">/ {fmt(s.max)}</span>
