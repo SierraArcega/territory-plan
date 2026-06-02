@@ -6,6 +6,7 @@
 import { cumulativeColumns, todayColumnIndex, COLUMN_COUNT, type DatedValueRow } from "./monthly";
 import { TRAJECTORY_METRICS, type TrajectoryMetricKey } from "./rank-trajectory";
 import { pctChange } from "./delta";
+import { getCurrentFY } from "@/lib/fiscal-year";
 
 // Sparklines + YoY are for the four financial cards. Targets is count-based (its
 // card shows district counts, not a $ trend), so it has no $ sparkline.
@@ -31,6 +32,9 @@ export function buildSparklines(params: {
 }): Record<SparklineMetricKey, Sparkline> {
   const { currentRows, priorRows, email, fy, now } = params;
   const todayIdx = todayColumnIndex(fy, now);
+  // A future FY has no real to-date figure, so YoY would read a spurious -100%.
+  // Suppress it (mirrors the WoW gate, which is current-FY only).
+  const isFuture = fy > getCurrentFY(now);
 
   const out = {} as Record<SparklineMetricKey, Sparkline>;
   for (const { metricKey } of SPARKLINE_METRICS) {
@@ -39,7 +43,7 @@ export function buildSparklines(params: {
     out[metricKey as SparklineMetricKey] = {
       current,
       prior,
-      yoy: pctChange(current[todayIdx], prior[todayIdx]),
+      yoy: isFuture ? null : pctChange(current[todayIdx], prior[todayIdx]),
     };
   }
   return out;

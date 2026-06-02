@@ -32,6 +32,14 @@ describe("buildSparklines", () => {
     expect(out.revenue.current[12]).toBe(200);
   });
 
+  it("suppresses YoY for a future fiscal year (no meaningful comparison yet)", () => {
+    // now = Jan 2026 → current FY26; FY27 is in the future.
+    const prior = empty();
+    prior.bookings = [{ email: "me@x", date: d("2025-05-01"), value: 100 }]; // pre-FY26 carryover → prior[0] > 0
+    const out = buildSparklines({ currentRows: empty(), priorRows: prior, email: "me@x", fy: 2027, now });
+    expect(out.bookings.yoy).toBeNull(); // would be -100% without the guard
+  });
+
   it("produces an entry for each financial card metric (Targets is count-based, no $ sparkline)", () => {
     const out = buildSparklines({ currentRows: empty(), priorRows: empty(), email: "me@x", fy: 2026, now });
     expect(Object.keys(out).sort()).toEqual(["bookings", "openPipeline", "revenue", "take"]);
