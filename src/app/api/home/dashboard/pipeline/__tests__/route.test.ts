@@ -62,5 +62,36 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(body.opps[0].stageName).toBe("Negotiation"); // weighted 75 > 2
     expect(body.atRisk.map((o: { health: string }) => o.health)).toEqual(["stall"]); // the 40d Negotiation opp
     expect(body.thisWeek).toEqual({ won: 1, lost: 0, created: 2 });
+    expect(body.inRoster).toBe(true);
+  });
+
+  it("derives at-risk from the full book, not just the top-50 displayed opps", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
+    const healthy = Array.from({ length: 50 }, () =>
+      oppRow({ email: "me@x", stagePrefix: 5, netBooking: 1000, daysInStage: 1 }), // high weighted, on-track
+    );
+    const lowValueAtRisk = oppRow({ email: "me@x", stagePrefix: 0, netBooking: 1, daysInStage: 1, overdueClose: true }); // sorts last, slip
+    mockFetch.mockResolvedValue({ openOpps: [...healthy, lowValueAtRisk], wonBookings: 0, fyTarget: 1000, thisWeek: { won: 0, lost: 0, created: 0 } } as never);
+
+    const body = await (await GET(req("2026"))).json();
+    expect(body.opps).toHaveLength(50); // capped
+    expect(body.atRisk.map((o: { health: string }) => o.health)).toEqual(["slip"]); // still surfaced despite being 51st
+  });
+
+  it("flags a caller outside the active-rep roster as not in roster", async () => {
+    mockGetUser.mockResolvedValue({ id: "admin", email: "admin@x" } as never);
+    mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
+    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 0, lost: 0, created: 0 } } as never);
+    const body = await (await GET(req("2026"))).json();
+    expect(body.inRoster).toBe(false);
+  });
+
+  it("omits this-week movement for a non-current fiscal year", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
+    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 } } as never);
+    const body = await (await GET(req("2024"))).json(); // past FY
+    expect(body.thisWeek).toBeNull();
   });
 });

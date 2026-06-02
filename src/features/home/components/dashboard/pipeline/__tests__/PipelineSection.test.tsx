@@ -22,7 +22,7 @@ const oppView = (p: Record<string, unknown>) => ({
   netBooking: 100, minPurchase: 80, maxBudget: 200, weighted: 75, closeDate: null, daysInStage: 40, health: "on", ...p,
 });
 const data = {
-  fy: 2026, schoolYr: "2025-26",
+  fy: 2026, schoolYr: "2025-26", inRoster: true,
   coverage: { minCommit: 90, maxBudget: 260, openCount: 2, weightedPipeline: 77, gap: 400, coverageMin: 0.225, coverageMax: 0.65, byStage, wonBookings: 600, fyTarget: 1000 },
   stageHealth,
   opps: [oppView({ account: "Brookfield CSD", health: "on" }), oppView({ account: "Riverside USD", health: "stall" })],
@@ -47,6 +47,20 @@ describe("PipelineSection", () => {
     expect(screen.getByText("At risk")).toBeTruthy();
     expect(screen.getByText("Brookfield CSD")).toBeTruthy();
     expect(screen.getAllByText("Riverside USD").length).toBeGreaterThanOrEqual(1); // table + at-risk
+  });
+
+  it("shows a not-ranked state for a caller outside the rep roster", () => {
+    mockHook.mockReturnValue(result({ data: { ...data, inRoster: false } }));
+    render(<PipelineSection fy={2026} />);
+    expect(screen.getByText(/not a ranked sales rep/i)).toBeTruthy();
+    expect(screen.queryByText("Coverage")).toBeNull();
+  });
+
+  it("hides the This Week card for a non-current fiscal year (thisWeek null)", () => {
+    mockHook.mockReturnValue(result({ data: { ...data, thisWeek: null } }));
+    render(<PipelineSection fy={2024} />);
+    expect(screen.queryByText("This week")).toBeNull();
+    expect(screen.getByText("Coverage")).toBeTruthy(); // rest still renders
   });
 
   it("shows skeletons while loading", () => {

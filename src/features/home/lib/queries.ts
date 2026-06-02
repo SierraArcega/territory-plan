@@ -110,11 +110,12 @@ export function useSparklines(fy: number) {
 export interface PipelineResponse {
   fy: number;
   schoolYr: string;
+  inRoster: boolean; // false for an admin/manager viewing (not in the rep roster)
   coverage: Coverage & { wonBookings: number; fyTarget: number };
   stageHealth: StageHealth[];
   opps: OppView[];
   atRisk: OppView[];
-  thisWeek: ThisWeek;
+  thisWeek: ThisWeek | null; // null for a non-current FY
 }
 
 export function usePipeline(fy: number) {

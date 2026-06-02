@@ -24,6 +24,7 @@ export async function GET(request: Request) {
 
   const schoolYr = schoolYearForFY(fy);
   const reps = await getActiveReps();
+  const inRoster = reps.some((r) => r.id === user.id);
   const callerEmail = reps.find((r) => r.id === user.id)?.email ?? user.email ?? "";
 
   const { openOpps, wonBookings, fyTarget, thisWeek } = await fetchPipelineData(schoolYr, fy, callerEmail);
@@ -31,16 +32,19 @@ export async function GET(request: Request) {
   const stageHealth = buildStageHealth(openOpps, reps, user.id);
   const callerOpps = openOpps.filter((o) => o.email === callerEmail);
   const coverage = buildCoverage(callerOpps, wonBookings, fyTarget);
-  const opps = buildOppViews(callerOpps).slice(0, 50); // paginate per CLAUDE.md
-  const atRisk = opps.filter((o) => o.health !== "on");
+  const views = buildOppViews(callerOpps);
+  const opps = views.slice(0, 50); // paginate the displayed table per CLAUDE.md
+  const atRisk = views.filter((o) => o.health !== "on"); // from the FULL book, not the slice
 
   return NextResponse.json({
     fy,
     schoolYr,
+    inRoster,
     coverage: { ...coverage, wonBookings, fyTarget },
     stageHealth,
     opps,
     atRisk,
-    thisWeek,
+    // "This week" (last 7 days) is only meaningful for the in-progress FY.
+    thisWeek: fy === getCurrentFY() ? thisWeek : null,
   });
 }

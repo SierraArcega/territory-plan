@@ -33,6 +33,17 @@ export default function PipelineSection({ fy }: { fy: number }) {
     );
   }
 
+  if (!data.inRoster) {
+    return (
+      <div className="rounded-lg border border-[#D4CFE2] bg-white shadow-sm p-6 text-center">
+        <h3 className="text-sm font-bold text-[#403770] whitespace-nowrap">Pipeline</h3>
+        <p className="mt-2 text-sm text-[#8A80A8]">
+          You&apos;re not a ranked sales rep — the pipeline is scoped to reps. Impersonate a rep to see their book.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
       {/* Main column */}
@@ -45,7 +56,7 @@ export default function PipelineSection({ fy }: { fy: number }) {
       </div>
       {/* Right rail (stacks under the main column when narrow) */}
       <div className="flex w-full shrink-0 flex-col gap-5 lg:w-[320px]">
-        <ThisWeekCard thisWeek={data.thisWeek} />
+        {data.thisWeek && <ThisWeekCard thisWeek={data.thisWeek} />}
         <AtRiskCard atRisk={data.atRisk} />
       </div>
     </div>
