@@ -5,26 +5,24 @@ import { X, ChevronRight, Download } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import { useRankTrajectory } from "@/features/home/lib/queries";
 import type { MetricSeries } from "@/features/home/lib/rank-trajectory";
+import { SEGMENT_COLORS, SEGMENT_DEFS, type SegmentKey } from "@/features/home/lib/segments";
 import RankTrajectoryChart, { type RankSeries } from "./charts/RankTrajectoryChart";
 
-type SegmentKey = "all" | "return" | "new" | "winback" | "expansion";
+type FilterKey = "all" | SegmentKey;
 
-const SEGMENTS: { key: SegmentKey; label: string; color?: string }[] = [
+// "All" + one chip per shared segment def (long labels for the filter row).
+const SEGMENTS: { key: FilterKey; label: string; color?: string }[] = [
   { key: "all", label: "All" },
-  { key: "return", label: "Return business", color: "#403770" },
-  { key: "new", label: "New business", color: "#F37167" },
-  { key: "winback", label: "Win-back", color: "#6EA3BE" },
-  { key: "expansion", label: "Expansion", color: "#FFCF70" },
+  ...SEGMENT_DEFS.map((d) => ({ key: d.key, label: d.longLabel, color: d.color })),
 ];
-const SEGMENT_COLORS: Record<string, string> = {
-  return: "#403770", new: "#F37167", winback: "#6EA3BE", expansion: "#FFCF70",
-};
 const GHOST = "rgba(140, 128, 168, 0.32)";
 const fmt = (v: number) => formatCurrency(v, true);
+// Color for a filter key; the "all" branch is never rendered (callers guard on segActive).
+const segColor = (k: FilterKey) => (k === "all" ? "#403770" : SEGMENT_COLORS[k]);
 
 // Resolve a metric to the active segment's series (falling back to all-segments
 // when that metric has no rows in the selected segment).
-function viewFor(metric: MetricSeries, segment: SegmentKey) {
+function viewFor(metric: MetricSeries, segment: FilterKey) {
   if (segment === "all") return { caller: metric.caller, reps: metric.reps };
   return metric.segments[segment] ?? { caller: metric.caller, reps: metric.reps };
 }
@@ -38,7 +36,7 @@ interface Props {
 export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
   const { data } = useRankTrajectory(fy);
   const [isolated, setIsolated] = useState<string | null>(null);
-  const [segment, setSegment] = useState<SegmentKey>("all");
+  const [segment, setSegment] = useState<FilterKey>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -113,7 +111,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
             <h2 className="text-lg font-bold text-[#403770]">Rank trajectory</h2>
             <p className="mt-0.5 text-xs text-[#8A80A8]">
               {isolatedMetric ? (
-                <>Showing <strong style={{ color: isolatedMetric.color }}>{isolatedMetric.name}</strong>{segActive && <> · <strong style={{ color: SEGMENT_COLORS[segment] }}>{segMeta.label}</strong></>} across all {totalReps} reps — your line is in color, teammates in gray.</>
+                <>Showing <strong style={{ color: isolatedMetric.color }}>{isolatedMetric.name}</strong>{segActive && <> · <strong style={{ color: segColor(segment) }}>{segMeta.label}</strong></>} across all {totalReps} reps — your line is in color, teammates in gray.</>
               ) : (
                 <>All metrics, month by month. Click a metric to compare against the team, or filter by segment.</>
               )}
@@ -198,7 +196,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
                 </div>
                 <div className="mt-1 text-lg font-bold tabular-nums text-[#403770]">{fmt(todayVal)}</div>
                 <div className="text-[11px] text-[#8A80A8] whitespace-nowrap">
-                  {segActive ? <><span style={{ color: SEGMENT_COLORS[segment], fontWeight: 700 }}>{share.toFixed(0)}%</span> of {m.name.toLowerCase()}</> : <>FY to date · all segments</>}
+                  {segActive ? <><span style={{ color: segColor(segment), fontWeight: 700 }}>{share.toFixed(0)}%</span> of {m.name.toLowerCase()}</> : <>FY to date · all segments</>}
                 </div>
               </div>
             );
@@ -209,7 +207,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
         <div className="px-5 pt-5">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
             Monthly ranks {isolatedMetric ? `· ${isolatedMetric.name}` : "· all metrics"}
-            {segActive && <span style={{ color: SEGMENT_COLORS[segment] }}> · {segMeta.label}</span>}
+            {segActive && <span style={{ color: segColor(segment) }}> · {segMeta.label}</span>}
           </div>
           <div className="overflow-x-auto rounded-lg border border-[#E2DEEC]">
             <table className="min-w-full text-left">
@@ -258,7 +256,7 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
                             <td key={i} className="px-2.5 py-2 text-right tabular-nums" style={{ opacity: isFuture ? 0.7 : 1 }}>
                               <div className="text-[13px] font-bold text-[#403770]">#{r}</div>
                               <div className="text-[10px] text-[#8A80A8]">{fmt(view.caller.values[i])}</div>
-                              {share != null && <div className="text-[10px] font-semibold" style={{ color: SEGMENT_COLORS[segment] }}>{share.toFixed(0)}%</div>}
+                              {share != null && <div className="text-[10px] font-semibold" style={{ color: segColor(segment) }}>{share.toFixed(0)}%</div>}
                             </td>
                           );
                         })}

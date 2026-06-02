@@ -2,7 +2,10 @@
 
 // Stacked horizontal source bar + color-coded legend, shared by the topline
 // financial cards (currency) and the Targets card (counts). Colors are by source
-// per the Fullmind tokens: Return=plum, New biz=coral, Win-back=steel, Expansion=golden.
+// per the Fullmind tokens (see segments.ts): Return=plum, New biz=coral,
+// Win-back=steel, Expansion=golden.
+
+import { SEGMENT_COLORS } from "@/features/home/lib/segments";
 
 export interface Segment {
   key: string;
@@ -10,14 +13,7 @@ export interface Segment {
   value: number;
 }
 
-const SEGMENT_COLORS: Record<string, string> = {
-  return: "#403770",
-  new: "#F37167",
-  winback: "#6EA3BE",
-  expansion: "#FFCF70",
-};
-
-const colorFor = (key: string) => SEGMENT_COLORS[key] ?? "#8A80A8";
+const colorFor = (key: string) => SEGMENT_COLORS[key as keyof typeof SEGMENT_COLORS] ?? "#8A80A8";
 
 export default function SegmentBar({
   segments,

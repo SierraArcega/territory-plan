@@ -9,6 +9,7 @@ import {
   type DatedValueRow,
   type MetricTrajectory,
 } from "./monthly";
+import { CATEGORY_TO_SEGMENT } from "./segments";
 
 export type TrajectoryMetricKey = "targets" | "openPipeline" | "bookings" | "revenue" | "take";
 
@@ -20,14 +21,6 @@ export const TRAJECTORY_METRICS: { metricKey: TrajectoryMetricKey; name: string;
   { metricKey: "revenue", name: "Sched + del rev", color: "#6EA3BE" },
   { metricKey: "take", name: "Take", color: "#FFCF70" },
 ];
-
-// DOA category → the design's segment key.
-const CATEGORY_TO_SEGMENT: Record<string, "return" | "new" | "winback" | "expansion"> = {
-  renewal: "return",
-  new_business: "new",
-  winback: "winback",
-  expansion: "expansion",
-};
 
 interface RepLine {
   name: string;

@@ -1,5 +1,6 @@
 import type { RepActuals } from "@/lib/opportunity-actuals";
 import { rankReps, rankForRep } from "./ranking";
+import { SEGMENT_DEFS } from "./segments";
 
 // The four financial topline metrics that map directly onto RepActuals. Targets
 // (card 1) is count-based from territory_plan_districts and is built separately.
@@ -34,13 +35,8 @@ export interface CategoryActuals {
   revenue: number;
 }
 
-// Maps DOA category → the design's segment, in display order Return→New→Win-back→Expansion.
-const SEGMENT_DEFS: { category: string; key: ToplineSegment["key"]; label: string }[] = [
-  { category: "renewal", key: "return", label: "Return" },
-  { category: "new_business", key: "new", label: "New biz" },
-  { category: "winback", key: "winback", label: "Win-back" },
-  { category: "expansion", key: "expansion", label: "Expansion" },
-];
+// Segment classification (category → key/label, in display order) is shared via
+// segments.ts so the bars, the trajectory, and the modal can't drift.
 
 const ZERO: RepActuals = {
   totalRevenue: 0, totalTake: 0, completedTake: 0, scheduledTake: 0,
