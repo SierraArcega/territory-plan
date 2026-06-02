@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getCurrentFY, fyPills } from "@/lib/fiscal-year";
 import ToplineStatStrip from "./ToplineStatStrip";
 import RankTrajectoryCard from "./RankTrajectoryCard";
+import PipelineSection from "./pipeline/PipelineSection";
 
 // Secondary tab strip below the performance dashboard. Only "pipeline" ships in
 // this milestone (Customer trends + Hygiene are deferred).
@@ -74,11 +75,8 @@ export default function DashboardTab() {
       </div>
 
       {tab === "pipeline" && (
-        <section
-          aria-label="Pipeline"
-          className="rounded-lg border border-dashed border-[#D4CFE2] p-8 text-center text-sm text-[#8A80A8]"
-        >
-          Pipeline coverage, stage health, funnel &amp; forecast — coming in Phase 4.
+        <section aria-label="Pipeline">
+          <PipelineSection fy={fy} />
         </section>
       )}
     </div>
