@@ -71,4 +71,20 @@ describe("buildToplineCards", () => {
       { key: "winback", label: "Win-back", value: 60 },
     ]); // expansion (0) dropped; order Return→New→Win-back→Expansion
   });
+
+  it("attaches open-pipeline detail (min commit / max budget / counts) to the openPipeline card only", () => {
+    const detail = { minCommit: 840000, maxBudget: 1600000, oppCount: 12, accountCount: 9 };
+    const cards = buildToplineCards(reps, batch({ "me@x": { openPipeline: 200 } }), SY, "me", [], detail);
+    const op = cards.find((c) => c.metricKey === "openPipeline")!;
+    expect(op.pipelineDetail).toEqual(detail);
+    // No other card carries it.
+    for (const c of cards.filter((c) => c.metricKey !== "openPipeline")) {
+      expect(c.pipelineDetail).toBeUndefined();
+    }
+  });
+
+  it("omits pipelineDetail when none is provided (backwards compatible)", () => {
+    const cards = buildToplineCards(reps, batch({}), SY, "me", []);
+    expect(cards.every((c) => c.pipelineDetail === undefined)).toBe(true);
+  });
 });

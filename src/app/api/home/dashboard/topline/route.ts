@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
 import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
-import { buildToplineCards, type CategoryActuals } from "@/features/home/lib/topline";
+import { buildToplineCards, type CategoryActuals, type OpenPipelineDetail } from "@/features/home/lib/topline";
+import { stagePrefixSql } from "@/features/home/lib/trajectory-source";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,26 @@ export async function GET(request: Request) {
       `
     : [];
 
-  const cards = buildToplineCards(reps, actualsByEmail, schoolYr, user.id, callerCategories);
+  // Caller's open-pipeline detail: commit floor (Σ minimum_purchase_amount),
+  // budget ceiling (Σ maximum_budget), and opp/account counts. Open stages
+  // (prefix 0-5) match the Pipeline tab + trajectory via the shared helper.
+  const detailRows = callerEmail
+    ? await prisma.$queryRaw<{ minCommit: number; maxBudget: number; oppCount: number; accountCount: number }[]>`
+        SELECT
+          COALESCE(SUM(COALESCE(o.minimum_purchase_amount, 0)), 0)::float AS "minCommit",
+          COALESCE(SUM(COALESCE(o.maximum_budget, 0)), 0)::float AS "maxBudget",
+          COUNT(*)::int AS "oppCount",
+          COUNT(DISTINCT o.district_name)::int AS "accountCount"
+        FROM opportunities o
+        WHERE o.sales_rep_email = ${callerEmail}
+          AND o.school_yr = ${schoolYr}
+          AND o.net_booking_amount IS NOT NULL
+          AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
+      `
+    : [];
+  const openPipelineDetail: OpenPipelineDetail | null = detailRows[0] ?? null;
+
+  const cards = buildToplineCards(reps, actualsByEmail, schoolYr, user.id, callerCategories, openPipelineDetail);
 
   return NextResponse.json({ fy, schoolYr, cards });
 }

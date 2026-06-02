@@ -47,6 +47,7 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
             sparkline={sparkData?.sparklines[card.metricKey]}
             priorFyLabel={priorFyLabel}
             wow={card.metricKey === "openPipeline" || card.metricKey === "bookings" ? sparkData?.wow?.[card.metricKey] : null}
+            pipelineDetail={card.pipelineDetail}
           />
         ))
       )}

@@ -12,6 +12,18 @@ export interface ToplineSegment {
   value: number;
 }
 
+// Open-pipeline-only extras: the caller's pipeline expressed as a commitment
+// floor (Σ minimum_purchase_amount) and a budget ceiling (Σ maximum_budget),
+// plus how many open opps / distinct accounts make it up. minCommit and
+// maxBudget are independent totals (per-row min can exceed max in the data), so
+// the UI shows them as two figures, not a guaranteed-ordered range.
+export interface OpenPipelineDetail {
+  minCommit: number;
+  maxBudget: number;
+  oppCount: number;
+  accountCount: number;
+}
+
 export interface ToplineCard {
   metricKey: ToplineMetricKey;
   label: string;
@@ -21,6 +33,8 @@ export interface ToplineCard {
   inRoster: boolean;
   // The caller's value split by source (non-zero segments only, in display order).
   segments: ToplineSegment[];
+  // Open-pipeline card only: commit/budget totals + opp/account counts.
+  pipelineDetail?: OpenPipelineDetail;
 }
 
 // The caller's DOA actuals grouped by category, for the segment bars. NOTE:
@@ -76,6 +90,7 @@ export function buildToplineCards(
   schoolYr: string,
   callerId: string,
   callerCategories: CategoryActuals[],
+  openPipelineDetail: OpenPipelineDetail | null = null,
 ): ToplineCard[] {
   return METRICS.map(({ key, label, value, categoryValue }) => {
     const values = reps.map((r) => ({
@@ -93,6 +108,7 @@ export function buildToplineCards(
       totalReps: ranking.totalReps,
       inRoster: standing.inRoster,
       segments: segmentsFor(callerCategories, categoryValue),
+      ...(key === "openPipeline" && openPipelineDetail ? { pipelineDetail: openPipelineDetail } : {}),
     };
   });
 }

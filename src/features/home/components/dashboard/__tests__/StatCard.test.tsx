@@ -44,4 +44,55 @@ describe("StatCard", () => {
     render(<StatCard label="Take" value={98000} rank={5} totalReps={34} inRoster segments={[]} wow={null} />);
     expect(screen.queryByText(/7d/i)).toBeNull();
   });
+
+  it("renders open-pipeline detail: opp/account counts plus min commit and max budget", () => {
+    render(
+      <StatCard
+        label="Open Pipeline"
+        value={1200000}
+        rank={3}
+        totalReps={34}
+        inRoster
+        segments={[]}
+        pipelineDetail={{ minCommit: 840000, maxBudget: 1600000, oppCount: 12, accountCount: 9 }}
+      />,
+    );
+    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText(/open opps/i)).toBeTruthy();
+    expect(screen.getByText("9")).toBeTruthy();
+    expect(screen.getByText(/accounts/i)).toBeTruthy();
+    expect(screen.getByText(/Min commit/i)).toBeTruthy();
+    expect(screen.getByText(/Max budget/i)).toBeTruthy();
+  });
+
+  it("singularizes a single opp / single account", () => {
+    render(
+      <StatCard
+        label="Open Pipeline"
+        value={50000}
+        rank={3}
+        totalReps={34}
+        inRoster
+        segments={[]}
+        pipelineDetail={{ minCommit: 40000, maxBudget: 60000, oppCount: 1, accountCount: 1 }}
+      />,
+    );
+    expect(screen.getByText(/open opp\b/i)).toBeTruthy();
+    expect(screen.getByText(/\baccount\b/i)).toBeTruthy();
+  });
+
+  it("hides the detail block when the rep has no open opps", () => {
+    render(
+      <StatCard
+        label="Open Pipeline"
+        value={0}
+        rank={20}
+        totalReps={34}
+        inRoster
+        segments={[]}
+        pipelineDetail={{ minCommit: 0, maxBudget: 0, oppCount: 0, accountCount: 0 }}
+      />,
+    );
+    expect(screen.queryByText(/Min commit/i)).toBeNull();
+  });
 });
