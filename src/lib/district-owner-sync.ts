@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { RESOLVE_OPP_REP, LIVE_STAGE_REGEX } from "@/lib/opp-rep-sql";
 
 /**
  * Auto-assign district owners from live opportunity pipeline.
@@ -24,13 +25,10 @@ export async function syncDistrictOwners(): Promise<{
     WITH live AS (
       SELECT
         o.district_lea_id AS lea,
-        COALESCE(
-          (SELECT u.id FROM user_profiles u WHERE u.id = o.sales_rep_id),
-          (SELECT u2.id FROM user_profiles u2 WHERE lower(u2.email) = lower(o.sales_rep_email) LIMIT 1)
-        ) AS rep,
+        ${RESOLVE_OPP_REP} AS rep,
         COALESCE(o.net_booking_amount, 0) AS amt
       FROM opportunities o
-      WHERE o.stage ~ '^[0-5] - '
+      WHERE o.stage ~ ${LIVE_STAGE_REGEX}
         AND o.district_lea_id IS NOT NULL
     ),
     by_rep AS (
