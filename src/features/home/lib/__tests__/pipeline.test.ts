@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildStageHealth, buildCoverage, classifyHealth, buildOppViews,
-  PIPELINE_STAGES, type OpenOppRow, type PipelineOpp,
+  buildStageHealth, buildCoverage, classifyHealth, buildOppViews, groupOppsByStage,
+  PIPELINE_STAGES, type OpenOppRow, type PipelineOpp, type OppView,
 } from "../pipeline";
 
 const reps = [
@@ -110,6 +110,31 @@ describe("buildOppViews", () => {
   it("leaves source null when the opp has no category", () => {
     const views = buildOppViews([pipeOpp({ account: "X", category: undefined, stagePrefix: 1, netBooking: 10 })]);
     expect(views[0].source).toBeNull();
+  });
+});
+
+describe("groupOppsByStage", () => {
+  const view = (p: Partial<OppView>): OppView => ({
+    account: null, state: null, source: "return", stageName: "", stagePrefix: 0,
+    netBooking: 0, minPurchase: 0, maxBudget: 0, weighted: 0, closeDate: null,
+    daysInStage: 0, health: "on", ...p,
+  });
+  const views = [
+    view({ source: "return", stagePrefix: 4, minPurchase: 80, maxBudget: 200 }),
+    view({ source: "new", stagePrefix: 4, minPurchase: 40, maxBudget: 120 }),
+    view({ source: "return", stagePrefix: 1, minPurchase: 10, maxBudget: 60 }),
+  ];
+
+  it("sums min/max and counts per stage across all sources", () => {
+    const g = groupOppsByStage(views, "all");
+    expect(g.find((s) => s.name === "Negotiation")).toMatchObject({ count: 2, min: 120, max: 320 });
+    expect(g.find((s) => s.name === "Discovery")).toMatchObject({ count: 1, min: 10, max: 60 });
+    expect(g).toHaveLength(6);
+  });
+
+  it("filters to a single source", () => {
+    const g = groupOppsByStage(views, "return");
+    expect(g.find((s) => s.name === "Negotiation")).toMatchObject({ count: 1, min: 80, max: 200 });
   });
 });
 

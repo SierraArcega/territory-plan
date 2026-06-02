@@ -108,6 +108,30 @@ export function classifyHealth(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStag
   return "on";
 }
 
+export interface StageGroup {
+  prefix: number;
+  name: string;
+  count: number;
+  min: number; // Σ min commit in this stage
+  max: number; // Σ max budget
+}
+
+// Groups the caller's open opps into the 6 funnel stages (optionally filtered to one
+// source segment), summing min/max. Powers the structural funnel + source filter.
+export function groupOppsByStage(opps: OppView[], source: SegmentKey | "all"): StageGroup[] {
+  const filtered = source === "all" ? opps : opps.filter((o) => o.source === source);
+  return PIPELINE_STAGES.map(({ prefix, name }) => {
+    const inStage = filtered.filter((o) => o.stagePrefix === prefix);
+    return {
+      prefix,
+      name,
+      count: inStage.length,
+      min: inStage.reduce((s, o) => s + o.minPurchase, 0),
+      max: inStage.reduce((s, o) => s + o.maxBudget, 0),
+    };
+  });
+}
+
 export interface OppView {
   account: string | null;
   state: string | null;

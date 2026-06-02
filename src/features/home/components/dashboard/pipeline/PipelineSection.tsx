@@ -3,6 +3,7 @@
 import { usePipeline } from "@/features/home/lib/queries";
 import CoverageCard from "./CoverageCard";
 import StageHealthCard from "./StageHealthCard";
+import FunnelCard from "./FunnelCard";
 import TopOpportunitiesTable from "./TopOpportunitiesTable";
 import AtRiskCard from "./AtRiskCard";
 import ThisWeekCard from "./ThisWeekCard";
@@ -37,6 +38,7 @@ export default function PipelineSection({ fy }: { fy: number }) {
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <CoverageCard coverage={data.coverage} />
+        <FunnelCard opps={data.opps} />
         <StageHealthCard stageHealth={data.stageHealth} />
         <TopOpportunitiesTable opps={data.opps} />
         <TopTargetsCard />
