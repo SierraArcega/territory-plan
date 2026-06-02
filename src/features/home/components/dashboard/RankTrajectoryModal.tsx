@@ -232,8 +232,10 @@ export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
                 {visibleMetrics.map((m) => {
                   const isOpen = expanded.has(m.metricKey);
                   const view = viewFor(m, segment);
-                  const sortedReps = [...view.reps].sort((a, b) => a.ranks[refIdx] - b.ranks[refIdx]);
-                  const teamTotals = columns.map((_, i) => view.reps.reduce((sum, r) => sum + r.values[i], 0));
+                  // Only sort the team / reduce per-column totals when the breakdown
+                  // is actually expanded — toggling one row shouldn't re-sort every team.
+                  const sortedReps = isOpen ? [...view.reps].sort((a, b) => a.ranks[refIdx] - b.ranks[refIdx]) : [];
+                  const teamTotals = isOpen ? columns.map((_, i) => view.reps.reduce((sum, r) => sum + r.values[i], 0)) : [];
                   return (
                     <Fragment key={m.metricKey}>
                       {/* Parent (caller) row */}
