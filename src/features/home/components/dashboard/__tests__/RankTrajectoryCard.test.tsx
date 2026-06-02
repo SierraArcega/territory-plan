@@ -58,6 +58,21 @@ describe("RankTrajectoryCard", () => {
     expect(container.querySelector("svg")).toBeNull();
   });
 
+  it("shows an empty state for a fiscal year with no activity (e.g. a future FY)", () => {
+    const noData = {
+      ...payload,
+      fy: 2027,
+      metrics: payload.metrics.map((m) => ({
+        ...m,
+        caller: { ...m.caller, inRoster: true, values: m.caller.values.map(() => 0) },
+      })),
+    };
+    mockHook.mockReturnValue(result({ data: noData }));
+    const { container } = render(<RankTrajectoryCard fy={2027} />);
+    expect(screen.getByText(/no activity/i)).toBeTruthy();
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
   it("shows a loading state while fetching", () => {
     mockHook.mockReturnValue(result({ isLoading: true }));
     const { container } = render(<RankTrajectoryCard fy={2026} />);

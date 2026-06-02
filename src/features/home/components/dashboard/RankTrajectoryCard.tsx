@@ -51,6 +51,18 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
     );
   }
 
+  // No rows for the selected FY (e.g. a future FY) → every rep ties at #1, which
+  // a rank chart can't meaningfully show. Render an empty state instead.
+  const hasData = metrics.some((m) => m.caller.values.some((v) => v > 0));
+  if (!hasData) {
+    return (
+      <div className="rounded-lg border border-[#D4CFE2] bg-white shadow-sm p-6 text-center">
+        <h3 className="text-sm font-bold text-[#403770] whitespace-nowrap">Rank trajectory</h3>
+        <p className="mt-2 text-sm text-[#8A80A8]">No activity recorded for FY{String(fy).slice(-2)} yet.</p>
+      </div>
+    );
+  }
+
   // Active-rep roster size = the worst possible rank; caps the chart Y-axis.
   const totalReps = Math.max(1, ...metrics.map((m) => m.reps.length));
 
