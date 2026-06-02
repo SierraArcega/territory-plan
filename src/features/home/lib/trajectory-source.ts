@@ -100,7 +100,13 @@ export async function fetchTrajectoryRows(
       ${categoryJoin(sy)}
       WHERE o.school_yr = ${sy} AND o.net_booking_amount IS NOT NULL ${oppEmail}`,
 
+    // Scan DOA once (MATERIALIZED) and derive both the category (district-grain)
+    // and avg_take_rate (district+rep) joins from it, instead of two DOA reads.
     prisma.$queryRaw<SessionRow[]>`
+      WITH doa_sy AS MATERIALIZED (
+        SELECT district_lea_id, sales_rep_email, category, avg_take_rate
+        FROM district_opportunity_actuals WHERE school_yr = ${sy}
+      )
       SELECT o.sales_rep_email AS email,
              s.start_time AS "startTime",
              s.session_price::float AS revenue,
@@ -108,11 +114,11 @@ export async function fetchTrajectoryRows(
              c.category
       FROM sessions s
       JOIN opportunities o ON o.id = s.opportunity_id
-      ${categoryJoin(sy)}
+      LEFT JOIN (SELECT DISTINCT district_lea_id, category FROM doa_sy) c
+        ON c.district_lea_id = o.district_lea_id
       LEFT JOIN (
         SELECT district_lea_id, sales_rep_email, MAX(avg_take_rate) AS avg_take_rate
-        FROM district_opportunity_actuals WHERE school_yr = ${sy}
-        GROUP BY district_lea_id, sales_rep_email
+        FROM doa_sy GROUP BY district_lea_id, sales_rep_email
       ) d ON d.district_lea_id = o.district_lea_id AND d.sales_rep_email = o.sales_rep_email
       WHERE session_fy(s.start_time) = ${sy}
         AND s.status NOT IN ('cancelled','canceled')
