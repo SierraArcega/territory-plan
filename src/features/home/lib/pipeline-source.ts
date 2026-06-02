@@ -10,14 +10,21 @@ import prisma from "@/lib/prisma";
 import { stagePrefixSql } from "./trajectory-source";
 import type { PipelineOpp } from "./pipeline";
 
+export interface ThisWeek {
+  won: number; // caller's deals closed-won in the last 7 days
+  lost: number; // closed-lost
+  created: number; // opps created
+}
+
 export interface PipelineData {
   openOpps: PipelineOpp[]; // all reps (for stage-health ranking); caller-filtered downstream
   wonBookings: number; // caller's closed-won bookings this FY (for gap-to-target)
   fyTarget: number; // caller's Σ plan-district targets this FY
+  thisWeek: ThisWeek;
 }
 
 export async function fetchPipelineData(sy: string, fy: number, callerEmail: string): Promise<PipelineData> {
-  const [openOpps, won, target] = await Promise.all([
+  const [openOpps, won, target, week] = await Promise.all([
     // Open opps (stage prefix 0-5) for every rep. days_in_stage = time since the
     // opp entered its current stage (the most recent stage_history entry's
     // changed_at; verified to match the live stage). overdue = a close date
@@ -64,11 +71,21 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
       JOIN territory_plans p ON p.id = tpd.plan_id
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
       WHERE p.fiscal_year = ${fy} AND u.email = ${callerEmail}`,
+
+    // Caller's last-7-days movement: won / lost (by close_date) and newly created.
+    prisma.$queryRaw<{ won: number; lost: number; created: number }[]>`
+      SELECT
+        COUNT(*) FILTER (WHERE ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6 AND o.close_date >= now() - interval '7 days')::int AS won,
+        COUNT(*) FILTER (WHERE LOWER(o.stage) = 'closed lost' AND o.close_date >= now() - interval '7 days')::int AS lost,
+        COUNT(*) FILTER (WHERE o.created_at >= now() - interval '7 days')::int AS created
+      FROM opportunities o
+      WHERE o.school_yr = ${sy} AND o.sales_rep_email = ${callerEmail}`,
   ]);
 
   return {
     openOpps,
     wonBookings: won[0]?.won ?? 0,
     fyTarget: target[0]?.target ?? 0,
+    thisWeek: { won: week[0]?.won ?? 0, lost: week[0]?.lost ?? 0, created: week[0]?.created ?? 0 },
   };
 }

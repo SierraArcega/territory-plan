@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const reps = await getActiveReps();
   const callerEmail = reps.find((r) => r.id === user.id)?.email ?? user.email ?? "";
 
-  const { openOpps, wonBookings, fyTarget } = await fetchPipelineData(schoolYr, fy, callerEmail);
+  const { openOpps, wonBookings, fyTarget, thisWeek } = await fetchPipelineData(schoolYr, fy, callerEmail);
 
   const stageHealth = buildStageHealth(openOpps, reps, user.id);
   const callerOpps = openOpps.filter((o) => o.email === callerEmail);
@@ -41,5 +41,6 @@ export async function GET(request: Request) {
     stageHealth,
     opps,
     atRisk,
+    thisWeek,
   });
 }

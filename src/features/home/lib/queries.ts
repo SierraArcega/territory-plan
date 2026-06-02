@@ -5,6 +5,7 @@ import type { RankTrajectoryPayload } from "./rank-trajectory";
 import type { Sparkline, SparklineMetricKey } from "./sparkline";
 import type { WowDeltas } from "./wow";
 import type { Coverage, StageHealth, OppView } from "./pipeline";
+import type { ThisWeek } from "./pipeline-source";
 
 // Types for the alerts response
 
@@ -113,6 +114,7 @@ export interface PipelineResponse {
   stageHealth: StageHealth[];
   opps: OppView[];
   atRisk: OppView[];
+  thisWeek: ThisWeek;
 }
 
 export function usePipeline(fy: number) {

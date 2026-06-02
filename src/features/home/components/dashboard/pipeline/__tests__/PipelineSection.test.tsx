@@ -24,6 +24,7 @@ const data = {
   stageHealth,
   opps: [oppView({ account: "Brookfield CSD", health: "on" }), oppView({ account: "Riverside USD", health: "stall" })],
   atRisk: [oppView({ account: "Riverside USD", health: "stall" })],
+  thisWeek: { won: 2, lost: 1, created: 3 },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

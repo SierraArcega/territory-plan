@@ -46,6 +46,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
       ],
       wonBookings: 600,
       fyTarget: 1000,
+      thisWeek: { won: 1, lost: 0, created: 2 },
     } as never);
 
     const res = await GET(req("2026"));
@@ -60,5 +61,6 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(body.opps).toHaveLength(2); // caller-only
     expect(body.opps[0].stageName).toBe("Negotiation"); // weighted 75 > 2
     expect(body.atRisk.map((o: { health: string }) => o.health)).toEqual(["stall"]); // the 40d Negotiation opp
+    expect(body.thisWeek).toEqual({ won: 1, lost: 0, created: 2 });
   });
 });
