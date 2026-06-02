@@ -8,13 +8,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { stagePrefixSql } from "./trajectory-source";
-import type { OpenOppRow } from "./pipeline";
-
-export interface PipelineOpp extends OpenOppRow {
-  account: string | null;
-  state: string | null;
-  closeDate: Date | null;
-}
+import type { PipelineOpp } from "./pipeline";
 
 export interface PipelineData {
   openOpps: PipelineOpp[]; // all reps (for stage-health ranking); caller-filtered downstream

@@ -4,6 +4,7 @@ import type { ToplineCard } from "./topline";
 import type { RankTrajectoryPayload } from "./rank-trajectory";
 import type { Sparkline, SparklineMetricKey } from "./sparkline";
 import type { WowDeltas } from "./wow";
+import type { Coverage, StageHealth, OppView } from "./pipeline";
 
 // Types for the alerts response
 
@@ -101,6 +102,23 @@ export function useSparklines(fy: number) {
   return useQuery({
     queryKey: ["dashboard", "sparklines", fy],
     queryFn: () => fetchJson<SparklinesResponse>(`${API_BASE}/home/dashboard/sparklines?fy=${fy}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface PipelineResponse {
+  fy: number;
+  schoolYr: string;
+  coverage: Coverage & { wonBookings: number; fyTarget: number };
+  stageHealth: StageHealth[];
+  opps: OppView[];
+  atRisk: OppView[];
+}
+
+export function usePipeline(fy: number) {
+  return useQuery({
+    queryKey: ["dashboard", "pipeline", fy],
+    queryFn: () => fetchJson<PipelineResponse>(`${API_BASE}/home/dashboard/pipeline?fy=${fy}`),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { buildStageHealth, buildCoverage, classifyHealth, PIPELINE_STAGES, type OpenOppRow } from "../pipeline";
+import {
+  buildStageHealth, buildCoverage, classifyHealth, buildOppViews,
+  PIPELINE_STAGES, type OpenOppRow, type PipelineOpp,
+} from "../pipeline";
 
 const reps = [
   { id: "me", email: "me@x" },
@@ -85,6 +88,28 @@ describe("buildCoverage", () => {
     expect(cov.gap).toBe(0);
     expect(cov.coverageMin).toBeNull();
     expect(cov.coverageMax).toBeNull();
+  });
+});
+
+describe("buildOppViews", () => {
+  const pipeOpp = (p: Partial<PipelineOpp>): PipelineOpp => ({
+    email: "me@x", stagePrefix: 0, netBooking: 0, minPurchase: 0, maxBudget: 0,
+    daysInStage: 0, overdueClose: false, account: null, state: null, closeDate: null, ...p,
+  });
+
+  it("sorts the caller's open opps by weighted $ and labels stage/source/health", () => {
+    const views = buildOppViews([
+      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, daysInStage: 5, overdueClose: true }), // weighted 45, slip
+      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, daysInStage: 40 }), // weighted 75, stall (>28)
+    ]);
+    expect(views.map((v) => v.account)).toEqual(["A", "B"]); // 75 before 45
+    expect(views[0]).toMatchObject({ stageName: "Negotiation", source: "return", health: "stall" });
+    expect(views[1]).toMatchObject({ stageName: "Commitment", source: "new", health: "slip" });
+  });
+
+  it("leaves source null when the opp has no category", () => {
+    const views = buildOppViews([pipeOpp({ account: "X", category: undefined, stagePrefix: 1, netBooking: 10 })]);
+    expect(views[0].source).toBeNull();
   });
 });
 

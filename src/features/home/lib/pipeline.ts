@@ -3,6 +3,7 @@
 // rows. Stage weights + open stages mirror the DOA matview (prefix 0-5 = open).
 
 import { rankReps } from "./ranking";
+import { CATEGORY_TO_SEGMENT, type SegmentKey } from "./segments";
 
 // weight = DOA stage weight; healthyMax = days-in-stage past which a deal is
 // "stalled". (The stage_history is_stale flag is NOT usable — it's true for every
@@ -87,7 +88,17 @@ export function buildStageHealth(
   });
 }
 
+// An open opp with the display fields the top-opportunities table needs.
+export interface PipelineOpp extends OpenOppRow {
+  account: string | null;
+  state: string | null;
+  closeDate: Date | null;
+}
+
 export type DealHealth = "on" | "stall" | "slip";
+
+const STAGE_NAME_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
+const WEIGHT_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.weight]));
 
 // Per-deal health: an overdue close date is a "slip" (takes priority), a deal past
 // its stage's healthy age is a "stall", everything else is "on track".
@@ -95,6 +106,42 @@ export function classifyHealth(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStag
   if (opp.overdueClose) return "slip";
   if (isStalled(opp)) return "stall";
   return "on";
+}
+
+export interface OppView {
+  account: string | null;
+  state: string | null;
+  source: SegmentKey | null;
+  stageName: string;
+  stagePrefix: number;
+  netBooking: number;
+  minPurchase: number;
+  maxBudget: number;
+  weighted: number;
+  closeDate: Date | null;
+  daysInStage: number;
+  health: DealHealth;
+}
+
+// Maps the caller's open opps to display rows (stage name, source segment, health),
+// sorted by weighted $ (highest-value first).
+export function buildOppViews(opps: PipelineOpp[]): OppView[] {
+  return opps
+    .map((o) => ({
+      account: o.account,
+      state: o.state,
+      source: o.category ? CATEGORY_TO_SEGMENT[o.category] ?? null : null,
+      stageName: STAGE_NAME_BY_PREFIX.get(o.stagePrefix) ?? "—",
+      stagePrefix: o.stagePrefix,
+      netBooking: o.netBooking,
+      minPurchase: o.minPurchase,
+      maxBudget: o.maxBudget,
+      weighted: o.netBooking * (WEIGHT_BY_PREFIX.get(o.stagePrefix) ?? 0),
+      closeDate: o.closeDate,
+      daysInStage: o.daysInStage,
+      health: classifyHealth(o),
+    }))
+    .sort((a, b) => b.weighted - a.weighted);
 }
 
 export interface Coverage {
@@ -107,8 +154,6 @@ export interface Coverage {
   coverageMax: number | null; // maxBudget / gap
   byStage: { prefix: number; name: string; min: number; max: number }[];
 }
-
-const WEIGHT_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.weight]));
 
 // The caller's open-book coverage vs the gap to their FY bookings target, plus the
 // simplified forecast (weighted pipeline = "most likely") and a per-stage floor/
