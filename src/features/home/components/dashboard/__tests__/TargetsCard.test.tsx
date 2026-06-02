@@ -28,6 +28,8 @@ describe("TargetsCard", () => {
           convertedToPipeline: 84,
           active90: 187,
           stale: 100,
+          targetTotal: 5000000,
+          pipelineOnAccounts: 1400000,
         },
       },
       isLoading: false,
@@ -46,6 +48,49 @@ describe("TargetsCard", () => {
     expect(screen.getByText("Active · 90d")).toBeInTheDocument();
     expect(screen.getByText("No targets set")).toBeInTheDocument();
     expect(screen.getByText(/100 stale/)).toBeInTheDocument();
+  });
+
+  it("renders the targeted-vs-pipeline bar with target $, pipeline $, and coverage %", () => {
+    mockUseTargets.mockReturnValue({
+      data: {
+        fy: 2026,
+        schoolYr: "2025-26",
+        card: {
+          metricKey: "targets", label: "Targets", value: 60, rank: 1, totalReps: 12, inRoster: true,
+          segments: { new: 30, winback: 10, expansion: 5 }, untargeted: 15,
+          convertedToPipeline: 7, active90: 40, stale: 20,
+          targetTotal: 5000000, pipelineOnAccounts: 1400000,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TargetsCard fy={2026} />);
+    expect(screen.getByText("Targeted vs pipeline")).toBeInTheDocument();
+    expect(screen.getByText("$5M")).toBeInTheDocument(); // targetTotal
+    expect(screen.getByText("$1.4M")).toBeInTheDocument(); // pipelineOnAccounts
+    expect(screen.getByText(/28% covered/)).toBeInTheDocument(); // 1.4M / 5M
+  });
+
+  it("hides the targeted-vs-pipeline bar when no target $ is set", () => {
+    mockUseTargets.mockReturnValue({
+      data: {
+        fy: 2026,
+        schoolYr: "2025-26",
+        card: {
+          metricKey: "targets", label: "Targets", value: 5, rank: 8, totalReps: 12, inRoster: true,
+          segments: { new: 0, winback: 0, expansion: 0 }, untargeted: 5,
+          convertedToPipeline: 0, active90: 0, stale: 5,
+          targetTotal: 0, pipelineOnAccounts: 0,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<TargetsCard fy={2026} />);
+    expect(screen.queryByText("Targeted vs pipeline")).not.toBeInTheDocument();
   });
 
   it("shows a loading skeleton", () => {

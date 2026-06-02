@@ -67,6 +67,8 @@ export interface TargetsCardData {
   convertedToPipeline: number;
   active90: number;
   stale: number;
+  targetTotal: number;
+  pipelineOnAccounts: number;
 }
 
 export interface TargetsResponse {

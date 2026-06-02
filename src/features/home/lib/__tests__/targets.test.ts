@@ -33,12 +33,14 @@ describe("buildTargetsRollups", () => {
       workedCount: 4, // A, B, C, E all counted
       untargetedCount: 2, // C (renewal-only) + E (all-zero)
       targetDollars: 80,
+      targetDollarsAll: 180, // 80 + C's renewal 100
       segments: { new: 1, winback: 1, expansion: 0 },
     });
     expect(rollups.get("u2")).toEqual({
       workedCount: 1,
       untargetedCount: 0,
       targetDollars: 25,
+      targetDollarsAll: 25,
       segments: { new: 0, winback: 0, expansion: 1 },
     });
   });
@@ -53,8 +55,19 @@ describe("buildTargetsRollups", () => {
       workedCount: 1,
       untargetedCount: 0,
       targetDollars: 70,
+      targetDollarsAll: 70,
       segments: { new: 0, winback: 0, expansion: 1 },
     });
+  });
+
+  it("includes renewal in targetDollarsAll but not in targetDollars or segments", () => {
+    const rollups = buildTargetsRollups([
+      { repId: "me", leaid: "A", newBusinessTarget: 10, winbackTarget: 0, expansionTarget: 0, renewalTarget: 500 },
+    ]);
+    const r = rollups.get("me")!;
+    expect(r.targetDollars).toBe(10);
+    expect(r.targetDollarsAll).toBe(510);
+    expect(r.segments).toEqual({ new: 1, winback: 0, expansion: 0 });
   });
 });
 

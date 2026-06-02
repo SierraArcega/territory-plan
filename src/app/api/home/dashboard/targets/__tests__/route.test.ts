@@ -40,14 +40,14 @@ describe("GET /api/home/dashboard/targets", () => {
       { id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null },
     ]);
     mockPlanDistricts.mockResolvedValue([
-      { districtLeaid: "A", newBusinessTarget: 30, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
+      { districtLeaid: "A", newBusinessTarget: 30, winbackTarget: 0, expansionTarget: 0, renewalTarget: 1000, plan: { ownerId: "me", userId: null } },
       { districtLeaid: "B", newBusinessTarget: 0, winbackTarget: 50, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
       // untargeted (no New/Win-back/Expansion target) — still counted as worked
       { districtLeaid: "C", newBusinessTarget: 0, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
       { districtLeaid: "D", newBusinessTarget: 200, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "u2", userId: null } },
     ] as never);
-    // Converted-to-pipeline: district A has open pipeline.
-    mockQueryRaw.mockResolvedValue([{ district_lea_id: "A" }] as never);
+    // Combined DOA pass: 1 district converted, $500 open+won on worked accounts.
+    mockQueryRaw.mockResolvedValue([{ convertedCount: 1, pipelineOnAccounts: 500 }] as never);
     // Active in last 90d: district A.
     mockActivityDistricts.mockResolvedValue([{ districtLeaid: "A" }] as never);
 
@@ -68,6 +68,8 @@ describe("GET /api/home/dashboard/targets", () => {
       convertedToPipeline: 1,
       active90: 1,
       stale: 2, // workedCount(3) - active90(1)
+      targetTotal: 1080, // new 30 + winback 50 + renewal 1000
+      pipelineOnAccounts: 500,
     });
   });
 

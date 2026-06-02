@@ -83,25 +83,36 @@ export async function GET(request: Request) {
     workedCount: 0,
     untargetedCount: 0,
     targetDollars: 0,
+    targetDollarsAll: 0,
     segments: { new: 0, winback: 0, expansion: 0 },
   };
   const workedLeaids = workedLeaidsForRep(rows, user.id);
 
-  // Caller-only sub-counts over the worked-district set.
+  // Caller-only rollups over the worked-district set: how many have open pipeline
+  // ("converted"), and the total open + closed-won $ on those same accounts (the
+  // pipeline side of the targeted-vs-pipeline bar). One pass over the caller's DOA.
   let convertedToPipeline = 0;
+  let pipelineOnAccounts = 0;
   let active90 = 0;
   if (workedLeaids.length > 0) {
     if (callerEmail) {
-      const convertedRows = await prisma.$queryRaw<{ district_lea_id: string }[]>`
-        SELECT district_lea_id
-        FROM district_opportunity_actuals
-        WHERE sales_rep_email = ${callerEmail}
-          AND school_yr = ${schoolYr}
-          AND district_lea_id = ANY(${workedLeaids})
-        GROUP BY district_lea_id
-        HAVING SUM(open_pipeline) > 0
+      const pipeRows = await prisma.$queryRaw<{ convertedCount: number; pipelineOnAccounts: number }[]>`
+        SELECT
+          COUNT(*) FILTER (WHERE open_pipe > 0)::int AS "convertedCount",
+          COALESCE(SUM(open_pipe + won), 0)::float AS "pipelineOnAccounts"
+        FROM (
+          SELECT district_lea_id,
+                 SUM(open_pipeline) AS open_pipe,
+                 SUM(bookings) AS won
+          FROM district_opportunity_actuals
+          WHERE sales_rep_email = ${callerEmail}
+            AND school_yr = ${schoolYr}
+            AND district_lea_id = ANY(${workedLeaids})
+          GROUP BY district_lea_id
+        ) t
       `;
-      convertedToPipeline = convertedRows.length;
+      convertedToPipeline = pipeRows[0]?.convertedCount ?? 0;
+      pipelineOnAccounts = pipeRows[0]?.pipelineOnAccounts ?? 0;
     }
 
     const activeRows = await prisma.activityDistrict.findMany({
@@ -130,6 +141,10 @@ export async function GET(request: Request) {
       convertedToPipeline,
       active90,
       stale: callerRollup.workedCount - active90,
+      // Targeted-vs-pipeline bar: all-four target $ vs open + closed-won $ on the
+      // same worked accounts.
+      targetTotal: callerRollup.targetDollarsAll,
+      pipelineOnAccounts,
     },
   });
 }

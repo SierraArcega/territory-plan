@@ -24,7 +24,11 @@ export interface PlanDistrictTargets extends SegmentTargets {
 export interface TargetsRollup {
   workedCount: number;
   untargetedCount: number;
+  // Σ new+winback+expansion target $ — the growth target and the team rank basis.
   targetDollars: number;
+  // Σ all four target columns incl. renewal — the headline "targeted" figure for
+  // the targeted-vs-pipeline bar.
+  targetDollarsAll: number;
   segments: Record<TargetSegment, number>;
 }
 
@@ -76,7 +80,7 @@ export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, Ta
   for (const d of dedupeByRepDistrict(rows).values()) {
     let rollup = rollups.get(d.repId);
     if (!rollup) {
-      rollup = { workedCount: 0, untargetedCount: 0, targetDollars: 0, segments: { new: 0, winback: 0, expansion: 0 } };
+      rollup = { workedCount: 0, untargetedCount: 0, targetDollars: 0, targetDollarsAll: 0, segments: { new: 0, winback: 0, expansion: 0 } };
       rollups.set(d.repId, rollup);
     }
     rollup.workedCount += 1;
@@ -84,6 +88,7 @@ export function buildTargetsRollups(rows: PlanDistrictTargets[]): Map<string, Ta
     if (seg) rollup.segments[seg] += 1;
     else rollup.untargetedCount += 1;
     rollup.targetDollars += d.newBusinessTarget + d.winbackTarget + d.expansionTarget;
+    rollup.targetDollarsAll += d.newBusinessTarget + d.winbackTarget + d.expansionTarget + d.renewalTarget;
   }
   return rollups;
 }
