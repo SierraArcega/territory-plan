@@ -62,10 +62,11 @@ bookings-ceiling, utilization/deferred derivation).
 
 ## Per-card data mapping
 
-Headline = the **floor** value (prototype convention; confirmed for Open Pipeline).
+Headline = the **floor** value (prototype convention; confirmed for all cards).
 "Ranked metric" is what the rank pill measures — **unchanged** from today's locked
-decisions, so for some cards the headline and the ranked metric differ (flagged as
-an open item below).
+decisions, so on Open Pipeline / Rev / Take the headline (floor) and the ranked
+metric differ. This is intentional and accepted: the headline reads as a floor and
+the pill reads as a standing position — no two conflicting numbers are shown.
 
 | Card | Headline (floor) | Sub-label (left) | Right of min/max line | Body | Ranked metric (pill) |
 |---|---|---|---|---|---|
@@ -91,9 +92,10 @@ footer (prototype `hifi-modal.jsx`).
   (net booking) · Budget (max) · Close date. Filter pills by source.
 - **bookings** → caller's closed-won opps: Account · Product (`contract_type`
   tier) · Source · Amount · Closed date. Filter pills by source.
-- **rev / take** → per-account **utilization** rows, derived (per user): for each
-  account the caller works, `minCommit` = Σ `minimum_purchase_amount`,
-  `maxBudget` = Σ `maximum_budget`, `revenue` = DOA delivered revenue,
+- **rev / take** → per-account **utilization** rows, derived (per user). Min/max
+  come from the account's **won opps only** (closed-won; the contracted book that
+  generates revenue): `minCommit` = Σ `minimum_purchase_amount` (won),
+  `maxBudget` = Σ `maximum_budget` (won), `revenue` = DOA delivered revenue,
   `take` = DOA delivered take, **`deferred` = max(0, minCommit − revenue)** (the
   unconsumed floor — churn risk), **`utilPct` = revenue / maxBudget**,
   `underMin` = revenue < minCommit. Filter pills: All / Under min / <40% / 40–80% /
@@ -140,17 +142,19 @@ Draft copy (refined during build):
 - **P4 — Modal.** Extract `Modal` primitive (+ refactor RankTrajectory/StageDeals
   onto it); `/deals` route; `DealDetailModal`; wire the expand affordance.
 
+## Resolved decisions
+
+- **Headline = floor on every card**, including Rev/Take — accepted that headline
+  (floor) differs from the ranked metric on Open Pipeline / Rev / Take.
+- **Utilization (Rev/Take modal) uses won opps only** for each account's
+  `minCommit` / `maxBudget`.
+
 ## Open items for review
 
-1. **Headline ≠ ranked metric** on Open Pipeline, Rev, Take (headline = floor,
-   pill = locked ranked metric). Confirmed for Open Pipeline; confirm acceptable
-   for Rev/Take (alternative: keep ranked-metric headline on those two).
-2. **Bookings "max budget"** = signed bookings + Σ open-opp `maximum_budget`.
+1. **Bookings "max budget"** = signed bookings + Σ open-opp `maximum_budget`.
    Confirm definition.
-3. **Utilization denominator** — which opps define an account's min/max for the
-   Rev/Take modal: open + won, or won only? (Affects `utilPct`/`deferred`.)
-4. **Modal Export** — wire CSV now (P4) or stub.
-5. **Empty states** — the default admin user shows $0 for pipeline/rev/take and is
+2. **Modal Export** — wire CSV now (P4) or stub.
+3. **Empty states** — the default admin user shows $0 for pipeline/rev/take and is
    "Not ranked"; each new surface needs its empty/`Not ranked` state.
 
 ## Out of scope
