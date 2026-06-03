@@ -8,7 +8,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { stagePrefixSql, categoryJoin } from "./trajectory-source";
-import type { PipelineOpp } from "./pipeline";
+import type { PipelineOpp, TargetRepAgg } from "./pipeline";
 
 export interface ThisWeek {
   won: number; // caller's deals closed-won in the last 7 days
@@ -21,10 +21,11 @@ export interface PipelineData {
   wonBookings: number; // caller's closed-won bookings this FY (for gap-to-target)
   fyTarget: number; // caller's Σ plan-district targets this FY
   thisWeek: ThisWeek;
+  targetsByRep: TargetRepAgg[]; // per-rep pre-pipe targets (no open opp) for the funnel Targets row
 }
 
 export async function fetchPipelineData(sy: string, fy: number, callerEmail: string): Promise<PipelineData> {
-  const [openOpps, won, target, week] = await Promise.all([
+  const [openOpps, won, target, week, targetsByRep] = await Promise.all([
     // Open opps (stage prefix 0-5) for every rep. days_in_stage = time since the
     // opp entered its current stage (the most recent stage_history entry's
     // changed_at; verified to match the live stage). overdue = a close date
@@ -83,6 +84,30 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
         COUNT(*) FILTER (WHERE o.created_at >= now() - interval '7 days')::int AS created
       FROM opportunities o
       WHERE o.school_yr = ${sy} AND o.sales_rep_email = ${callerEmail}`,
+
+    // Per-rep pre-pipe targets: plan districts (this FY) with NO open opp for that
+    // rep, with floor = Σ renewal_target and ceiling = Σ all four target columns.
+    // Aggregated per rep so the pure buildTargetsRow can pick the caller + sum team.
+    prisma.$queryRaw<TargetRepAgg[]>`
+      SELECT u.email AS email,
+             COUNT(*)::int AS count,
+             COALESCE(SUM(COALESCE(tpd.renewal_target, 0)), 0)::float AS "floorMin",
+             COALESCE(SUM(
+               COALESCE(tpd.renewal_target, 0) + COALESCE(tpd.new_business_target, 0) +
+               COALESCE(tpd.winback_target, 0) + COALESCE(tpd.expansion_target, 0)
+             ), 0)::float AS "ceilMax"
+      FROM territory_plan_districts tpd
+      JOIN territory_plans p ON p.id = tpd.plan_id
+      JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
+      WHERE p.fiscal_year = ${fy}
+        AND NOT EXISTS (
+          SELECT 1 FROM opportunities o
+          WHERE o.district_lea_id = tpd.district_leaid
+            AND o.sales_rep_email = u.email
+            AND o.school_yr = ${sy}
+            AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
+        )
+      GROUP BY u.email`,
   ]);
 
   return {
@@ -90,5 +115,6 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
     wonBookings: won[0]?.won ?? 0,
     fyTarget: target[0]?.target ?? 0,
     thisWeek: { won: week[0]?.won ?? 0, lost: week[0]?.lost ?? 0, created: week[0]?.created ?? 0 },
+    targetsByRep,
   };
 }
