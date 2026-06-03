@@ -116,8 +116,11 @@ export default function CopilotPanel() {
           text: res.assistantText,
           answer: {
             columns: res.result.columns,
-            rows: res.result.rows.slice(0, 50),
+            // Keep the full returned set so the table can offer a complete CSV
+            // export; AnswerBlock caps the rendered rows itself.
+            rows: res.result.rows,
             rowCount: res.result.rowCount,
+            source: res.result.summary.source,
           },
         };
       }
