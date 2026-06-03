@@ -29,8 +29,11 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
     { startX: number; startY: number; originX: number; originY: number; moved: boolean } | null
   >(null);
 
-  // Position needs window dimensions, so resolve it on the client after mount.
+  // Position depends on window/localStorage (client-only). We render null until
+  // this mount effect runs, so server and first client render agree (no hydration
+  // mismatch) — the deliberate two-pass init the rule below would otherwise flag.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional client-only post-mount init (see comment above)
     setPos(readStoredPosition() ?? defaultLauncherPosition());
   }, []);
 
