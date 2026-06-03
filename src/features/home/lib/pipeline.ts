@@ -3,7 +3,7 @@
 // rows. Stage weights + open stages mirror the DOA matview (prefix 0-5 = open).
 
 import { rankReps } from "./ranking";
-import { CATEGORY_TO_SEGMENT, type SegmentKey } from "./segments";
+import { CATEGORY_TO_SEGMENT, SEGMENT_DEFS, type SegmentKey } from "./segments";
 
 // weight = DOA stage weight; healthyMax = days-in-stage past which a deal is
 // "stalled". (The stage_history is_stale flag is NOT usable — it's true for every
@@ -211,5 +211,108 @@ export function buildCoverage(callerOpps: OpenOppRow[], wonBookings: number, fyT
     coverageMin: gap > 0 ? minCommit / gap : null,
     coverageMax: gap > 0 ? maxBudget / gap : null,
     byStage,
+  };
+}
+
+export interface FunnelStage {
+  prefix: number; // 0-5
+  name: string;
+  count: number; // caller's opps in this stage
+  min: number; // caller Σ minPurchase
+  max: number; // caller Σ maxBudget
+  teamMin: number; // Σ minPurchase across all reps in this stage
+  sharePct: number; // round(min / teamMin × 100); 0 when teamMin is 0
+}
+
+export interface SourceShare {
+  key: SegmentKey;
+  label: string;
+  color: string;
+  you: number; // caller Σ minPurchase for this source
+  team: number; // team Σ minPurchase for this source
+  pct: number; // round(you / team × 100); 0 when team is 0
+}
+
+// Placeholder; replaced by the real shape when buildTargetsRow is added in a later task.
+export interface TargetsRow {
+  count: number;
+  min: number;
+  max: number;
+  teamMin: number;
+  sharePct: number;
+}
+
+export interface FunnelData {
+  stages: FunnelStage[];
+  sources: SourceShare[];
+  openCount: number;
+  totalMin: number;
+  totalMax: number;
+  spread: number; // totalMax − totalMin (upside)
+  teamMinTotal: number;
+  overallSharePct: number;
+  rank: number;
+  totalReps: number;
+  targets: TargetsRow; // attached by the route via buildTargetsRow (defined in a later task)
+}
+
+const pct = (you: number, team: number) => (team > 0 ? Math.round((you / team) * 100) : 0);
+const sourceOf = (o: OpenOppRow): SegmentKey | null => (o.category ? CATEGORY_TO_SEGMENT[o.category] ?? null : null);
+
+// Builds the Stage Funnel payload for one caller from the team-wide open book.
+// `source` ("all" or a segment) scopes BOTH the caller and the team aggregates so
+// every share figure stays within-source. Targets row is attached separately.
+export function buildFunnel(
+  teamOpps: OpenOppRow[],
+  reps: { id: string; email: string }[],
+  callerId: string,
+  source: SegmentKey | "all",
+): Omit<FunnelData, "targets"> {
+  const callerEmail = reps.find((r) => r.id === callerId)?.email ?? null;
+  const scoped = source === "all" ? teamOpps : teamOpps.filter((o) => sourceOf(o) === source);
+  const callerScoped = callerEmail ? scoped.filter((o) => o.email === callerEmail) : [];
+
+  const stages: FunnelStage[] = PIPELINE_STAGES.map(({ prefix, name }) => {
+    const teamIn = scoped.filter((o) => o.stagePrefix === prefix);
+    const callerIn = callerScoped.filter((o) => o.stagePrefix === prefix);
+    const min = callerIn.reduce((s, o) => s + o.minPurchase, 0);
+    const teamMin = teamIn.reduce((s, o) => s + o.minPurchase, 0);
+    return {
+      prefix,
+      name,
+      count: callerIn.length,
+      min,
+      max: callerIn.reduce((s, o) => s + o.maxBudget, 0),
+      teamMin,
+      sharePct: pct(min, teamMin),
+    };
+  });
+
+  const totalMin = stages.reduce((s, x) => s + x.min, 0);
+  const totalMax = stages.reduce((s, x) => s + x.max, 0);
+  const teamMinTotal = stages.reduce((s, x) => s + x.teamMin, 0);
+
+  const minByEmail = new Map<string, number>();
+  for (const o of scoped) minByEmail.set(o.email, (minByEmail.get(o.email) ?? 0) + o.minPurchase);
+  const ranking = rankReps(reps.map((r) => ({ id: r.id, email: r.email, value: minByEmail.get(r.email) ?? 0 })));
+  const rank = ranking.ranked.find((r) => r.id === callerId)?.rank ?? ranking.totalReps + 1;
+
+  const sources: SourceShare[] = SEGMENT_DEFS.map((d) => {
+    const you = callerScoped.filter((o) => sourceOf(o) === d.key).reduce((s, o) => s + o.minPurchase, 0);
+    const team = scoped.filter((o) => sourceOf(o) === d.key).reduce((s, o) => s + o.minPurchase, 0);
+    return { key: d.key, label: d.label, color: d.color, you, team, pct: pct(you, team) };
+  });
+
+  return {
+    stages,
+    sources,
+    openCount: callerScoped.length,
+    totalMin,
+    totalMax,
+    spread: totalMax - totalMin,
+    teamMinTotal,
+    overallSharePct: pct(totalMin, teamMinTotal),
+    rank,
+    totalReps: ranking.totalReps,
   };
 }
