@@ -135,6 +135,93 @@ export function buildOppViews(opps: PipelineOpp[]): OppView[] {
     .sort((a, b) => b.weighted - a.weighted);
 }
 
+const DAY_MS = 86_400_000;
+
+// Stage label by prefix for the "Newly created" column's trailing detail.
+// Reuses the open-stage names; closed deals created this week show their closed label.
+const STAGE_LABEL_BY_PREFIX = new Map<number, string>([
+  ...PIPELINE_STAGES.map((s) => [s.prefix, s.name] as [number, string]),
+  [6, "Closed Won"],
+  [-1, "Closed Lost"],
+]);
+
+function titleCase(s: string): string {
+  return s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+// Raw deal row for the last-7-days "This week" section (one rep, window-scoped).
+export interface ThisWeekDealRow {
+  account: string | null;
+  value: number; // net_booking_amount
+  category: string | null; // DOA segment category -> motion tag
+  contractType: string | null; // product tag
+  stagePrefix: number | null; // 0-5 open, 6 won, -1 lost
+  createdAt: Date | null;
+  closeDate: Date | null;
+}
+
+export interface ThisWeekDeal {
+  account: string;
+  value: number; // absolute; the column applies the +/- sign
+  motion: string | null;
+  product: string | null;
+  daysToClose?: number; // Won only
+  stage?: string; // Created only
+}
+
+export interface ThisWeekColumn {
+  count: number;
+  total: number;
+  deals: ThisWeekDeal[]; // value-desc
+}
+
+export interface ThisWeek {
+  won: ThisWeekColumn;
+  lost: ThisWeekColumn;
+  created: ThisWeekColumn;
+}
+
+function toColumn(deals: ThisWeekDeal[]): ThisWeekColumn {
+  const sorted = [...deals].sort((a, b) => b.value - a.value);
+  return { count: sorted.length, total: sorted.reduce((s, d) => s + d.value, 0), deals: sorted };
+}
+
+// Classify the caller's window-scoped deal rows into won / lost / created columns.
+// A deal created AND closed in the same window lands in both Created and its close
+// column - matches the independent-column design.
+export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek {
+  const windowStart = nowMs - 7 * DAY_MS;
+  const won: ThisWeekDeal[] = [];
+  const lost: ThisWeekDeal[] = [];
+  const created: ThisWeekDeal[] = [];
+
+  for (const r of rows) {
+    const value = Math.abs(r.value);
+    const motion = r.category ? titleCase(r.category) : null;
+    const product = r.contractType;
+    const account = r.account ?? "Unknown";
+    const createdMs = r.createdAt ? r.createdAt.getTime() : null;
+    const closeMs = r.closeDate ? r.closeDate.getTime() : null;
+    const closedInWindow = closeMs !== null && closeMs >= windowStart;
+    const createdInWindow = createdMs !== null && createdMs >= windowStart;
+
+    if (r.stagePrefix !== null && r.stagePrefix >= 6 && closedInWindow) {
+      const daysToClose =
+        createdMs !== null && closeMs !== null ? Math.max(0, Math.round((closeMs - createdMs) / DAY_MS)) : undefined;
+      won.push({ account, value, motion, product, daysToClose });
+    }
+    if (r.stagePrefix === -1 && closedInWindow) {
+      lost.push({ account, value, motion, product });
+    }
+    if (createdInWindow) {
+      const stage = r.stagePrefix !== null ? STAGE_LABEL_BY_PREFIX.get(r.stagePrefix) : undefined;
+      created.push({ account, value, motion, product, stage });
+    }
+  }
+
+  return { won: toColumn(won), lost: toColumn(lost), created: toColumn(created) };
+}
+
 export interface Coverage {
   minCommit: number; // Σ minimum_purchase_amount on open opps (floor)
   maxBudget: number; // Σ maximum_budget on open opps (ceiling)

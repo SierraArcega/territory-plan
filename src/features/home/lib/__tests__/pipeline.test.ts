@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   buildCoverage, classifyHealth, buildOppViews,
   buildFunnel, buildTargetsRow, classifyTier,
+  buildThisWeek,
   PIPELINE_STAGES, type OpenOppRow, type PipelineOpp, type OppView, type TargetRepAgg,
-  type AgeTier, type StageBenchmark, type BenchmarkMap,
+  type AgeTier, type StageBenchmark, type BenchmarkMap, type ThisWeekDealRow,
 } from "../pipeline";
 
 const reps = [
@@ -226,5 +227,83 @@ describe("buildTargetsRow", () => {
 
   it("handles an empty roster", () => {
     expect(buildTargetsRow([], "me@x")).toMatchObject({ count: 0, value: 0, teamValue: 0, sharePct: 0 });
+  });
+});
+
+describe("buildThisWeek", () => {
+  // Fixed clock: 2026-06-03T12:00:00Z. Window start = 7 days earlier.
+  const NOW = Date.UTC(2026, 5, 3, 12, 0, 0);
+  const day = (n: number) => new Date(NOW + n * 86_400_000);
+
+  const row = (over: Partial<ThisWeekDealRow>): ThisWeekDealRow => ({
+    account: "Acct",
+    value: 1000,
+    category: null,
+    contractType: null,
+    stagePrefix: 0,
+    createdAt: day(-1),
+    closeDate: null,
+    ...over,
+  });
+
+  it("buckets won / lost / created and computes count + total", () => {
+    const rows = [
+      row({ account: "Won A", value: 50000, stagePrefix: 6, createdAt: day(-30), closeDate: day(-2) }),
+      row({ account: "Lost A", value: 40000, stagePrefix: -1, createdAt: day(-20), closeDate: day(-1) }),
+      row({ account: "New A", value: 30000, stagePrefix: 1, createdAt: day(-3), closeDate: null }),
+    ];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.won.count).toBe(1);
+    expect(w.won.total).toBe(50000);
+    expect(w.won.deals[0].account).toBe("Won A");
+    expect(w.lost.count).toBe(1);
+    expect(w.lost.deals[0].account).toBe("Lost A");
+    expect(w.created.count).toBe(1);
+    expect(w.created.deals[0].account).toBe("New A");
+  });
+
+  it("sorts deals within a column by value desc", () => {
+    const rows = [
+      row({ account: "Small", value: 10000, stagePrefix: 1, createdAt: day(-1) }),
+      row({ account: "Big", value: 90000, stagePrefix: 1, createdAt: day(-1) }),
+    ];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.created.deals.map((d) => d.account)).toEqual(["Big", "Small"]);
+  });
+
+  it("places a deal created AND won in the same window in both columns", () => {
+    const rows = [row({ account: "Fast", value: 20000, stagePrefix: 6, createdAt: day(-3), closeDate: day(-1) })];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.won.count).toBe(1);
+    expect(w.created.count).toBe(1);
+  });
+
+  it("excludes a deal closed before the window", () => {
+    const rows = [row({ account: "Old Win", value: 20000, stagePrefix: 6, createdAt: day(-40), closeDate: day(-10) })];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.won.count).toBe(0);
+    expect(w.created.count).toBe(0);
+  });
+
+  it("title-cases motion, passes product through, omits nulls", () => {
+    const rows = [row({ category: "renewal", contractType: "Tutoring", stagePrefix: 1, createdAt: day(-1) })];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.created.deals[0].motion).toBe("Renewal");
+    expect(w.created.deals[0].product).toBe("Tutoring");
+
+    const rows2 = [row({ category: null, contractType: null, stagePrefix: 1, createdAt: day(-1) })];
+    const w2 = buildThisWeek(rows2, NOW);
+    expect(w2.created.deals[0].motion).toBeNull();
+    expect(w2.created.deals[0].product).toBeNull();
+  });
+
+  it("sets daysToClose on won deals and stage label on created deals", () => {
+    const rows = [
+      row({ account: "Won", value: 1, stagePrefix: 6, createdAt: day(-28), closeDate: day(-1) }),
+      row({ account: "New", value: 1, stagePrefix: 0, createdAt: day(-1) }),
+    ];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.won.deals[0].daysToClose).toBe(27);
+    expect(w.created.deals[0].stage).toBe("Meeting Booked");
   });
 });
