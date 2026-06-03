@@ -98,7 +98,7 @@ export default function StageFunnelCard({ funnel, opps }: { funnel: FunnelData; 
         </div>
       </div>
 
-      <StageFunnelChart stages={stages} targets={funnel.targets} overallSharePct={funnel.overallSharePct} onStageClick={setStage} />
+      <StageFunnelChart stages={stages} targets={funnel.targets} won={funnel.won} overallSharePct={funnel.overallSharePct} onStageClick={setStage} />
 
       {/* Share by deal source */}
       <div className="flex flex-col gap-2 border-t border-[#EFEDF5] pt-3">
