@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { OppView } from "@/features/home/lib/pipeline";
 import { HEALTH_STYLE } from "./health";
@@ -30,7 +31,20 @@ export default function AtRiskCard({ atRisk }: { atRisk: OppView[] }) {
               <li key={`${o.account}-${i}`} className="flex items-center gap-2 py-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: h.color }} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-semibold text-[#403770]">{o.account ?? "—"}</div>
+                  {o.detailsLink ? (
+                    <a
+                      href={o.detailsLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open in LMS"
+                      className="group flex items-center gap-1 text-[13px] font-semibold text-[#403770] hover:text-[#6E5FA8] transition-colors duration-100"
+                    >
+                      <span className="truncate">{o.account ?? "—"}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 text-[#A69DC0] group-hover:text-[#6E5FA8]" aria-hidden />
+                    </a>
+                  ) : (
+                    <div className="truncate text-[13px] font-semibold text-[#403770]">{o.account ?? "—"}</div>
+                  )}
                   <div className="text-[11px] whitespace-nowrap" style={{ color: h.color }}>{reason(o)}</div>
                 </div>
                 <span className="text-[12px] font-bold tabular-nums text-[#403770] whitespace-nowrap">{fmt(o.minPurchase)}</span>

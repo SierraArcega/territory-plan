@@ -60,7 +60,7 @@ describe("buildCoverage", () => {
 describe("buildOppViews", () => {
   const pipeOpp = (p: Partial<PipelineOpp>): PipelineOpp => ({
     email: "me@x", stagePrefix: 0, netBooking: 0, minPurchase: 0, maxBudget: 0,
-    daysInStage: 0, overdueClose: false, account: null, state: null, closeDate: null, ...p,
+    daysInStage: 0, overdueClose: false, account: null, state: null, closeDate: null, detailsLink: null, ...p,
   });
 
   it("sorts the caller's open opps by weighted $ and labels stage/source/health", () => {
@@ -76,6 +76,12 @@ describe("buildOppViews", () => {
   it("leaves source null when the opp has no category", () => {
     const views = buildOppViews([pipeOpp({ account: "X", category: undefined, stagePrefix: 1, netBooking: 10 })]);
     expect(views[0].source).toBeNull();
+  });
+
+  it("threads the LMS detailsLink through to the view", () => {
+    const link = "https://lms.fullmindlearning.com/opportunities/opp-1";
+    const views = buildOppViews([pipeOpp({ account: "X", detailsLink: link })]);
+    expect(views[0].detailsLink).toBe(link);
   });
 });
 

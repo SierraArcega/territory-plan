@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { OppView } from "@/features/home/lib/pipeline";
 import { HEALTH_STYLE, sourceLabel, sourceColor, fmtCloseDate } from "./health";
@@ -39,7 +40,20 @@ export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
                 return (
                   <tr key={`${o.account}-${i}`} className="border-t border-[#E2DEEC]">
                     <td className="py-2 pr-3">
-                      <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{o.account ?? "—"}</div>
+                      {o.detailsLink ? (
+                        <a
+                          href={o.detailsLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open in LMS"
+                          className="group inline-flex items-center gap-1 text-[13px] font-semibold text-[#403770] whitespace-nowrap hover:text-[#6E5FA8] transition-colors duration-100"
+                        >
+                          {o.account ?? "—"}
+                          <ExternalLink className="w-3 h-3 text-[#A69DC0] group-hover:text-[#6E5FA8]" aria-hidden />
+                        </a>
+                      ) : (
+                        <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{o.account ?? "—"}</div>
+                      )}
                       {o.state && <div className="text-[10px] text-[#8A80A8]">{o.state}</div>}
                     </td>
                     <td className="py-2 pr-3">

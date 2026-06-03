@@ -47,6 +47,7 @@ export interface PipelineOpp extends OpenOppRow {
   account: string | null;
   state: string | null;
   closeDate: Date | null;
+  detailsLink: string | null; // deep-link to this opp in the LMS (opportunities.details_link)
 }
 
 export type DealHealth = "on" | "stall" | "slip";
@@ -75,6 +76,7 @@ export interface OppView {
   closeDate: Date | null;
   daysInStage: number;
   health: DealHealth;
+  detailsLink: string | null; // deep-link to this opp in the LMS
 }
 
 // Maps the caller's open opps to display rows (stage name, source segment, health),
@@ -94,6 +96,7 @@ export function buildOppViews(opps: PipelineOpp[]): OppView[] {
       closeDate: o.closeDate,
       daysInStage: o.daysInStage,
       health: classifyHealth(o),
+      detailsLink: o.detailsLink,
     }))
     .sort((a, b) => b.weighted - a.weighted);
 }

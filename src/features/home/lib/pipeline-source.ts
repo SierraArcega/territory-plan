@@ -40,6 +40,7 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
                COALESCE(o.minimum_purchase_amount, 0)::float AS "minPurchase",
                COALESCE(o.maximum_budget, 0)::float AS "maxBudget",
                o.close_date AS "closeDate",
+               o.details_link AS "detailsLink",
                ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",
                GREATEST(0, EXTRACT(EPOCH FROM (now() - COALESCE((last.elem ->> 'changed_at')::timestamptz, o.created_at))) / 86400)::float AS "daysInStage",
                (o.close_date IS NOT NULL AND o.close_date < now()) AS "overdueClose",
