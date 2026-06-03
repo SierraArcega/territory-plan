@@ -39,6 +39,8 @@ describe("TargetsCard", () => {
     render(<TargetsCard fy={2026} />);
 
     expect(screen.getByText("districts being worked")).toBeInTheDocument();
+    expect(screen.getByText("#3/12")).toBeInTheDocument();
+    expect(screen.getByText("top 25%")).toBeInTheDocument();
     // segment counts (each unique)
     expect(screen.getByText("142")).toBeInTheDocument();
     expect(screen.getByText("89")).toBeInTheDocument();
