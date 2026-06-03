@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import { PIPELINE_STAGES, type OppView } from "@/features/home/lib/pipeline";
 import { TIER_STYLE, sourceLabel, sourceColor, fmtShortDate } from "./health";
+import OverdueBadge from "./OverdueBadge";
 
 const STAGE_NAME = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const fmt = (v: number) => formatCurrency(v, true);
@@ -71,7 +72,7 @@ export default function StageDealsModal({
                     <td className="py-2">
                       <span className="inline-flex items-center gap-1 whitespace-nowrap">
                         <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: h.color, background: h.bg }}>{h.label}</span>
-                        {o.overdue && <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-[#F37167]" style={{ background: "rgba(243,113,103,0.12)" }}>Overdue</span>}
+                        {o.overdue && <OverdueBadge />}
                       </span>
                     </td>
                   </tr>
