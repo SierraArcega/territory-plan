@@ -3,18 +3,18 @@
 import { ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { OppView } from "@/features/home/lib/pipeline";
-import { HEALTH_STYLE, sourceLabel, sourceColor, fmtCloseDate } from "./health";
+import { HEALTH_STYLE, sourceLabel, sourceColor, fmtShortDate } from "./health";
 
 const fmt = (v: number) => formatCurrency(v, true);
 
-// Top open opportunities by weighted $ (already sorted + capped server-side).
+// Top open opportunities by minimum commitment (already sorted + capped server-side).
 // No "next action" column — there's no per-opp next-step source (locked decision).
 export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
   return (
     <div className="rounded-lg border border-[#D4CFE2] bg-white shadow-sm p-4 flex flex-col gap-3">
       <div>
         <h3 className="text-sm font-bold text-[#403770] whitespace-nowrap">Top open opportunities</h3>
-        <p className="text-xs text-[#8A80A8]">Your largest open deals by weighted value.</p>
+        <p className="text-xs text-[#8A80A8]">Your largest open deals by minimum commitment.</p>
       </div>
 
       {opps.length === 0 ? (
@@ -65,7 +65,7 @@ export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
                     <td className="py-2 pr-3 text-[12px] text-[#5C5378] whitespace-nowrap">{o.stageName}</td>
                     <td className="py-2 pr-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(o.minPurchase)}</td>
                     <td className="py-2 pr-3 text-right text-[13px] tabular-nums text-[#8A80A8]">{fmt(o.maxBudget)}</td>
-                    <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtCloseDate(o.closeDate)}</td>
+                    <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(o.closeDate)}</td>
                     <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378]">{Math.round(o.daysInStage)}d</td>
                     <td className="py-2">
                       <span className="rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" style={{ color: h.color, background: h.bg }}>

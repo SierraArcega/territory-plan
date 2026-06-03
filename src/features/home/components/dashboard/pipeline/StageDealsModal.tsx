@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import { PIPELINE_STAGES, type OppView } from "@/features/home/lib/pipeline";
-import { HEALTH_STYLE, sourceLabel, sourceColor, fmtCloseDate } from "./health";
+import { HEALTH_STYLE, sourceLabel, sourceColor, fmtShortDate } from "./health";
 
 const STAGE_NAME = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const fmt = (v: number) => formatCurrency(v, true);
@@ -67,7 +67,7 @@ export default function StageDealsModal({
                     </td>
                     <td className="py-2 pr-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(o.minPurchase)}</td>
                     <td className="py-2 pr-3 text-right text-[13px] tabular-nums text-[#8A80A8]">{fmt(o.maxBudget)}</td>
-                    <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtCloseDate(o.closeDate)}</td>
+                    <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(o.closeDate)}</td>
                     <td className="py-2"><span className="rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" style={{ color: h.color, background: h.bg }}>{h.label}</span></td>
                   </tr>
                 );

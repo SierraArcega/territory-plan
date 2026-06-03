@@ -18,8 +18,9 @@ export function sourceColor(key: SegmentKey | null): string {
   return key ? SEGMENT_COLORS[key] : "#8A80A8";
 }
 
-// closeDate is typed Date but arrives as an ISO string over JSON — accept both.
-export function fmtCloseDate(value: string | Date | null): string {
+// Dates are typed Date but arrive as ISO strings over JSON — accept both. Used for
+// close dates and the last-updated (last stage-change) date in the opp tables.
+export function fmtShortDate(value: string | Date | null): string {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
