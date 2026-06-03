@@ -14,6 +14,7 @@ import {
   type CalendarEventAttendee,
 } from "@/features/calendar/lib/google";
 import { encrypt, decrypt } from "@/features/integrations/lib/encryption";
+import { findContactByEmail } from "@/lib/contacts";
 import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 
 // ===== Types =====
@@ -485,6 +486,7 @@ export async function confirmCalendarEvent(
     planIds?: string[];
     districtLeaids?: string[];
     contactIds?: number[];
+    stagedContacts?: { email: string; name: string }[];
     notes?: string;
   }
 ): Promise<{ activityId: string }> {
@@ -569,10 +571,38 @@ export async function confirmCalendarEvent(
       }
     }
 
+    // Resolve staged contacts (added from the backfill card but not yet created)
+    // into real contact ids, filed under the first attached district. Dedup by
+    // (leaid, email) so re-adds/retries reuse an existing contact.
+    const stagedContacts = overrides?.stagedContacts ?? [];
+    const primaryLeaid = districtLeaids[0] ?? null;
+    const resolvedContactIds = [...contactIds];
+    if (stagedContacts.length > 0 && !primaryLeaid) {
+      console.warn(
+        `confirmCalendarEvent: dropping ${stagedContacts.length} staged contact(s) — no district attached to file them under`
+      );
+    }
+    if (stagedContacts.length > 0 && primaryLeaid) {
+      for (const staged of stagedContacts) {
+        const existing = await findContactByEmail(tx, primaryLeaid, staged.email);
+        const contact =
+          existing ??
+          (await tx.contact.create({
+            data: {
+              leaid: primaryLeaid,
+              name: staged.name || staged.email,
+              email: staged.email || null,
+            },
+          }));
+        resolvedContactIds.push(contact.id);
+      }
+    }
+
     // Link to contacts
-    if (contactIds.length > 0) {
+    const uniqueContactIds = [...new Set(resolvedContactIds)];
+    if (uniqueContactIds.length > 0) {
       await tx.activityContact.createMany({
-        data: contactIds.map((contactId) => ({
+        data: uniqueContactIds.map((contactId) => ({
           activityId: newActivity.id,
           contactId,
         })),

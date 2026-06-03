@@ -224,6 +224,7 @@ export async function createCalendarEvent(
     location?: string;
     attendeeEmails?: string[];
     reminders?: { minutes: number }[];
+    sendUpdates?: "all" | "none";
   }
 ): Promise<string> {
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -242,6 +243,7 @@ export async function createCalendarEvent(
 
   const response = await calendar.events.insert({
     calendarId: "primary",
+    sendUpdates: event.sendUpdates ?? "none",
     requestBody: {
       summary: event.title,
       description: event.description,
@@ -273,6 +275,7 @@ export async function updateCalendarEvent(
     location?: string;
     attendeeEmails?: string[];
     reminders?: { minutes: number }[];
+    sendUpdates?: "all" | "none";
   }
 ): Promise<void> {
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -294,7 +297,7 @@ export async function updateCalendarEvent(
     }
   }
   if (updates.location !== undefined) requestBody.location = updates.location;
-  if (updates.attendeeEmails) {
+  if (updates.attendeeEmails !== undefined) {
     requestBody.attendees = updates.attendeeEmails.map((email) => ({ email }));
   }
   if (updates.reminders) {
@@ -307,6 +310,7 @@ export async function updateCalendarEvent(
   await calendar.events.patch({
     calendarId: "primary",
     eventId,
+    sendUpdates: updates.sendUpdates ?? "none",
     requestBody,
   });
 }
