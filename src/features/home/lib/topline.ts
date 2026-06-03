@@ -68,8 +68,8 @@ const METRICS: {
 }[] = [
   { key: "openPipeline", label: "Open Pipeline", value: (a) => a.openPipeline, categoryValue: (c) => c.openPipeline },
   { key: "bookings", label: "Closed Won Bookings", value: (a) => a.bookings, categoryValue: (c) => c.bookings },
-  { key: "take", label: "Sched + Delivered Take", value: (a) => a.completedTake + a.scheduledTake, categoryValue: (c) => c.take },
   { key: "revenue", label: "Sched + Delivered Rev.", value: (a) => a.totalRevenue, categoryValue: (c) => c.revenue },
+  { key: "take", label: "Sched + Delivered Take", value: (a) => a.completedTake + a.scheduledTake, categoryValue: (c) => c.take },
 ];
 
 function segmentsFor(

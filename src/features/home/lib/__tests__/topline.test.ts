@@ -39,7 +39,7 @@ describe("buildToplineCards", () => {
     );
     const byKey = Object.fromEntries(cards.map((c) => [c.metricKey, c]));
 
-    expect(cards.map((c) => c.metricKey)).toEqual(["openPipeline", "bookings", "take", "revenue"]);
+    expect(cards.map((c) => c.metricKey)).toEqual(["openPipeline", "bookings", "revenue", "take"]);
     // open pipeline: u2(300) > me(200) > u3(100)
     expect(byKey.openPipeline).toMatchObject({ value: 200, rank: 2, totalReps: 3, label: "Open Pipeline" });
     // bookings: u3(90) > me(50) > u2(10)
