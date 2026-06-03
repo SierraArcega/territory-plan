@@ -3,14 +3,14 @@ import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
 import { fetchPipelineData } from "@/features/home/lib/pipeline-source";
-import { buildStageHealth, buildCoverage, buildOppViews } from "@/features/home/lib/pipeline";
+import { buildFunnel, buildTargetsRow, buildCoverage, buildOppViews } from "@/features/home/lib/pipeline";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/home/dashboard/pipeline?fy=2026
 // The Pipeline tab payload for the calling rep: coverage (floor/ceiling/most-likely
-// + gap-to-target), per-stage health (ranked vs the team), the top open opps, and
-// the at-risk subset (stalled / slipped).
+// + gap-to-target), the stage funnel (per-stage min/max + team share, source shares,
+// pre-pipe targets), the top open opps, and the at-risk subset (stalled / slipped).
 export async function GET(request: Request) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,9 +27,9 @@ export async function GET(request: Request) {
   const inRoster = reps.some((r) => r.id === user.id);
   const callerEmail = reps.find((r) => r.id === user.id)?.email ?? user.email ?? "";
 
-  const { openOpps, wonBookings, fyTarget, thisWeek } = await fetchPipelineData(schoolYr, fy, callerEmail);
+  const { openOpps, wonBookings, fyTarget, thisWeek, targetsByRep } = await fetchPipelineData(schoolYr, fy, callerEmail);
 
-  const stageHealth = buildStageHealth(openOpps, reps, user.id);
+  const funnel = { ...buildFunnel(openOpps, reps, user.id, "all"), targets: buildTargetsRow(targetsByRep, callerEmail) };
   const callerOpps = openOpps.filter((o) => o.email === callerEmail);
   const coverage = buildCoverage(callerOpps, wonBookings, fyTarget);
   const views = buildOppViews(callerOpps);
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     schoolYr,
     inRoster,
     coverage: { ...coverage, wonBookings, fyTarget },
-    stageHealth,
+    funnel,
     opps,
     atRisk,
     // "This week" (last 7 days) is only meaningful for the in-progress FY.

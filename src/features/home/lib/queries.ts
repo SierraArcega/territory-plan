@@ -4,7 +4,7 @@ import type { ToplineCard } from "./topline";
 import type { RankTrajectoryPayload } from "./rank-trajectory";
 import type { Sparkline, SparklineMetricKey } from "./sparkline";
 import type { WowDeltas } from "./wow";
-import type { Coverage, StageHealth, OppView } from "./pipeline";
+import type { Coverage, OppView, FunnelData } from "./pipeline";
 import type { ThisWeek } from "./pipeline-source";
 import type { VelocityCell } from "./velocity";
 
@@ -115,7 +115,7 @@ export interface PipelineResponse {
   schoolYr: string;
   inRoster: boolean; // false for an admin/manager viewing (not in the rep roster)
   coverage: Coverage & { wonBookings: number; fyTarget: number };
-  stageHealth: StageHealth[];
+  funnel: FunnelData;
   opps: OppView[];
   atRisk: OppView[];
   thisWeek: ThisWeek | null; // null for a non-current FY
