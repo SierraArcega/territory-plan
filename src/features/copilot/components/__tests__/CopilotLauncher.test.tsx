@@ -40,6 +40,15 @@ describe("CopilotLauncher", () => {
     expect(btn.style.top).toBe("50px");
   });
 
+  it("opens via keyboard (Enter and Space)", () => {
+    const onOpen = vi.fn();
+    render(<CopilotLauncher onOpen={onOpen} />);
+    const btn = screen.getByRole("button", { name: /open copilot/i });
+    fireEvent.keyDown(btn, { key: "Enter" });
+    fireEvent.keyDown(btn, { key: " " });
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
   it("shows the coachmark once, then never again", () => {
     const { unmount } = render(<CopilotLauncher onOpen={() => {}} />);
     expect(screen.getByText(/right here/i)).toBeTruthy();

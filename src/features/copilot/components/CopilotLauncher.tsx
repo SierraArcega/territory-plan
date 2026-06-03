@@ -76,6 +76,13 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
     setDragging(false);
   }
 
+  function onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault(); // Space would otherwise scroll the page
+      onOpen();
+    }
+  }
+
   function onPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
     const d = drag.current;
     drag.current = null;
@@ -124,6 +131,7 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
+        onKeyDown={onKeyDown}
         aria-label="Open Copilot"
         className="group fixed z-50 flex h-11 w-11 touch-none select-none items-center justify-center gap-2 overflow-hidden rounded-full bg-[#403770] text-white shadow-lg transition-[width,padding,background-color] hover:w-auto hover:bg-[#322a5a] hover:px-4 focus-within:w-auto focus-within:px-4 sm:hover:pl-4"
         style={{ left: pos.x, top: pos.y, cursor: dragging ? "grabbing" : "grab" }}
