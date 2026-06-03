@@ -165,24 +165,24 @@ describe("buildFunnel", () => {
 });
 
 describe("buildTargetsRow", () => {
-  // floorMin = Σ renewal (high-confidence floor); ceilMax = Σ all four target cols.
+  // value = Σ all four target columns over targeted pre-pipe districts.
   const byRep: TargetRepAgg[] = [
-    { email: "me@x", count: 3, floorMin: 120, ceilMax: 500 },
-    { email: "u2@x", count: 2, floorMin: 80, ceilMax: 300 },
+    { email: "me@x", count: 3, value: 500 },
+    { email: "u2@x", count: 2, value: 300 },
   ];
 
-  it("returns the caller's pre-pipe targets with team-floor share", () => {
+  it("returns the caller's pre-pipe target value with team share", () => {
     const t = buildTargetsRow(byRep, "me@x");
-    expect(t).toMatchObject({ count: 3, min: 120, max: 500, teamMin: 200 }); // team floor 120+80
-    expect(t.sharePct).toBe(60); // 120 / 200
+    expect(t).toMatchObject({ count: 3, value: 500, teamValue: 800 });
+    expect(t.sharePct).toBe(63); // round(500/800*100)
   });
 
-  it("zeros out a caller with no plan targets but still reports team floor", () => {
+  it("zeros out a caller with no plan targets but still reports team value", () => {
     const t = buildTargetsRow(byRep, "ghost@x");
-    expect(t).toMatchObject({ count: 0, min: 0, max: 0, teamMin: 200, sharePct: 0 });
+    expect(t).toMatchObject({ count: 0, value: 0, teamValue: 800, sharePct: 0 });
   });
 
   it("handles an empty roster", () => {
-    expect(buildTargetsRow([], "me@x")).toMatchObject({ count: 0, min: 0, max: 0, teamMin: 0, sharePct: 0 });
+    expect(buildTargetsRow([], "me@x")).toMatchObject({ count: 0, value: 0, teamValue: 0, sharePct: 0 });
   });
 });

@@ -22,7 +22,7 @@ const funnel = {
     { key: "expansion", label: "Expansion", color: "#FFCF70", you: 0, team: 0, pct: 0 },
   ],
   openCount: 2, totalMin: 80, totalMax: 200, spread: 120, teamMinTotal: 80, overallSharePct: 100, rank: 2, totalReps: 2,
-  targets: { count: 0, min: 0, max: 0, teamMin: 0, sharePct: 0 },
+  targets: { count: 0, value: 0, teamValue: 0, sharePct: 0 },
 };
 const oppView = (p: Record<string, unknown>) => ({
   account: "Acct", state: "NY", source: "return", stageName: "Negotiation", stagePrefix: 4,

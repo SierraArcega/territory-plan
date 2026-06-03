@@ -159,12 +159,12 @@ export interface SourceShare {
   pct: number; // round(you / team × 100); 0 when team is 0
 }
 
-// Placeholder; replaced by the real shape when buildTargetsRow is added in a later task.
+// The caller's pre-pipe Targets row: a single estimated target value (no floor/
+// ceiling split — renewal_target is unpopulated org-wide) + share of the team total.
 export interface TargetsRow {
   count: number;
-  min: number;
-  max: number;
-  teamMin: number;
+  value: number; // caller Σ target columns over targeted pre-pipe districts
+  teamValue: number; // Σ value across all reps
   sharePct: number;
 }
 
@@ -182,27 +182,25 @@ export interface FunnelData {
   targets: TargetsRow; // attached by the route via buildTargetsRow
 }
 
-// Per-rep pre-pipe target aggregate (districts on the plan with NO open opp).
-// floorMin = Σ renewal_target (the high-confidence floor); ceilMax = Σ all four
-// target columns (full upside). Produced by the targets query in pipeline-source.
+// Per-rep pre-pipe target aggregate: plan districts (FY) with a target set and NO
+// open opp. value = Σ all four target columns (the rep's estimated target revenue).
 export interface TargetRepAgg {
   email: string;
   count: number;
-  floorMin: number;
-  ceilMax: number;
+  value: number;
 }
 
-// The caller's pre-pipe Targets row plus their share of the team's target floor.
+// The caller's pre-pipe Targets row: a single estimated target value (no floor/
+// ceiling split — renewal_target is unpopulated org-wide) + share of the team total.
 export function buildTargetsRow(byRep: TargetRepAgg[], callerEmail: string): TargetsRow {
   const mine = byRep.find((r) => r.email === callerEmail);
-  const teamMin = byRep.reduce((s, r) => s + r.floorMin, 0);
-  const min = mine?.floorMin ?? 0;
+  const teamValue = byRep.reduce((s, r) => s + r.value, 0);
+  const value = mine?.value ?? 0;
   return {
     count: mine?.count ?? 0,
-    min,
-    max: mine?.ceilMax ?? 0,
-    teamMin,
-    sharePct: teamMin > 0 ? Math.round((min / teamMin) * 100) : 0,
+    value,
+    teamValue,
+    sharePct: teamValue > 0 ? Math.round((value / teamValue) * 100) : 0,
   };
 }
 

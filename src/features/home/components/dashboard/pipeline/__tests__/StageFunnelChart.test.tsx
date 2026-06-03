@@ -6,7 +6,7 @@ import type { FunnelStage, TargetsRow } from "@/features/home/lib/pipeline";
 const stage = (p: Partial<FunnelStage>): FunnelStage => ({
   prefix: 0, name: "Meeting Booked", count: 2, min: 30000, max: 100000, teamMin: 40000, sharePct: 75, ...p,
 });
-const targets: TargetsRow = { count: 5, min: 120000, max: 500000, teamMin: 200000, sharePct: 60 };
+const targets: TargetsRow = { count: 5, value: 120000, teamValue: 200000, sharePct: 60 };
 
 describe("StageFunnelChart", () => {
   it("renders a row per active stage plus the Targets pre-pipe row", () => {

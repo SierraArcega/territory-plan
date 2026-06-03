@@ -85,21 +85,24 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
       FROM opportunities o
       WHERE o.school_yr = ${sy} AND o.sales_rep_email = ${callerEmail}`,
 
-    // Per-rep pre-pipe targets: plan districts (this FY) with NO open opp for that
-    // rep, with floor = Σ renewal_target and ceiling = Σ all four target columns.
-    // Aggregated per rep so the pure buildTargetsRow can pick the caller + sum team.
+    // Per-rep pre-pipe targets: plan districts (this FY) that HAVE a target set and
+    // have NO open opp for that rep. value = Σ all four target columns (estimated
+    // target revenue). Aggregated per rep so buildTargetsRow can pick caller + sum team.
     prisma.$queryRaw<TargetRepAgg[]>`
       SELECT u.email AS email,
              COUNT(*)::int AS count,
-             COALESCE(SUM(COALESCE(tpd.renewal_target, 0)), 0)::float AS "floorMin",
              COALESCE(SUM(
                COALESCE(tpd.renewal_target, 0) + COALESCE(tpd.new_business_target, 0) +
                COALESCE(tpd.winback_target, 0) + COALESCE(tpd.expansion_target, 0)
-             ), 0)::float AS "ceilMax"
+             ), 0)::float AS value
       FROM territory_plan_districts tpd
       JOIN territory_plans p ON p.id = tpd.plan_id
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
       WHERE p.fiscal_year = ${fy}
+        AND (
+          COALESCE(tpd.renewal_target, 0) + COALESCE(tpd.new_business_target, 0) +
+          COALESCE(tpd.winback_target, 0) + COALESCE(tpd.expansion_target, 0)
+        ) > 0
         AND NOT EXISTS (
           SELECT 1 FROM opportunities o
           WHERE o.district_lea_id = tpd.district_leaid

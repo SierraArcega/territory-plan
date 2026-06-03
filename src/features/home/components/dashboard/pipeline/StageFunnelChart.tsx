@@ -36,7 +36,7 @@ export default function StageFunnelChart({
 }) {
   const activeStages = stages.filter((s) => s.count > 0);
   const rows: Row[] = [
-    { key: "targets", name: "Targets", count: targets.count, min: targets.min, max: targets.max, sharePct: targets.sharePct, teamMin: targets.teamMin, accent: TARGETS_ACCENT, prefix: null, isPreOpp: true },
+    { key: "targets", name: "Targets", count: targets.count, min: targets.value, max: targets.value, sharePct: targets.sharePct, teamMin: targets.teamValue, accent: TARGETS_ACCENT, prefix: null, isPreOpp: true },
     ...activeStages.map((s) => ({ key: String(s.prefix), name: s.name, count: s.count, min: s.min, max: s.max, sharePct: s.sharePct, teamMin: s.teamMin, accent: STAGE_ACCENTS[s.prefix], prefix: s.prefix, isPreOpp: false })),
   ].filter((r) => (r.isPreOpp ? r.count > 0 : true));
 
@@ -96,8 +96,12 @@ export default function StageFunnelChart({
                 {r.isPreOpp ? `${r.count} accts · pre-pipe` : `${r.count} ${r.count === 1 ? "opp" : "opps"}`}
               </text>
 
-              <text x={leftWall - 12} y={midY - 2} textAnchor="end" fontSize="11" fontWeight="600" fill="#8A80A8" style={{ letterSpacing: "0.06em" }}>{r.isPreOpp ? "EST. REV POTENTIAL" : "MAX BUDGET"}</text>
-              <text x={leftWall - 12} y={midY + 13} textAnchor="end" fontSize="14" fontWeight="700" fill="#544A78" style={{ letterSpacing: "-0.01em" }}>{fmt(r.max)}</text>
+              {!r.isPreOpp && (
+                <>
+                  <text x={leftWall - 12} y={midY - 2} textAnchor="end" fontSize="11" fontWeight="600" fill="#8A80A8" style={{ letterSpacing: "0.06em" }}>MAX BUDGET</text>
+                  <text x={leftWall - 12} y={midY + 13} textAnchor="end" fontSize="14" fontWeight="700" fill="#544A78" style={{ letterSpacing: "-0.01em" }}>{fmt(r.max)}</text>
+                </>
+              )}
 
               <text x={rx} y={midY - 18} textAnchor="start" fontSize="10.5" fontWeight="700" fill={r.accent} style={{ letterSpacing: "0.08em" }}>{r.isPreOpp ? "EST. VALUE · YOUR SHARE" : "MIN COMMIT · YOUR SHARE"}</text>
               <text x={rx} y={midY} textAnchor="start" fontSize="15" fontWeight="700" fill={r.accent} style={{ letterSpacing: "-0.01em" }}>{fmt(r.min)}</text>
