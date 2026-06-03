@@ -47,7 +47,8 @@ export async function GET(request: Request) {
     funnel,
     opps,
     atRisk,
-    // "This week" (last 7 days) is only meaningful for the in-progress FY.
-    thisWeek: fy === getCurrentFY() ? thisWeek : null,
+    // "This week" (last 7 days), scoped to the selected FY's school year. Shown in
+    // every FY tab; non-current years just tend to be empty.
+    thisWeek,
   });
 }

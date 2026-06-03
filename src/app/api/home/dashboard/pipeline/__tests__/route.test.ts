@@ -90,11 +90,11 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(body.inRoster).toBe(false);
   });
 
-  it("omits this-week movement for a non-current fiscal year", async () => {
+  it("returns this-week movement for any fiscal year (scoped to that FY's school year)", async () => {
     mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
     mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 }, targetsByRep: [], benchmarks: new Map() } as never);
-    const body = await (await GET(req("2024"))).json(); // past FY
-    expect(body.thisWeek).toBeNull();
+    const body = await (await GET(req("2024"))).json(); // past FY still returns its payload
+    expect(body.thisWeek).toEqual({ won: 5, lost: 2, created: 9 });
   });
 });
