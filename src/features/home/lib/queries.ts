@@ -40,6 +40,22 @@ export function useFeedAlerts() {
   });
 }
 
+// ── Rep roster ──────────────────────────────────────────────────────────────
+
+export interface RepOption {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
+export function useActiveReps() {
+  return useQuery({
+    queryKey: ["reps"],
+    queryFn: () => fetchJson<RepOption[]>(`${API_BASE}/reps`),
+    staleTime: 60 * 60 * 1000, // roster rarely changes
+  });
+}
+
 // ── Dashboard ───────────────────────────────────────────────────────────────
 
 export interface ToplineResponse {
