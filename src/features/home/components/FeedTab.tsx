@@ -268,8 +268,9 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
 
   const totalBadge = counts.dueToday + counts.alerts;
 
-  // Report badge count to parent
-  useMemo(() => {
+  // Report badge count to parent — a side effect, so it must run after render
+  // (in useMemo it fires mid-render and setState's the parent, which React warns about).
+  useEffect(() => {
     onBadgeCountChange?.(totalBadge);
   }, [totalBadge, onBadgeCountChange]);
 
