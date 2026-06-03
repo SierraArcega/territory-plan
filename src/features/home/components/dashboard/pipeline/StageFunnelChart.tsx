@@ -53,15 +53,14 @@ export default function StageFunnelChart({
     : // No open pipeline → greyed placeholders for every open stage.
       stages.map((s) => ({ key: String(s.prefix), name: s.name, count: 0, min: 0, max: 0, sharePct: 0, teamMin: 0, accent: GHOST_FILL, prefix: null, isPreOpp: false, isWon: false, isGhost: true }));
 
-  const wonRow: Row | null =
+  // Closed Won is always the funnel's tip: solid green with real booked data, or a
+  // greyed-out placeholder when the rep hasn't closed anything yet.
+  const wonRow: Row =
     won && won.count > 0
       ? { key: "won", name: "Closed Won", count: won.count, min: won.min, max: won.max, sharePct: won.sharePct, teamMin: won.teamMin, accent: WON_ACCENT, prefix: null, isPreOpp: false, isWon: true, isGhost: false }
-      : null;
+      : { key: "won", name: "Closed Won", count: 0, min: 0, max: 0, sharePct: 0, teamMin: 0, accent: GHOST_FILL, prefix: null, isPreOpp: false, isWon: true, isGhost: true };
 
-  const rows: Row[] = [...openRows, ...(wonRow ? [wonRow] : [])];
-  if (rows.length === 0) {
-    return <p className="py-8 text-center text-sm text-[#8A80A8]">No open deals to chart.</p>;
-  }
+  const rows: Row[] = [...openRows, wonRow];
 
   const W = 1080, padL = 140, padR = 240, padY = 10, stageH = 82;
   const H = padY * 2 + rows.length * stageH;
@@ -103,12 +102,12 @@ export default function StageFunnelChart({
           const fillW = (r.sharePct / maxBarPct) * barW;
           const tickX = rx + (overallSharePct / maxBarPct) * barW;
 
-          const subtitle = r.isGhost
+          const subtitle = r.isWon
+            ? `${r.count} won`
+            : r.isGhost
             ? "0 opps"
             : r.isPreOpp
             ? `${r.count} accts · pre-pipe`
-            : r.isWon
-            ? `${r.count} won`
             : `${r.count} ${r.count === 1 ? "opp" : "opps"}`;
 
           // Outer fill: ghost (faint dashed grey), pre-opp (dashed sage), won (solid

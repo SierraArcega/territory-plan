@@ -44,6 +44,9 @@ describe("StageFunnelChart", () => {
     expect(screen.getByText("Meeting Booked")).toBeInTheDocument();
     expect(screen.getByText("Proposal")).toBeInTheDocument();
     expect(screen.getByText(/no open pipeline yet/i)).toBeInTheDocument();
+    // …with a greyed-out Closed Won tip too (no won deals yet).
+    expect(screen.getByText("Closed Won")).toBeInTheDocument();
+    expect(screen.getByText("0 won")).toBeInTheDocument();
     // …and they are non-interactive (no drill-in buttons in the ghost state).
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
