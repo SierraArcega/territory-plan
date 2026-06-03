@@ -14,7 +14,7 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
   const priorFyLabel = `FY${String(fy - 1).slice(-2)}`;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {/* Targets (card 1) owns its own query + loading/error state */}
       <TargetsCard fy={fy} />
 
