@@ -32,29 +32,34 @@ The mobile path already escapes the clip via
 path is broken.
 
 ### Fix
-Render the **desktop** popover through a **React portal** into `document.body`,
-anchored to the trigger button, so it escapes the `overflow-auto` ancestor.
+**Reuse the existing `AnchoredPopover`** component
+(`src/features/views/components/grid/AnchoredPopover.tsx`) — the grid already
+solves this exact "popover clipped by an overflow scroll container" problem for
+its Filter/Sort/Group/Bulk-action chips by portaling to `<body>`. Its docstring
+documents the overflow-clipping mechanism precisely, and 7+ grid components use
+it. Per "search before you write," we should not hand-roll a new portal.
 
-- `DistrictNotesCell` keeps a `ref` to the trigger button. When open, it measures
-  `getBoundingClientRect()` and passes coordinates to `NotesPopover`.
-- The portal-rendered popover is positioned `fixed` near the trigger, **flipping**
-  vertical (above/below) and horizontal (right-aligned) placement when near the
-  viewport edge so the 480px composer always fits on screen.
-- Reposition on `scroll` (capture) and `resize` while open; close on the next
-  meaningful scroll is **not** required — repositioning is enough and matches
-  typical anchored-popover behavior.
-- Existing outside-click + Escape close logic in `NotesPopover` is preserved
-  (the outside-click listener already uses the popover's own ref, which still
-  works from a portal).
-- **Mobile bottom-sheet path is unchanged.** Detect viewport via the existing
-  `max-sm:` breakpoint approach / `useIsMobile()` so mobile continues to use the
-  fixed bottom-sheet and skips anchored positioning.
+- `DistrictNotesCell` keeps a `ref` to the trigger button and, on desktop, renders
+  `<AnchoredPopover anchorRef={btnRef} open={open} onDismiss={…} align="left">
+  <NotesPopover …/></AnchoredPopover>`. `AnchoredPopover` already portals to
+  `document.body`, pins to the anchor, **flips above when space is tight**, and
+  handles outside-click + Escape dismissal (with a deferred-attach guard so the
+  opening click doesn't immediately close it).
+- **Mobile bottom-sheet path:** detect mobile via `useIsMobile()` (the project's
+  639px hook). On mobile, render `NotesPopover` inside the shared `Portal`
+  (`src/features/shared/lib/portal.tsx`) so its existing
+  `max-sm:fixed inset-x-0 bottom-0` bottom-sheet styling positions it; this path
+  does **not** use `AnchoredPopover` (no anchoring on mobile).
+- **`NotesPopover` itself is left unchanged.** Its own outside-click/Escape effect
+  is kept; on desktop it's harmlessly redundant with `AnchoredPopover`'s (both
+  just call `setOpen(false)`, which is idempotent), and on mobile it provides the
+  dismiss behavior. This keeps the change minimal and the component reusable.
 
 ### Components touched
 - `src/features/views/components/grid/cells/DistrictNotesCell.tsx` — add trigger
-  ref, measure rect, render popover via `createPortal` with computed position.
-- `src/features/views/components/notes/NotesPopover.tsx` — accept optional
-  anchor/position props for the desktop portal placement; keep mobile classes.
+  ref + `useIsMobile()`; render `NotesPopover` via `AnchoredPopover` (desktop) or
+  `Portal` (mobile) instead of the clipped `absolute` wrapper.
+- `src/features/views/components/notes/NotesPopover.tsx` — **no change** (kept as-is).
 
 ### Testing
 - Extend `DistrictNotesCell.test.tsx` / `NotesPopover.test.tsx`:
