@@ -40,8 +40,36 @@ export default function StageFunnelChart({
     ...activeStages.map((s) => ({ key: String(s.prefix), name: s.name, count: s.count, min: s.min, max: s.max, sharePct: s.sharePct, teamMin: s.teamMin, accent: STAGE_ACCENTS[s.prefix], prefix: s.prefix, isPreOpp: false })),
   ].filter((r) => (r.isPreOpp ? r.count > 0 : true));
 
+  // Nothing in the pipeline: render a greyed-out "ghost" funnel of all open stages
+  // (so the structure is still visible) instead of collapsing to a bare message.
   if (rows.length === 0) {
-    return <p className="py-8 text-center text-sm text-[#8A80A8]">No open deals to chart.</p>;
+    const GW = 1080, gPadL = 140, gPadR = 140, gPadY = 10, gStageH = 64;
+    const gH = gPadY * 2 + stages.length * gStageH;
+    const gUsable = GW - gPadL - gPadR;
+    const gcx = gPadL + gUsable / 2;
+    const gT_TOP = 1, gT_BOT = 0.4;
+    const gWAt = (idx: number) => gUsable * (gT_TOP - (gT_TOP - gT_BOT) * (idx / stages.length));
+    return (
+      <div>
+        <svg viewBox={`0 0 ${GW} ${gH}`} preserveAspectRatio="xMidYMid meet" style={{ display: "block", width: "100%", height: "auto" }} aria-hidden="true">
+          {stages.map((s, i) => {
+            const y1 = gPadY + i * gStageH, y2 = y1 + gStageH;
+            const tW = gWAt(i), bW = gWAt(i + 1);
+            const midY = (y1 + y2) / 2;
+            const outer = `M ${gcx - tW / 2} ${y1} L ${gcx + tW / 2} ${y1} L ${gcx + bW / 2} ${y2} L ${gcx - bW / 2} ${y2} Z`;
+            return (
+              <g key={s.prefix}>
+                <path d={outer} fill="#9A8FC0" fillOpacity={0.1} stroke="#C9C2DC" strokeWidth={1} strokeDasharray="6 4" strokeOpacity={0.6} />
+                {i > 0 && <line x1={gcx - tW / 2} y1={y1} x2={gcx + tW / 2} y2={y1} stroke="#FFFFFF" strokeWidth="2" />}
+                <text x={gcx} y={midY - 2} textAnchor="middle" fontSize="15" fontWeight="700" fill="#A99FC4">{s.name}</text>
+                <text x={gcx} y={midY + 16} textAnchor="middle" fontSize="11" fontWeight="600" fill="#BDB4D2">0 opps</text>
+              </g>
+            );
+          })}
+        </svg>
+        <p className="mt-1 text-center text-xs text-[#8A80A8]">No open pipeline yet — your stages will fill in here.</p>
+      </div>
+    );
   }
 
   const W = 1080, padL = 140, padR = 240, padY = 10, stageH = 82;

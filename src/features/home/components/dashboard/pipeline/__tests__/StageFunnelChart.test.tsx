@@ -24,4 +24,25 @@ describe("StageFunnelChart", () => {
     screen.getByRole("button", { name: /Meeting Booked deals/i }).click();
     expect(onStageClick).toHaveBeenCalledWith(0);
   });
+
+  it("renders a greyed-out ghost funnel of all stages when nothing is in pipeline", () => {
+    const empty = [
+      stage({ prefix: 0, name: "Meeting Booked", count: 0 }),
+      stage({ prefix: 3, name: "Proposal", count: 0 }),
+    ];
+    render(
+      <StageFunnelChart
+        stages={empty}
+        targets={{ count: 0, value: 0, teamValue: 0, sharePct: 0 }}
+        overallSharePct={0}
+        onStageClick={() => {}}
+      />,
+    );
+    // Stage bands still render (not the bare empty message)…
+    expect(screen.getByText("Meeting Booked")).toBeInTheDocument();
+    expect(screen.getByText("Proposal")).toBeInTheDocument();
+    expect(screen.getByText(/no open pipeline yet/i)).toBeInTheDocument();
+    // …and they are non-interactive (no drill-in buttons in the ghost state).
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
 });
