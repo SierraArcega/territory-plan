@@ -3,7 +3,7 @@ import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
 import { fetchPipelineData } from "@/features/home/lib/pipeline-source";
-import { buildFunnel, buildTargetsRow, buildCoverage, buildOppViews, TIER_RANK } from "@/features/home/lib/pipeline";
+import { buildFunnel, buildTargetsRow, buildWonStage, buildCoverage, buildOppViews, TIER_RANK } from "@/features/home/lib/pipeline";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +27,13 @@ export async function GET(request: Request) {
   const inRoster = reps.some((r) => r.id === user.id);
   const callerEmail = reps.find((r) => r.id === user.id)?.email ?? user.email ?? "";
 
-  const { openOpps, wonBookings, fyTarget, thisWeek, targetsByRep, benchmarks } = await fetchPipelineData(schoolYr, fy, callerEmail);
+  const { openOpps, wonBookings, fyTarget, thisWeek, targetsByRep, wonByRep, benchmarks } = await fetchPipelineData(schoolYr, fy, callerEmail);
 
-  const funnel = { ...buildFunnel(openOpps, reps, user.id, "all"), targets: buildTargetsRow(targetsByRep, callerEmail) };
+  const funnel = {
+    ...buildFunnel(openOpps, reps, user.id, "all"),
+    targets: buildTargetsRow(targetsByRep, callerEmail),
+    won: buildWonStage(wonByRep, callerEmail),
+  };
   const callerOpps = openOpps.filter((o) => o.email === callerEmail);
   const coverage = buildCoverage(callerOpps, wonBookings, fyTarget);
   const views = buildOppViews(callerOpps, benchmarks);

@@ -48,6 +48,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
       fyTarget: 1000,
       thisWeek: { won: 1, lost: 0, created: 2 },
       targetsByRep: [],
+      wonByRep: [],
       benchmarks: new Map(),
     } as never);
 
@@ -74,7 +75,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
       oppRow({ email: "me@x", stagePrefix: 5, netBooking: 1000, daysInStage: 1 }), // high weighted, on-track
     );
     const lowValueAtRisk = oppRow({ email: "me@x", stagePrefix: 0, netBooking: 1, daysInStage: 1, overdueClose: true }); // sorts last, slip
-    mockFetch.mockResolvedValue({ openOpps: [...healthy, lowValueAtRisk], wonBookings: 0, fyTarget: 1000, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [], benchmarks: new Map() } as never);
+    mockFetch.mockResolvedValue({ openOpps: [...healthy, lowValueAtRisk], wonBookings: 0, fyTarget: 1000, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [], wonByRep: [], benchmarks: new Map() } as never);
 
     const body = await (await GET(req("2026"))).json();
     expect(body.opps).toHaveLength(50); // capped
@@ -85,7 +86,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
   it("flags a caller outside the active-rep roster as not in roster", async () => {
     mockGetUser.mockResolvedValue({ id: "admin", email: "admin@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
-    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [], benchmarks: new Map() } as never);
+    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [], wonByRep: [], benchmarks: new Map() } as never);
     const body = await (await GET(req("2026"))).json();
     expect(body.inRoster).toBe(false);
   });
@@ -93,7 +94,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
   it("returns this-week movement for any fiscal year (scoped to that FY's school year)", async () => {
     mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
-    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 }, targetsByRep: [], benchmarks: new Map() } as never);
+    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 }, targetsByRep: [], wonByRep: [], benchmarks: new Map() } as never);
     const body = await (await GET(req("2024"))).json(); // past FY still returns its payload
     expect(body.thisWeek).toEqual({ won: 5, lost: 2, created: 9 });
   });

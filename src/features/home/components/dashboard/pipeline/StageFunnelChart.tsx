@@ -54,7 +54,7 @@ export default function StageFunnelChart({
       stages.map((s) => ({ key: String(s.prefix), name: s.name, count: 0, min: 0, max: 0, sharePct: 0, teamMin: 0, accent: GHOST_FILL, prefix: null, isPreOpp: false, isWon: false, isGhost: true }));
 
   const wonRow: Row | null =
-    won.count > 0
+    won && won.count > 0
       ? { key: "won", name: "Closed Won", count: won.count, min: won.min, max: won.max, sharePct: won.sharePct, teamMin: won.teamMin, accent: WON_ACCENT, prefix: null, isPreOpp: false, isWon: true, isGhost: false }
       : null;
 
