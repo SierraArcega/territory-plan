@@ -34,3 +34,59 @@ export function median(values: number[]): number {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
+
+import { rankReps, rankForRep } from "./ranking";
+
+const ZERO: RepVelocityAgg = { wonCount: 0, closedCount: 0, wonBookingSum: 0, takeSum: 0, revSum: 0 };
+
+const METRICS: {
+  key: VelocityMetricKey;
+  label: string;
+  format: "percent" | "currency" | "count";
+  deltaUnit: DeltaUnit;
+  value: (a: RepVelocityAgg) => number;
+}[] = [
+  { key: "closeRate", label: "Close rate", format: "percent", deltaUnit: "pts", value: (a) => (a.closedCount > 0 ? a.wonCount / a.closedCount : 0) },
+  { key: "avgDealSize", label: "Avg deal size", format: "currency", deltaUnit: "pct", value: (a) => (a.wonCount > 0 ? a.wonBookingSum / a.wonCount : 0) },
+  { key: "grossMargin", label: "Gross margin", format: "percent", deltaUnit: "pts", value: (a) => (a.revSum > 0 ? a.takeSum / a.revSum : 0) },
+  { key: "dealsWon", label: "Deals won", format: "count", deltaUnit: "count", value: (a) => a.wonCount },
+];
+
+// pts: percentage-point change (×100). pct: relative % change (null if prior 0).
+// count: absolute difference. All rounded to whole numbers.
+function computeDelta(unit: DeltaUnit, current: number, prior: number): number | null {
+  if (unit === "pts") return Math.round((current - prior) * 100);
+  if (unit === "count") return Math.round(current - prior);
+  return prior > 0 ? Math.round(((current - prior) / prior) * 100) : null;
+}
+
+// Build the four velocity cells: per-rep metric value → rank (higher is better) +
+// team median; the caller's standing and prior-FY delta. `priorCallerAgg` is the
+// caller's same-metric aggregate for fy-1 (null when unavailable).
+export function buildVelocity(
+  reps: { id: string; email: string }[],
+  currentByEmail: Map<string, RepVelocityAgg>,
+  priorCallerAgg: RepVelocityAgg | null,
+  callerId: string,
+): VelocityCell[] {
+  return METRICS.map(({ key, label, format, deltaUnit, value }) => {
+    const values = reps.map((r) => ({ id: r.id, email: r.email, value: value(currentByEmail.get(r.email) ?? ZERO) }));
+    const ranking = rankReps(values);
+    const standing = rankForRep(ranking, callerId);
+    const teamMedian = median(values.map((v) => v.value));
+    const delta =
+      standing.inRoster && priorCallerAgg ? computeDelta(deltaUnit, standing.value, value(priorCallerAgg)) : null;
+    return {
+      metricKey: key,
+      label,
+      format,
+      value: standing.value,
+      delta,
+      deltaUnit,
+      teamMedian,
+      rank: standing.rank,
+      totalReps: ranking.totalReps,
+      inRoster: standing.inRoster,
+    };
+  });
+}
