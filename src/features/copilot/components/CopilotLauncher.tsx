@@ -68,6 +68,11 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
     ));
   }
 
+  function onPointerCancel() {
+    drag.current = null;
+    setDragging(false);
+  }
+
   function onPointerUp(e: React.PointerEvent<HTMLButtonElement>) {
     const d = drag.current;
     drag.current = null;
@@ -78,6 +83,9 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
       onOpen(); // a tap, not a drag
       return;
     }
+    // Persist from inside the updater to read the latest queued position (one
+    // render ahead of the closure's `pos`). Writing the same value twice under
+    // StrictMode is harmless (idempotent).
     setPos((p) => {
       if (p) { try { localStorage.setItem(LAUNCHER_POS_KEY, JSON.stringify(p)); } catch { /* ignore */ } }
       return p;
@@ -112,12 +120,13 @@ export function CopilotLauncher({ onOpen }: { onOpen: () => void }) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         aria-label="Open Copilot"
-        className="group fixed z-50 flex h-11 w-11 touch-none select-none items-center justify-center gap-2 overflow-hidden rounded-full bg-[#403770] text-white shadow-lg transition-[width,padding,background-color] hover:w-auto hover:bg-[#322a5a] hover:px-4 sm:hover:pl-4"
+        className="group fixed z-50 flex h-11 w-11 touch-none select-none items-center justify-center gap-2 overflow-hidden rounded-full bg-[#403770] text-white shadow-lg transition-[width,padding,background-color] hover:w-auto hover:bg-[#322a5a] hover:px-4 focus-within:w-auto focus-within:px-4 sm:hover:pl-4"
         style={{ left: pos.x, top: pos.y, cursor: dragging ? "grabbing" : "grab" }}
       >
         <Sparkles className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <span className="hidden whitespace-nowrap text-sm font-medium group-hover:inline">Copilot</span>
+        <span className="hidden whitespace-nowrap text-sm font-medium group-hover:inline group-focus-within:inline">Copilot</span>
       </button>
     </>
   );
