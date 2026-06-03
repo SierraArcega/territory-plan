@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCoverage, classifyHealth, buildOppViews,
-  buildFunnel, buildTargetsRow,
+  buildFunnel, buildTargetsRow, classifyTier,
   PIPELINE_STAGES, type OpenOppRow, type PipelineOpp, type OppView, type TargetRepAgg,
+  type AgeTier, type StageBenchmark, type BenchmarkMap,
 } from "../pipeline";
 
 const reps = [
@@ -63,12 +64,12 @@ describe("buildOppViews", () => {
     daysInStage: 0, overdueClose: false, account: null, state: null, closeDate: null, detailsLink: null, ...p,
   });
 
-  it("sorts the caller's open opps by weighted $ and labels stage/source/health", () => {
+  it("sorts the caller's open opps by min commit (largest first) and labels stage/source/health", () => {
     const views = buildOppViews([
-      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, daysInStage: 5, overdueClose: true }), // weighted 45, slip
-      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, daysInStage: 40 }), // weighted 75, stall (>28)
+      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, minPurchase: 30, daysInStage: 5, overdueClose: true }), // slip
+      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, minPurchase: 80, daysInStage: 40 }), // stall (>28)
     ]);
-    expect(views.map((v) => v.account)).toEqual(["A", "B"]); // 75 before 45
+    expect(views.map((v) => v.account)).toEqual(["A", "B"]); // 80 min commit before 30
     expect(views[0]).toMatchObject({ stageName: "Negotiation", source: "return", health: "stall" });
     expect(views[1]).toMatchObject({ stageName: "Commitment", source: "new", health: "slip" });
   });
@@ -82,6 +83,41 @@ describe("buildOppViews", () => {
     const link = "https://lms.fullmindlearning.com/opportunities/opp-1";
     const views = buildOppViews([pipeOpp({ account: "X", detailsLink: link })]);
     expect(views[0].detailsLink).toBe(link);
+  });
+});
+
+describe("classifyTier", () => {
+  const bench: StageBenchmark = { wonMedian: 30, lostMedian: 60, lostP75: 90 };
+
+  it("returns 'on' at or below the won median", () => {
+    expect(classifyTier(20, 3, bench)).toBe("on");
+    expect(classifyTier(30, 3, bench)).toBe("on");
+  });
+
+  it("returns 'watch' past the won median up to the lost median", () => {
+    expect(classifyTier(45, 3, bench)).toBe("watch");
+    expect(classifyTier(60, 3, bench)).toBe("watch");
+  });
+
+  it("returns 'concerning' past the lost median up to the lost p75", () => {
+    expect(classifyTier(75, 3, bench)).toBe("concerning");
+    expect(classifyTier(90, 3, bench)).toBe("concerning");
+  });
+
+  it("returns 'stale' past the lost p75", () => {
+    expect(classifyTier(120, 3, bench)).toBe("stale");
+  });
+
+  it("treats null lost benchmarks as escalating straight to 'stale' past the won median", () => {
+    const wonOnly: StageBenchmark = { wonMedian: 30, lostMedian: null, lostP75: null };
+    expect(classifyTier(20, 3, wonOnly)).toBe("on");
+    expect(classifyTier(50, 3, wonOnly)).toBe("stale");
+  });
+
+  it("falls back to the hardcoded healthy age when a stage has no benchmark", () => {
+    // stagePrefix 0 -> healthyMax 14
+    expect(classifyTier(10, 0, undefined)).toBe("on");
+    expect(classifyTier(20, 0, undefined)).toBe("stale");
   });
 });
 

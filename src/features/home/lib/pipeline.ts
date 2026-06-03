@@ -23,6 +23,40 @@ export const STAGE_ACCENTS = ["#C2BBD4", "#9A8FC0", "#7E72A8", "#6E5FA8", "#544A
 
 const HEALTHY_MAX_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.healthyMax]));
 
+// Empirical staleness tiers (see the "Stale 2.0" saved report). Each open stage's
+// age is graded against how long deals that eventually closed spent in that stage.
+export type AgeTier = "on" | "watch" | "concerning" | "stale";
+
+export interface StageBenchmark {
+  wonMedian: number; // median days a Closed-Won deal spent in this stage
+  lostMedian: number | null; // median for Closed Lost (null when no lost history)
+  lostP75: number | null; // 75th percentile for Closed Lost
+}
+
+export type BenchmarkMap = Map<number, StageBenchmark>; // keyed by stage prefix 0-5
+
+// Lower rank = more urgent; used to sort the at-risk list by severity.
+export const TIER_RANK: Record<AgeTier, number> = { stale: 0, concerning: 1, watch: 2, on: 3 };
+
+// Grades an open deal's days-in-stage against its stage benchmark. Cascades
+// on -> watch -> concerning -> stale. Null lost thresholds are skipped (a deal
+// past the won median in a stage with no lost history escalates to stale).
+// Falls back to the hardcoded healthy age when the stage has no benchmark at all.
+export function classifyTier(
+  daysInStage: number,
+  stagePrefix: number,
+  benchmark: StageBenchmark | undefined,
+): AgeTier {
+  if (!benchmark) {
+    const max = HEALTHY_MAX_BY_PREFIX.get(stagePrefix) ?? Infinity;
+    return daysInStage > max ? "stale" : "on";
+  }
+  if (daysInStage <= benchmark.wonMedian) return "on";
+  if (benchmark.lostMedian != null && daysInStage <= benchmark.lostMedian) return "watch";
+  if (benchmark.lostP75 != null && daysInStage <= benchmark.lostP75) return "concerning";
+  return "stale";
+}
+
 // A single open opportunity, rep-attributed. daysInStage / overdueClose are
 // derived from stage_history + close_date in the fetch layer.
 export interface OpenOppRow {
@@ -80,7 +114,7 @@ export interface OppView {
 }
 
 // Maps the caller's open opps to display rows (stage name, source segment, health),
-// sorted by weighted $ (highest-value first).
+// sorted by minimum commitment (largest first).
 export function buildOppViews(opps: PipelineOpp[]): OppView[] {
   return opps
     .map((o) => ({
@@ -98,7 +132,7 @@ export function buildOppViews(opps: PipelineOpp[]): OppView[] {
       health: classifyHealth(o),
       detailsLink: o.detailsLink,
     }))
-    .sort((a, b) => b.weighted - a.weighted);
+    .sort((a, b) => b.minPurchase - a.minPurchase);
 }
 
 export interface Coverage {
