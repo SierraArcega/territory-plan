@@ -5,6 +5,13 @@
 
 export type SegmentKey = "return" | "new" | "winback" | "expansion";
 
+// Generic segment value shape used by charts and cards.
+export interface Segment {
+  key: string;
+  label: string;
+  value: number;
+}
+
 export interface SegmentDef {
   key: SegmentKey;
   category: string; // DOA `category` value (closed-won-history derived)

@@ -5,7 +5,7 @@ import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/l
 import StatCardShell from "./StatCardShell";
 import RankPill from "./RankPill";
 import SegmentLegend from "./charts/SegmentLegend";
-import type { Segment } from "./charts/SegmentBar";
+import type { Segment } from "@/features/home/lib/segments";
 
 interface TargetsCardProps {
   fy: number;

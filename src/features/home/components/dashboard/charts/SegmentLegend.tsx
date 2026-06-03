@@ -1,13 +1,12 @@
 "use client";
 
 import { SEGMENT_COLORS } from "@/features/home/lib/segments";
-import type { Segment } from "./SegmentBar";
+import type { Segment } from "@/features/home/lib/segments";
 
 const colorFor = (key: string) => SEGMENT_COLORS[key as keyof typeof SEGMENT_COLORS] ?? "#8A80A8";
 
-// Vertical source legend (● name … value %) for the unified stat cards. Pairs with
-// SegmentBar (the bar stays; this replaces the bar's inline wrap legend on these
-// cards). Percent is share of the segment total, rounded.
+// Vertical source legend (● name … value %) for the unified stat cards.
+// Percent is share of the segment total, rounded.
 export default function SegmentLegend({
   segments,
   format,
