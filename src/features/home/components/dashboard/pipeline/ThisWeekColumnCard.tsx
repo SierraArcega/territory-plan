@@ -26,7 +26,6 @@ export default function ThisWeekColumnCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? column.deals : column.deals.slice(0, TOP_N);
-  const hidden = column.deals.length - visible.length;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -74,13 +73,13 @@ export default function ThisWeekColumnCard({
         </ul>
       )}
 
-      {hidden > 0 && (
+      {column.deals.length > TOP_N && (
         <button
           type="button"
-          onClick={() => setExpanded(true)}
+          onClick={() => setExpanded((e) => !e)}
           className="self-start text-xs font-medium text-[#F37167] hover:underline"
         >
-          Show {hidden} more
+          {expanded ? "Show less" : `Show ${column.deals.length - TOP_N} more`}
         </button>
       )}
     </div>

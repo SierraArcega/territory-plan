@@ -23,6 +23,9 @@ describe("ThisWeekColumnCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /show 2 more/i }));
     expect(screen.getByText("Acct 5")).toBeInTheDocument();
     expect(screen.getByText("Acct 6")).toBeInTheDocument();
+    // Collapses back to the top 5.
+    fireEvent.click(screen.getByRole("button", { name: /show less/i }));
+    expect(screen.queryByText("Acct 5")).not.toBeInTheDocument();
   });
 
   it("omits null tags without leaving a stray separator", () => {
