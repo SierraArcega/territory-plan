@@ -1,8 +1,19 @@
 "use client";
 
 import { useTopline, useSparklines } from "@/features/home/lib/queries";
+import type { ToplineMetricKey } from "@/features/home/lib/topline";
 import StatCard from "./StatCard";
 import TargetsCard from "./TargetsCard";
+
+// Plain-English metric definitions for the (i) tooltip — no formulas/IDs (reps,
+// not engineers). Describe what's shown today (P1 headline = net booking).
+const METRIC_TOOLTIPS: Record<ToplineMetricKey, string> = {
+  openPipeline:
+    "Open opportunities you're actively working, by net booking value. Min commit and max budget are the contractual floor and ceiling across those deals.",
+  bookings: "Closed-won bookings you've landed this fiscal year.",
+  revenue: "Recognized revenue — delivered as customers use their sessions, plus what's scheduled but not yet delivered.",
+  take: "Your margin contribution — the share of revenue left after delivery cost, delivered plus scheduled.",
+};
 
 interface ToplineStatStripProps {
   fy: number;
@@ -39,6 +50,7 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
           <StatCard
             key={card.metricKey}
             label={card.label}
+            labelTooltip={METRIC_TOOLTIPS[card.metricKey]}
             value={card.value}
             rank={card.rank}
             totalReps={card.totalReps}

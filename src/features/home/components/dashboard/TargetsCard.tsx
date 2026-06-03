@@ -44,6 +44,7 @@ export default function TargetsCard({ fy }: TargetsCardProps) {
   return (
     <StatCardShell
       label="Targets"
+      labelTooltip="Districts you're actively working this fiscal year — your target list. Tracks the funnel before pipeline: target → converted (has an open opp) → active."
       value={formatNumber(total)}
       minMaxLine={<span>districts being worked</span>}
       footerRight={<RankPill rank={card.rank} totalReps={card.totalReps} inRoster={card.inRoster} />}

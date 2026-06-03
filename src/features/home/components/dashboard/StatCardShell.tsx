@@ -6,6 +6,7 @@ import { deltaColor } from "@/features/home/lib/delta";
 
 interface StatCardShellProps {
   label: string;
+  labelTooltip?: string;         // plain-English definition shown on the (i) hover
   value: string;                 // pre-formatted headline (currency or count)
   deltaPct?: number | null;      // YoY → chip beside the value
   priorFyLabel?: string;         // e.g. "FY26" for the secondary line
@@ -22,6 +23,7 @@ interface StatCardShellProps {
 // detail modal in Phase 4).
 export default function StatCardShell({
   label,
+  labelTooltip,
   value,
   deltaPct,
   priorFyLabel,
@@ -42,8 +44,12 @@ export default function StatCardShell({
         <ArrowUpRight size={15} />
       </span>
 
-      <span className="pr-5 text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">
-        {label}
+      <span
+        className="pr-5 text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap"
+        title={labelTooltip}
+      >
+        <span>{label}</span>
+        {labelTooltip && <span aria-hidden="true" className="ml-1 text-[#C2BBD4]">ⓘ</span>}
       </span>
 
       <div className="flex items-baseline gap-2">

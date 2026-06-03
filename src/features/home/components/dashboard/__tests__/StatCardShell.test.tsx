@@ -40,4 +40,16 @@ describe("StatCardShell", () => {
     );
     expect(screen.getByText("max budget $1.6M")).toBeInTheDocument();
   });
+
+  it("shows an (i) affordance with the definition as a title when labelTooltip is given", () => {
+    render(<StatCardShell label="Open Pipeline" labelTooltip="Open opps you're working." value="$840K"><div>b</div></StatCardShell>);
+    expect(screen.getByText("Open Pipeline")).toBeInTheDocument();
+    expect(screen.getByTitle("Open opps you're working.")).toBeInTheDocument();
+    expect(screen.getByText("ⓘ")).toBeInTheDocument();
+  });
+
+  it("omits the (i) affordance when no labelTooltip is given", () => {
+    render(<StatCardShell label="Targets" value="103"><div>b</div></StatCardShell>);
+    expect(screen.queryByText("ⓘ")).toBeNull();
+  });
 });

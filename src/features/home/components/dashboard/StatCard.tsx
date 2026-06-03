@@ -10,6 +10,7 @@ import Sparkline from "./charts/Sparkline";
 
 interface StatCardProps {
   label: string;
+  labelTooltip?: string;
   value: number;
   rank: number;
   totalReps: number;
@@ -25,7 +26,7 @@ interface StatCardProps {
 // YoY/WoW deltas, optional open-pipeline min/max line, vertical source legend,
 // sparkline, and the rank pill.
 export default function StatCard({
-  label, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, wow, pipelineDetail,
+  label, labelTooltip, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, wow, pipelineDetail,
 }: StatCardProps) {
   const yoyPct = sparkline?.yoy != null ? Math.round(sparkline.yoy * 100) : null;
   const wowPct = wow != null ? Math.round(wow * 100) : null;
@@ -51,6 +52,7 @@ export default function StatCard({
   return (
     <StatCardShell
       label={label}
+      labelTooltip={labelTooltip}
       value={formatCurrency(value, true)}
       deltaPct={yoyPct}
       priorFyLabel={priorFyLabel}
