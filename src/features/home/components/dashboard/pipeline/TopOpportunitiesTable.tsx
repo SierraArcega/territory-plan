@@ -3,7 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { OppView } from "@/features/home/lib/pipeline";
-import { HEALTH_STYLE, sourceLabel, sourceColor, fmtShortDate } from "./health";
+import { TIER_STYLE, sourceLabel, sourceColor, fmtShortDate } from "./health";
 
 const fmt = (v: number) => formatCurrency(v, true);
 
@@ -36,7 +36,7 @@ export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
             </thead>
             <tbody>
               {opps.map((o, i) => {
-                const h = HEALTH_STYLE[o.health];
+                const h = TIER_STYLE[o.tier];
                 return (
                   <tr key={`${o.account}-${i}`} className="border-t border-[#E2DEEC]">
                     <td className="py-2 pr-3">
@@ -68,8 +68,15 @@ export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
                     <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(o.closeDate)}</td>
                     <td className="py-2 pr-3 text-right text-[12px] tabular-nums text-[#5C5378]">{Math.round(o.daysInStage)}d</td>
                     <td className="py-2">
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" style={{ color: h.color, background: h.bg }}>
-                        {h.label}
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: h.color, background: h.bg }}>
+                          {h.label}
+                        </span>
+                        {o.overdue && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-[#F37167]" style={{ background: "rgba(243,113,103,0.12)" }}>
+                            Overdue
+                          </span>
+                        )}
                       </span>
                     </td>
                   </tr>

@@ -3,13 +3,13 @@
 import { ExternalLink } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { OppView } from "@/features/home/lib/pipeline";
-import { HEALTH_STYLE } from "./health";
+import { TIER_STYLE } from "./health";
 
 const fmt = (v: number) => formatCurrency(v, true);
 
 function reason(o: OppView): string {
-  if (o.health === "slip") return "Close date passed";
-  return `Stalled ${Math.round(o.daysInStage)}d in ${o.stageName}`;
+  const base = `${TIER_STYLE[o.tier].label} · ${Math.round(o.daysInStage)}d in ${o.stageName}`;
+  return o.overdue ? `${base} · close date passed` : base;
 }
 
 // At-risk deals: the stalled / slipped subset of the open book, most-valuable first.
@@ -26,7 +26,7 @@ export default function AtRiskCard({ atRisk }: { atRisk: OppView[] }) {
       ) : (
         <ul className="flex flex-col divide-y divide-[#E2DEEC]">
           {atRisk.map((o, i) => {
-            const h = HEALTH_STYLE[o.health];
+            const h = TIER_STYLE[o.tier];
             return (
               <li key={`${o.account}-${i}`} className="flex items-center gap-2 py-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: h.color }} />

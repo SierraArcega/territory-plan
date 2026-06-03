@@ -1,11 +1,12 @@
 // Shared display metadata for deal health + source segment on the pipeline tab.
 import { SEGMENT_DEFS, SEGMENT_COLORS, type SegmentKey } from "@/features/home/lib/segments";
-import type { DealHealth } from "@/features/home/lib/pipeline";
+import type { AgeTier } from "@/features/home/lib/pipeline";
 
-export const HEALTH_STYLE: Record<DealHealth, { label: string; color: string; bg: string }> = {
+export const TIER_STYLE: Record<AgeTier, { label: string; color: string; bg: string }> = {
   on: { label: "On track", color: "#2E7D5B", bg: "rgba(46,125,91,0.10)" },
-  stall: { label: "Stalled", color: "#C77C2E", bg: "rgba(199,124,46,0.12)" },
-  slip: { label: "Slipped", color: "#F37167", bg: "rgba(243,113,103,0.12)" },
+  watch: { label: "Watch", color: "#C7A02E", bg: "rgba(199,160,46,0.12)" },
+  concerning: { label: "Concerning", color: "#C77C2E", bg: "rgba(199,124,46,0.12)" },
+  stale: { label: "Stale", color: "#F37167", bg: "rgba(243,113,103,0.12)" },
 };
 
 const SOURCE_LABEL = new Map(SEGMENT_DEFS.map((d) => [d.key, d.label]));
