@@ -66,11 +66,7 @@ export default function StatCardShell({
         </div>
       )}
 
-      {minMaxLine && (
-        <div className="flex items-center justify-between gap-2 text-[10px] text-[#8A80A8] whitespace-nowrap">
-          {minMaxLine}
-        </div>
-      )}
+      {minMaxLine && <div className="text-[10px] text-[#8A80A8]">{minMaxLine}</div>}
 
       {children}
 

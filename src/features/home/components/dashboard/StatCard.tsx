@@ -32,7 +32,7 @@ export default function StatCard({
   const detail = pipelineDetail && pipelineDetail.oppCount > 0 ? pipelineDetail : null;
 
   const minMaxLine = detail ? (
-    <>
+    <div className="flex flex-col gap-0.5 whitespace-nowrap">
       <span>
         <span className="font-semibold text-[#5C5378]">{detail.oppCount}</span> open{" "}
         {detail.oppCount === 1 ? "opp" : "opps"}
@@ -45,7 +45,7 @@ export default function StatCard({
         <span className="mx-1 text-[#D4CFE2]">·</span>
         max budget <span className="font-semibold text-[#403770]">{formatCurrency(detail.maxBudget, true)}</span>
       </span>
-    </>
+    </div>
   ) : undefined;
 
   return (
