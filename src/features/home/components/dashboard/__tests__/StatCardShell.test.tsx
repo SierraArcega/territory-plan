@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import StatCardShell from "../StatCardShell";
 
 describe("StatCardShell", () => {
@@ -41,15 +41,17 @@ describe("StatCardShell", () => {
     expect(screen.getByText("max budget $1.6M")).toBeInTheDocument();
   });
 
-  it("shows an (i) affordance with the definition as a title when labelTooltip is given", () => {
+  it("reveals the definition popover on hovering the labelled metric", () => {
     render(<StatCardShell label="Open Pipeline" labelTooltip="Open opps you're working." value="$840K"><div>b</div></StatCardShell>);
     expect(screen.getByText("Open Pipeline")).toBeInTheDocument();
-    expect(screen.getByTitle("Open opps you're working.")).toBeInTheDocument();
-    expect(screen.getByText("ⓘ")).toBeInTheDocument();
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.mouseEnter(screen.getByText("Open Pipeline").parentElement!);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Open opps you're working.");
   });
 
   it("omits the (i) affordance when no labelTooltip is given", () => {
     render(<StatCardShell label="Targets" value="103"><div>b</div></StatCardShell>);
+    expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByText("ⓘ")).toBeNull();
   });
 });

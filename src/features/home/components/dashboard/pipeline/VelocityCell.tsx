@@ -3,6 +3,7 @@
 import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/lib/format";
 import { deltaColor } from "@/features/home/lib/delta";
 import type { VelocityCell as Cell } from "@/features/home/lib/velocity";
+import MetricLabel from "../MetricLabel";
 
 const TOOLTIPS: Record<Cell["metricKey"], string> = {
   closeRate: "Share of your closed opportunities that were won (won ÷ won + lost) this year.",
@@ -31,11 +32,8 @@ function deltaText(delta: number, unit: Cell["deltaUnit"]): string {
 export default function VelocityCell({ cell }: { cell: Cell }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span
-        className="text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap"
-        title={TOOLTIPS[cell.metricKey]}
-      >
-        <span>{cell.label}</span> <span aria-hidden="true" className="text-[#C2BBD4]">ⓘ</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">
+        <MetricLabel tip={TOOLTIPS[cell.metricKey]}>{cell.label}</MetricLabel>
       </span>
 
       <div className="flex items-baseline gap-2">

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { deltaColor } from "@/features/home/lib/delta";
+import MetricLabel from "./MetricLabel";
 
 interface StatCardShellProps {
   label: string;
@@ -44,12 +45,8 @@ export default function StatCardShell({
         <ArrowUpRight size={15} />
       </span>
 
-      <span
-        className="pr-5 text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap"
-        title={labelTooltip}
-      >
-        <span>{label}</span>
-        {labelTooltip && <span aria-hidden="true" className="ml-1 text-[#C2BBD4]">ⓘ</span>}
+      <span className="pr-5 text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] whitespace-nowrap">
+        {labelTooltip ? <MetricLabel tip={labelTooltip}>{label}</MetricLabel> : label}
       </span>
 
       <div className="flex items-baseline gap-2">
