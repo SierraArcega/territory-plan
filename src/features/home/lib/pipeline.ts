@@ -42,56 +42,6 @@ export function isStalled(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStage">):
   return opp.daysInStage > (HEALTHY_MAX_BY_PREFIX.get(opp.stagePrefix) ?? Infinity);
 }
 
-export interface StageHealth {
-  prefix: number;
-  name: string;
-  weight: number;
-  count: number;
-  atStake: number; // Σ net booking (caller)
-  weighted: number; // Σ net booking × stage weight
-  avgAge: number; // mean days-in-stage
-  stalled: number; // count flagged stale
-  rank: number; // caller's rank vs team by $ at-stake in this stage
-  totalReps: number;
-}
-
-// Per-stage rollup of the caller's open book, with the caller ranked against all
-// reps by $ at-stake within each stage. Returns all six stages in funnel order.
-export function buildStageHealth(
-  opps: OpenOppRow[],
-  reps: { id: string; email: string }[],
-  callerId: string,
-): StageHealth[] {
-  const callerEmail = reps.find((r) => r.id === callerId)?.email ?? null;
-
-  return PIPELINE_STAGES.map(({ prefix, name, weight }) => {
-    const inStage = opps.filter((o) => o.stagePrefix === prefix);
-
-    // Rank every rep by their $ at-stake in this stage.
-    const atStakeByEmail = new Map<string, number>();
-    for (const o of inStage) atStakeByEmail.set(o.email, (atStakeByEmail.get(o.email) ?? 0) + o.netBooking);
-    const ranking = rankReps(reps.map((r) => ({ id: r.id, email: r.email, value: atStakeByEmail.get(r.email) ?? 0 })));
-    const rank = ranking.ranked.find((r) => r.id === callerId)?.rank ?? ranking.totalReps + 1;
-
-    const callerOpps = callerEmail ? inStage.filter((o) => o.email === callerEmail) : [];
-    const atStake = callerOpps.reduce((sum, o) => sum + o.netBooking, 0);
-    const avgAge = callerOpps.length ? callerOpps.reduce((sum, o) => sum + o.daysInStage, 0) / callerOpps.length : 0;
-
-    return {
-      prefix,
-      name,
-      weight,
-      count: callerOpps.length,
-      atStake,
-      weighted: atStake * weight,
-      avgAge,
-      stalled: callerOpps.filter(isStalled).length,
-      rank,
-      totalReps: ranking.totalReps,
-    };
-  });
-}
-
 // An open opp with the display fields the top-opportunities table needs.
 export interface PipelineOpp extends OpenOppRow {
   account: string | null;
@@ -110,30 +60,6 @@ export function classifyHealth(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStag
   if (opp.overdueClose) return "slip";
   if (isStalled(opp)) return "stall";
   return "on";
-}
-
-export interface StageGroup {
-  prefix: number;
-  name: string;
-  count: number;
-  min: number; // Σ min commit in this stage
-  max: number; // Σ max budget
-}
-
-// Groups the caller's open opps into the 6 funnel stages (optionally filtered to one
-// source segment), summing min/max. Powers the structural funnel + source filter.
-export function groupOppsByStage(opps: OppView[], source: SegmentKey | "all"): StageGroup[] {
-  const filtered = source === "all" ? opps : opps.filter((o) => o.source === source);
-  return PIPELINE_STAGES.map(({ prefix, name }) => {
-    const inStage = filtered.filter((o) => o.stagePrefix === prefix);
-    return {
-      prefix,
-      name,
-      count: inStage.length,
-      min: inStage.reduce((s, o) => s + o.minPurchase, 0),
-      max: inStage.reduce((s, o) => s + o.maxBudget, 0),
-    };
-  });
 }
 
 export interface OppView {

@@ -13,10 +13,17 @@ const mockHook = vi.mocked(usePipeline);
 
 const STAGES = ["Meeting Booked", "Discovery", "Presentation", "Proposal", "Negotiation", "Commitment"];
 const byStage = STAGES.map((name, i) => ({ prefix: i, name, min: i === 4 ? 80 : 0, max: i === 4 ? 200 : 0 }));
-const stageHealth = STAGES.map((name, i) => ({
-  prefix: i, name, weight: 0.5, count: i === 4 ? 2 : 0, atStake: i === 4 ? 150 : 0,
-  weighted: i === 4 ? 112.5 : 0, avgAge: i === 4 ? 25 : 0, stalled: i === 4 ? 1 : 0, rank: 2, totalReps: 2,
-}));
+const funnel = {
+  stages: STAGES.map((name, i) => ({ prefix: i, name, count: i === 4 ? 2 : 0, min: i === 4 ? 80 : 0, max: i === 4 ? 200 : 0, teamMin: i === 4 ? 80 : 0, sharePct: i === 4 ? 100 : 0 })),
+  sources: [
+    { key: "return", label: "Return", color: "#403770", you: 80, team: 80, pct: 100 },
+    { key: "new", label: "New biz", color: "#F37167", you: 0, team: 0, pct: 0 },
+    { key: "winback", label: "Win-back", color: "#6EA3BE", you: 0, team: 0, pct: 0 },
+    { key: "expansion", label: "Expansion", color: "#FFCF70", you: 0, team: 0, pct: 0 },
+  ],
+  openCount: 2, totalMin: 80, totalMax: 200, spread: 120, teamMinTotal: 80, overallSharePct: 100, rank: 2, totalReps: 2,
+  targets: { count: 0, min: 0, max: 0, teamMin: 0, sharePct: 0 },
+};
 const oppView = (p: Record<string, unknown>) => ({
   account: "Acct", state: "NY", source: "return", stageName: "Negotiation", stagePrefix: 4,
   netBooking: 100, minPurchase: 80, maxBudget: 200, weighted: 75, closeDate: null, daysInStage: 40, health: "on", ...p,
@@ -24,7 +31,7 @@ const oppView = (p: Record<string, unknown>) => ({
 const data = {
   fy: 2026, schoolYr: "2025-26", inRoster: true,
   coverage: { minCommit: 90, maxBudget: 260, openCount: 2, weightedPipeline: 77, gap: 400, coverageMin: 0.225, coverageMax: 0.65, byStage, wonBookings: 600, fyTarget: 1000 },
-  stageHealth,
+  funnel,
   opps: [oppView({ account: "Brookfield CSD", health: "on" }), oppView({ account: "Riverside USD", health: "stall" })],
   atRisk: [oppView({ account: "Riverside USD", health: "stall" })],
   thisWeek: { won: 2, lost: 1, created: 3 },
@@ -36,11 +43,11 @@ const result = (over: Record<string, unknown>) => ({ data: undefined, isLoading:
 describe("PipelineSection", () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it("renders the coverage and stage-health cards from the payload", () => {
+  it("renders the coverage and stage-funnel cards from the payload", () => {
     mockHook.mockReturnValue(result({ data }));
     render(<PipelineSection fy={2026} />);
     expect(screen.getByText("Coverage")).toBeTruthy();
-    expect(screen.getByText("Stage health")).toBeTruthy();
+    expect(screen.getByText("Stage funnel")).toBeTruthy();
     expect(screen.getByText("Top open opportunities")).toBeTruthy();
     expect(screen.getByText("Top targets not in pipeline")).toBeTruthy();
     expect(screen.getByText("This week")).toBeTruthy();

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildStageHealth, buildCoverage, classifyHealth, buildOppViews, groupOppsByStage,
+  buildCoverage, classifyHealth, buildOppViews,
   buildFunnel, buildTargetsRow,
   PIPELINE_STAGES, type OpenOppRow, type PipelineOpp, type OppView, type TargetRepAgg,
 } from "../pipeline";
@@ -22,41 +22,6 @@ describe("PIPELINE_STAGES", () => {
     ]);
     expect(PIPELINE_STAGES.map((s) => s.weight)).toEqual([0.05, 0.1, 0.25, 0.5, 0.75, 0.9]);
     expect(PIPELINE_STAGES.map((s) => s.healthyMax)).toEqual([14, 28, 32, 35, 28, 14]);
-  });
-});
-
-describe("buildStageHealth", () => {
-  const opps = [
-    opp({ email: "me@x", stagePrefix: 4, netBooking: 100, daysInStage: 10 }), // healthy (≤28)
-    opp({ email: "me@x", stagePrefix: 4, netBooking: 50, daysInStage: 40 }), // stalled (>28)
-    opp({ email: "u2@x", stagePrefix: 4, netBooking: 300, daysInStage: 5 }),
-    opp({ email: "me@x", stagePrefix: 1, netBooking: 20, daysInStage: 3 }),
-  ];
-
-  it("returns all six stages in order", () => {
-    const out = buildStageHealth(opps, reps, "me");
-    expect(out.map((s) => s.name)).toEqual([
-      "Meeting Booked", "Discovery", "Presentation", "Proposal", "Negotiation", "Commitment",
-    ]);
-  });
-
-  it("rolls up the caller's count, $ at-stake, weighted $, avg age, and stalled count per stage", () => {
-    const out = buildStageHealth(opps, reps, "me");
-    const neg = out.find((s) => s.name === "Negotiation")!;
-    expect(neg).toMatchObject({
-      count: 2,
-      atStake: 150, // 100 + 50
-      weighted: 112.5, // 150 * 0.75
-      avgAge: 25, // (10 + 40) / 2
-      stalled: 1, // one over the 28d Negotiation healthy age
-    });
-  });
-
-  it("ranks the caller against the team by $ at-stake within each stage", () => {
-    const out = buildStageHealth(opps, reps, "me");
-    expect(out.find((s) => s.name === "Negotiation")!.rank).toBe(2); // me 150 < u2 300
-    expect(out.find((s) => s.name === "Discovery")!.rank).toBe(1); // me 20 > u2 0
-    expect(out.find((s) => s.name === "Negotiation")!.totalReps).toBe(2);
   });
 });
 
@@ -111,31 +76,6 @@ describe("buildOppViews", () => {
   it("leaves source null when the opp has no category", () => {
     const views = buildOppViews([pipeOpp({ account: "X", category: undefined, stagePrefix: 1, netBooking: 10 })]);
     expect(views[0].source).toBeNull();
-  });
-});
-
-describe("groupOppsByStage", () => {
-  const view = (p: Partial<OppView>): OppView => ({
-    account: null, state: null, source: "return", stageName: "", stagePrefix: 0,
-    netBooking: 0, minPurchase: 0, maxBudget: 0, weighted: 0, closeDate: null,
-    daysInStage: 0, health: "on", ...p,
-  });
-  const views = [
-    view({ source: "return", stagePrefix: 4, minPurchase: 80, maxBudget: 200 }),
-    view({ source: "new", stagePrefix: 4, minPurchase: 40, maxBudget: 120 }),
-    view({ source: "return", stagePrefix: 1, minPurchase: 10, maxBudget: 60 }),
-  ];
-
-  it("sums min/max and counts per stage across all sources", () => {
-    const g = groupOppsByStage(views, "all");
-    expect(g.find((s) => s.name === "Negotiation")).toMatchObject({ count: 2, min: 120, max: 320 });
-    expect(g.find((s) => s.name === "Discovery")).toMatchObject({ count: 1, min: 10, max: 60 });
-    expect(g).toHaveLength(6);
-  });
-
-  it("filters to a single source", () => {
-    const g = groupOppsByStage(views, "return");
-    expect(g.find((s) => s.name === "Negotiation")).toMatchObject({ count: 1, min: 80, max: 200 });
   });
 });
 

@@ -47,6 +47,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
       wonBookings: 600,
       fyTarget: 1000,
       thisWeek: { won: 1, lost: 0, created: 2 },
+      targetsByRep: [],
     } as never);
 
     const res = await GET(req("2026"));
@@ -55,9 +56,9 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(res.status).toBe(200);
     expect(body.fy).toBe(2026);
     expect(body.coverage).toMatchObject({ minCommit: 90, maxBudget: 260, gap: 400, wonBookings: 600, fyTarget: 1000 });
-    expect(body.stageHealth).toHaveLength(6);
-    // caller is #2 in Negotiation (100 < u2 300)
-    expect(body.stageHealth.find((s: { name: string }) => s.name === "Negotiation").rank).toBe(2);
+    expect(body.funnel.stages).toHaveLength(6);
+    // caller has one open opp in Negotiation (the 40d stall); the other open opp is in Discovery
+    expect(body.funnel.stages.find((s: { name: string }) => s.name === "Negotiation").count).toBe(1);
     expect(body.opps).toHaveLength(2); // caller-only
     expect(body.opps[0].stageName).toBe("Negotiation"); // weighted 75 > 2
     expect(body.atRisk.map((o: { health: string }) => o.health)).toEqual(["stall"]); // the 40d Negotiation opp
@@ -72,7 +73,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
       oppRow({ email: "me@x", stagePrefix: 5, netBooking: 1000, daysInStage: 1 }), // high weighted, on-track
     );
     const lowValueAtRisk = oppRow({ email: "me@x", stagePrefix: 0, netBooking: 1, daysInStage: 1, overdueClose: true }); // sorts last, slip
-    mockFetch.mockResolvedValue({ openOpps: [...healthy, lowValueAtRisk], wonBookings: 0, fyTarget: 1000, thisWeek: { won: 0, lost: 0, created: 0 } } as never);
+    mockFetch.mockResolvedValue({ openOpps: [...healthy, lowValueAtRisk], wonBookings: 0, fyTarget: 1000, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [] } as never);
 
     const body = await (await GET(req("2026"))).json();
     expect(body.opps).toHaveLength(50); // capped
@@ -82,7 +83,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
   it("flags a caller outside the active-rep roster as not in roster", async () => {
     mockGetUser.mockResolvedValue({ id: "admin", email: "admin@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
-    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 0, lost: 0, created: 0 } } as never);
+    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [] } as never);
     const body = await (await GET(req("2026"))).json();
     expect(body.inRoster).toBe(false);
   });
@@ -90,7 +91,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
   it("omits this-week movement for a non-current fiscal year", async () => {
     mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
-    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 } } as never);
+    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 }, targetsByRep: [] } as never);
     const body = await (await GET(req("2024"))).json(); // past FY
     expect(body.thisWeek).toBeNull();
   });
