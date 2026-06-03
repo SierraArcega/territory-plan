@@ -1,7 +1,6 @@
 "use client";
 
 import { usePipeline } from "@/features/home/lib/queries";
-import CoverageCard from "./CoverageCard";
 import StageFunnelCard from "./StageFunnelCard";
 import TopOpportunitiesTable from "./TopOpportunitiesTable";
 import AtRiskCard from "./AtRiskCard";
@@ -47,7 +46,6 @@ export default function PipelineSection({ fy }: { fy: number }) {
     <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col gap-5">
-        <CoverageCard coverage={data.coverage} />
         <StageFunnelCard funnel={data.funnel} opps={data.opps} />
         {data.thisWeek && <ThisWeekSection thisWeek={data.thisWeek} />}
         <TopOpportunitiesTable opps={data.opps} />

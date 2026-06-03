@@ -18,6 +18,7 @@ const funnel: FunnelData = {
   openCount: 3, totalMin: 110000, totalMax: 300000, spread: 190000,
   teamMinTotal: 120000, overallSharePct: 92, rank: 1, totalReps: 12,
   targets: { count: 5, value: 120000, teamValue: 200000, sharePct: 60 },
+  won: { prefix: 6, name: "Closed Won", count: 1, min: 50000, max: 150000, teamMin: 60000, sharePct: 83 },
 };
 const opps: OppView[] = [];
 

@@ -23,18 +23,24 @@ const funnel = {
   ],
   openCount: 2, totalMin: 80, totalMax: 200, spread: 120, teamMinTotal: 80, overallSharePct: 100, rank: 2, totalReps: 2,
   targets: { count: 0, value: 0, teamValue: 0, sharePct: 0 },
+  won: { prefix: 6, name: "Closed Won", count: 0, min: 0, max: 0, teamMin: 0, sharePct: 0 },
 };
+const twCol = (count: number) => ({
+  count,
+  total: count * 1000,
+  deals: Array.from({ length: count }, (_, i) => ({ account: `D${i}`, value: 1000, motion: "Return", product: "Tutoring", stage: "Discovery" })),
+});
 const oppView = (p: Record<string, unknown>) => ({
   account: "Acct", state: "NY", source: "return", stageName: "Negotiation", stagePrefix: 4,
-  netBooking: 100, minPurchase: 80, maxBudget: 200, weighted: 75, closeDate: null, daysInStage: 40, health: "on", ...p,
+  netBooking: 100, minPurchase: 80, maxBudget: 200, weighted: 75, closeDate: null, daysInStage: 40, tier: "on", overdue: false, ...p,
 });
 const data = {
   fy: 2026, schoolYr: "2025-26", inRoster: true,
   coverage: { minCommit: 90, maxBudget: 260, openCount: 2, weightedPipeline: 77, gap: 400, coverageMin: 0.225, coverageMax: 0.65, byStage, wonBookings: 600, fyTarget: 1000 },
   funnel,
-  opps: [oppView({ account: "Brookfield CSD", health: "on" }), oppView({ account: "Riverside USD", health: "stall" })],
-  atRisk: [oppView({ account: "Riverside USD", health: "stall" })],
-  thisWeek: { won: 2, lost: 1, created: 3 },
+  opps: [oppView({ account: "Brookfield CSD", tier: "on" }), oppView({ account: "Riverside USD", tier: "stale" })],
+  atRisk: [oppView({ account: "Riverside USD", tier: "stale" })],
+  thisWeek: { won: twCol(2), lost: twCol(1), created: twCol(3) },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,7 +52,6 @@ describe("PipelineSection", () => {
   it("renders the coverage and stage-funnel cards from the payload", () => {
     mockHook.mockReturnValue(result({ data }));
     render(<PipelineSection fy={2026} />);
-    expect(screen.getByText("Coverage")).toBeTruthy();
     expect(screen.getByText("Stage funnel")).toBeTruthy();
     expect(screen.getByText("Top open opportunities")).toBeTruthy();
     expect(screen.getByText("Top targets not in pipeline")).toBeTruthy();
@@ -67,7 +72,7 @@ describe("PipelineSection", () => {
     mockHook.mockReturnValue(result({ data: { ...data, thisWeek: null } }));
     render(<PipelineSection fy={2024} />);
     expect(screen.queryByText("This week")).toBeNull();
-    expect(screen.getByText("Coverage")).toBeTruthy(); // rest still renders
+    expect(screen.getByText("Stage funnel")).toBeTruthy(); // rest still renders
   });
 
   it("shows skeletons while loading", () => {
