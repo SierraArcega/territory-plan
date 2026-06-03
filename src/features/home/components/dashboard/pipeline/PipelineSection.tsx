@@ -5,7 +5,7 @@ import CoverageCard from "./CoverageCard";
 import StageFunnelCard from "./StageFunnelCard";
 import TopOpportunitiesTable from "./TopOpportunitiesTable";
 import AtRiskCard from "./AtRiskCard";
-import ThisWeekCard from "./ThisWeekCard";
+import ThisWeekSection from "./ThisWeekSection";
 import TopTargetsCard from "./TopTargetsCard";
 
 // Pipeline tab body — owns the pipeline query and lays out its cards.
@@ -49,12 +49,12 @@ export default function PipelineSection({ fy }: { fy: number }) {
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <CoverageCard coverage={data.coverage} />
         <StageFunnelCard funnel={data.funnel} opps={data.opps} />
+        {data.thisWeek && <ThisWeekSection thisWeek={data.thisWeek} />}
         <TopOpportunitiesTable opps={data.opps} />
         <TopTargetsCard />
       </div>
       {/* Right rail (stacks under the main column when narrow) */}
       <div className="flex w-full shrink-0 flex-col gap-5 lg:w-[320px]">
-        {data.thisWeek && <ThisWeekCard thisWeek={data.thisWeek} />}
         <AtRiskCard atRisk={data.atRisk} />
       </div>
     </div>
