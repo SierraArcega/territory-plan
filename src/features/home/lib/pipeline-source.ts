@@ -74,11 +74,9 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
       WHERE p.fiscal_year = ${fy} AND u.email = ${callerEmail}`,
 
-    // Caller's last-7-days movement across ALL school years (won/lost by close_date,
-    // created by created_at). This is a book-level, tab-independent metric — "your
-    // movement this week" doesn't belong to one FY, so it is NOT scoped by school_yr.
-    // The category (motion tag) is joined on each deal's OWN school_yr so it stays
-    // correct regardless of which FY tab is open. One rep x 7 days -> a handful of rows.
+    // Caller's last-7-days movement, as deal rows (won/lost by close_date, created
+    // by created_at). Bucketing + sign + totals happen in buildThisWeek. One rep x
+    // 7 days -> a handful of rows, so no server-side pagination.
     prisma.$queryRaw<ThisWeekDealRow[]>`
       SELECT o.district_name AS account,
              o.net_booking_amount::float AS value,
@@ -88,11 +86,9 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
              o.created_at AS "createdAt",
              o.close_date AS "closeDate"
       FROM opportunities o
-      LEFT JOIN (
-        SELECT DISTINCT district_lea_id, school_yr, category
-        FROM district_opportunity_actuals
-      ) c ON c.district_lea_id = o.district_lea_id AND c.school_yr = o.school_yr
-      WHERE o.sales_rep_email = ${callerEmail}
+      ${categoryJoin(sy)}
+      WHERE o.school_yr = ${sy}
+        AND o.sales_rep_email = ${callerEmail}
         AND o.net_booking_amount IS NOT NULL
         AND (o.created_at >= now() - interval '7 days'
              OR o.close_date >= now() - interval '7 days')`,
