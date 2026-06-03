@@ -12,6 +12,9 @@ vi.mock("@/features/home/components/dashboard/RankTrajectoryCard", () => ({
 vi.mock("@/features/home/components/dashboard/pipeline/PipelineSection", () => ({
   default: () => <div data-testid="pipeline-section" />,
 }));
+vi.mock("@/features/home/components/dashboard/pipeline/VelocityCard", () => ({
+  default: () => <div data-testid="velocity-card" />,
+}));
 
 import DashboardTab from "../DashboardTab";
 import { getCurrentFY } from "@/lib/fiscal-year";

@@ -5,6 +5,7 @@ import { getCurrentFY, fyPills } from "@/lib/fiscal-year";
 import ToplineStatStrip from "./ToplineStatStrip";
 import RankTrajectoryCard from "./RankTrajectoryCard";
 import PipelineSection from "./pipeline/PipelineSection";
+import VelocityCard from "./pipeline/VelocityCard";
 
 // Secondary tab strip below the performance dashboard. Only "pipeline" ships in
 // this milestone (Customer trends + Hygiene are deferred).
@@ -75,7 +76,8 @@ export default function DashboardTab() {
       </div>
 
       {tab === "pipeline" && (
-        <section aria-label="Pipeline">
+        <section aria-label="Pipeline" className="flex flex-col gap-8">
+          <VelocityCard fy={fy} />
           <PipelineSection fy={fy} />
         </section>
       )}
