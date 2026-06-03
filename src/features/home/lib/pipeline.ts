@@ -253,7 +253,31 @@ export interface FunnelData {
   overallSharePct: number;
   rank: number;
   totalReps: number;
-  targets: TargetsRow; // attached by the route via buildTargetsRow (defined in a later task)
+  targets: TargetsRow; // attached by the route via buildTargetsRow
+}
+
+// Per-rep pre-pipe target aggregate (districts on the plan with NO open opp).
+// floorMin = Σ renewal_target (the high-confidence floor); ceilMax = Σ all four
+// target columns (full upside). Produced by the targets query in pipeline-source.
+export interface TargetRepAgg {
+  email: string;
+  count: number;
+  floorMin: number;
+  ceilMax: number;
+}
+
+// The caller's pre-pipe Targets row plus their share of the team's target floor.
+export function buildTargetsRow(byRep: TargetRepAgg[], callerEmail: string): TargetsRow {
+  const mine = byRep.find((r) => r.email === callerEmail);
+  const teamMin = byRep.reduce((s, r) => s + r.floorMin, 0);
+  const min = mine?.floorMin ?? 0;
+  return {
+    count: mine?.count ?? 0,
+    min,
+    max: mine?.ceilMax ?? 0,
+    teamMin,
+    sharePct: teamMin > 0 ? Math.round((min / teamMin) * 100) : 0,
+  };
 }
 
 const pct = (you: number, team: number) => (team > 0 ? Math.round((you / team) * 100) : 0);
