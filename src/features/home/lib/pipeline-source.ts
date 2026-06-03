@@ -8,13 +8,8 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { stagePrefixSql, categoryJoin } from "./trajectory-source";
-import type { PipelineOpp, TargetRepAgg, BenchmarkMap } from "./pipeline";
-
-export interface ThisWeek {
-  won: number; // caller's deals closed-won in the last 7 days
-  lost: number; // closed-lost
-  created: number; // opps created
-}
+import type { PipelineOpp, TargetRepAgg, WonRepAgg, BenchmarkMap, ThisWeek, ThisWeekDealRow } from "./pipeline";
+import { buildThisWeek } from "./pipeline";
 
 export interface PipelineData {
   openOpps: PipelineOpp[]; // all reps (for stage-health ranking); caller-filtered downstream
@@ -22,11 +17,12 @@ export interface PipelineData {
   fyTarget: number; // caller's Σ plan-district targets this FY
   thisWeek: ThisWeek;
   targetsByRep: TargetRepAgg[]; // per-rep pre-pipe targets (no open opp) for the funnel Targets row
+  wonByRep: WonRepAgg[]; // per-rep closed-won min/max for the funnel Closed Won band
   benchmarks: BenchmarkMap; // per-stage win/loss duration benchmarks (all-time)
 }
 
 export async function fetchPipelineData(sy: string, fy: number, callerEmail: string): Promise<PipelineData> {
-  const [openOpps, won, target, week, targetsByRep, benchmarkRows] = await Promise.all([
+  const [openOpps, won, target, weekRows, targetsByRep, wonByRep, benchmarkRows] = await Promise.all([
     // Open opps (stage prefix 0-5) for every rep. days_in_stage = time since the
     // opp entered its current stage (the most recent stage_history entry's
     // changed_at; verified to match the live stage). overdue = a close date
@@ -78,14 +74,24 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
       WHERE p.fiscal_year = ${fy} AND u.email = ${callerEmail}`,
 
-    // Caller's last-7-days movement: won / lost (by close_date) and newly created.
-    prisma.$queryRaw<{ won: number; lost: number; created: number }[]>`
-      SELECT
-        COUNT(*) FILTER (WHERE ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6 AND o.close_date >= now() - interval '7 days')::int AS won,
-        COUNT(*) FILTER (WHERE LOWER(o.stage) = 'closed lost' AND o.close_date >= now() - interval '7 days')::int AS lost,
-        COUNT(*) FILTER (WHERE o.created_at >= now() - interval '7 days')::int AS created
+    // Caller's last-7-days movement, as deal rows (won/lost by close_date, created
+    // by created_at). Bucketing + sign + totals happen in buildThisWeek. One rep x
+    // 7 days -> a handful of rows, so no server-side pagination.
+    prisma.$queryRaw<ThisWeekDealRow[]>`
+      SELECT o.district_name AS account,
+             o.net_booking_amount::float AS value,
+             c.category AS category,
+             o.contract_type AS "contractType",
+             ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",
+             o.created_at AS "createdAt",
+             o.close_date AS "closeDate"
       FROM opportunities o
-      WHERE o.school_yr = ${sy} AND o.sales_rep_email = ${callerEmail}`,
+      ${categoryJoin(sy)}
+      WHERE o.school_yr = ${sy}
+        AND o.sales_rep_email = ${callerEmail}
+        AND o.net_booking_amount IS NOT NULL
+        AND (o.created_at >= now() - interval '7 days'
+             OR o.close_date >= now() - interval '7 days')`,
 
     // Per-rep pre-pipe targets: plan districts (this FY) that HAVE a target set and
     // have NO open opp for that rep. value = Σ all four target columns (estimated
@@ -113,6 +119,21 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
             AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
         )
       GROUP BY u.email`,
+
+    // Per-rep closed-won book (stage prefix ≥6) this school year: deal count + the
+    // floor/ceiling (Σ minimum_purchase / Σ maximum_budget) for the funnel's Closed
+    // Won band. Lost deals are prefix -1, so ≥6 is won-only. Aggregated per rep so
+    // buildWonStage can pick the caller and sum the team for the share %.
+    prisma.$queryRaw<WonRepAgg[]>`
+      SELECT o.sales_rep_email AS email,
+             COUNT(*)::int AS count,
+             COALESCE(SUM(COALESCE(o.minimum_purchase_amount, 0)), 0)::float AS "min",
+             COALESCE(SUM(COALESCE(o.maximum_budget, 0)), 0)::float AS "max"
+      FROM opportunities o
+      WHERE o.school_yr = ${sy}
+        AND o.sales_rep_email IS NOT NULL
+        AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
+      GROUP BY o.sales_rep_email`,
 
     // Per-stage staleness benchmarks (all-time, all reps): median days Closed-Won
     // deals spent in each open stage, plus median + p75 for Closed Lost. Ported
@@ -152,8 +173,9 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
     openOpps,
     wonBookings: won[0]?.won ?? 0,
     fyTarget: target[0]?.target ?? 0,
-    thisWeek: { won: week[0]?.won ?? 0, lost: week[0]?.lost ?? 0, created: week[0]?.created ?? 0 },
+    thisWeek: buildThisWeek(weekRows, Date.now()),
     targetsByRep,
+    wonByRep,
     benchmarks,
   };
 }
