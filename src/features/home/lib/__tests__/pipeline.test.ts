@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildCoverage, classifyHealth, buildOppViews,
+  buildCoverage, buildOppViews,
   buildFunnel, buildTargetsRow, classifyTier,
   buildThisWeek,
   PIPELINE_STAGES, type OpenOppRow, type PipelineOpp, type OppView, type TargetRepAgg,
@@ -65,24 +65,28 @@ describe("buildOppViews", () => {
     daysInStage: 0, overdueClose: false, account: null, state: null, closeDate: null, detailsLink: null, ...p,
   });
 
-  it("sorts the caller's open opps by weighted $ and labels stage/source/health", () => {
-    const views = buildOppViews([
-      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, daysInStage: 5, overdueClose: true }), // weighted 45, slip
-      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, daysInStage: 40 }), // weighted 75, stall (>28)
+  it("sorts the caller's open opps by weighted $ and grades tier + overdue", () => {
+    const benchmarks: BenchmarkMap = new Map([
+      [4, { wonMedian: 20, lostMedian: 35, lostP75: 50 }],
+      [5, { wonMedian: 7, lostMedian: 14, lostP75: 21 }],
     ]);
+    const views = buildOppViews([
+      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, daysInStage: 5, overdueClose: true }), // weighted 45, on but overdue
+      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, daysInStage: 40 }), // weighted 75, concerning (35<40<=50)
+    ], benchmarks);
     expect(views.map((v) => v.account)).toEqual(["A", "B"]); // 75 before 45
-    expect(views[0]).toMatchObject({ stageName: "Negotiation", source: "return", health: "stall" });
-    expect(views[1]).toMatchObject({ stageName: "Commitment", source: "new", health: "slip" });
+    expect(views[0]).toMatchObject({ stageName: "Negotiation", source: "return", tier: "concerning", overdue: false });
+    expect(views[1]).toMatchObject({ stageName: "Commitment", source: "new", tier: "on", overdue: true });
   });
 
   it("leaves source null when the opp has no category", () => {
-    const views = buildOppViews([pipeOpp({ account: "X", category: undefined, stagePrefix: 1, netBooking: 10 })]);
+    const views = buildOppViews([pipeOpp({ account: "X", category: undefined, stagePrefix: 1, netBooking: 10 })], new Map());
     expect(views[0].source).toBeNull();
   });
 
   it("threads the LMS detailsLink through to the view", () => {
     const link = "https://lms.fullmindlearning.com/opportunities/opp-1";
-    const views = buildOppViews([pipeOpp({ account: "X", detailsLink: link })]);
+    const views = buildOppViews([pipeOpp({ account: "X", detailsLink: link })], new Map());
     expect(views[0].detailsLink).toBe(link);
   });
 });
@@ -119,26 +123,6 @@ describe("classifyTier", () => {
     // stagePrefix 0 -> healthyMax 14
     expect(classifyTier(10, 0, undefined)).toBe("on");
     expect(classifyTier(20, 0, undefined)).toBe("stale");
-  });
-});
-
-describe("classifyHealth", () => {
-  it("flags an overdue close date as 'slip' (highest priority, even if young)", () => {
-    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 2, overdueClose: true }))).toBe("slip");
-  });
-
-  it("prefers 'slip' over 'stall' when a deal is BOTH overdue and past its healthy age", () => {
-    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 40, overdueClose: true }))).toBe("slip"); // 40 > 28 AND overdue → slip wins
-  });
-
-  it("flags a deal past its stage's healthy age as 'stall'", () => {
-    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 40, overdueClose: false }))).toBe("stall"); // >28
-    expect(classifyHealth(opp({ stagePrefix: 0, daysInStage: 20, overdueClose: false }))).toBe("stall"); // >14
-  });
-
-  it("flags a deal within its stage's healthy age as 'on'", () => {
-    expect(classifyHealth(opp({ stagePrefix: 4, daysInStage: 20, overdueClose: false }))).toBe("on"); // ≤28
-    expect(classifyHealth(opp({ stagePrefix: 0, daysInStage: 10, overdueClose: false }))).toBe("on"); // ≤14
   });
 });
 
@@ -285,16 +269,20 @@ describe("buildThisWeek", () => {
     expect(w.created.count).toBe(0);
   });
 
-  it("title-cases motion, passes product through, omits nulls", () => {
+  it("maps motion via segment labels, passes product through, omits nulls", () => {
     const rows = [row({ category: "renewal", contractType: "Tutoring", stagePrefix: 1, createdAt: day(-1) })];
     const w = buildThisWeek(rows, NOW);
-    expect(w.created.deals[0].motion).toBe("Renewal");
+    expect(w.created.deals[0].motion).toBe("Return");
     expect(w.created.deals[0].product).toBe("Tutoring");
 
-    const rows2 = [row({ category: null, contractType: null, stagePrefix: 1, createdAt: day(-1) })];
+    const rows2 = [row({ category: "new_business", stagePrefix: 1, createdAt: day(-1) })];
     const w2 = buildThisWeek(rows2, NOW);
-    expect(w2.created.deals[0].motion).toBeNull();
-    expect(w2.created.deals[0].product).toBeNull();
+    expect(w2.created.deals[0].motion).toBe("New biz");
+
+    const rows3 = [row({ category: null, contractType: null, stagePrefix: 1, createdAt: day(-1) })];
+    const w3 = buildThisWeek(rows3, NOW);
+    expect(w3.created.deals[0].motion).toBeNull();
+    expect(w3.created.deals[0].product).toBeNull();
   });
 
   it("sets daysToClose on won deals and stage label on created deals", () => {

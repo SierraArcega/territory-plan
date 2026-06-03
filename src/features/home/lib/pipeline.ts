@@ -70,12 +70,6 @@ export interface OpenOppRow {
   category?: string;
 }
 
-// A deal is "stalled" when it's sat in its current stage past that stage's
-// healthy age.
-export function isStalled(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStage">): boolean {
-  return opp.daysInStage > (HEALTHY_MAX_BY_PREFIX.get(opp.stagePrefix) ?? Infinity);
-}
-
 // An open opp with the display fields the top-opportunities table needs.
 export interface PipelineOpp extends OpenOppRow {
   account: string | null;
@@ -84,18 +78,8 @@ export interface PipelineOpp extends OpenOppRow {
   detailsLink: string | null; // deep-link to this opp in the LMS (opportunities.details_link)
 }
 
-export type DealHealth = "on" | "stall" | "slip";
-
 const STAGE_NAME_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const WEIGHT_BY_PREFIX = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.weight]));
-
-// Per-deal health: an overdue close date is a "slip" (takes priority), a deal past
-// its stage's healthy age is a "stall", everything else is "on track".
-export function classifyHealth(opp: Pick<OpenOppRow, "stagePrefix" | "daysInStage" | "overdueClose">): DealHealth {
-  if (opp.overdueClose) return "slip";
-  if (isStalled(opp)) return "stall";
-  return "on";
-}
 
 export interface OppView {
   account: string | null;
@@ -109,13 +93,14 @@ export interface OppView {
   weighted: number;
   closeDate: Date | null;
   daysInStage: number;
-  health: DealHealth;
+  tier: AgeTier;
+  overdue: boolean; // close date already passed (overlay on the tier)
   detailsLink: string | null; // deep-link to this opp in the LMS
 }
 
-// Maps the caller's open opps to display rows (stage name, source segment, health),
-// sorted by weighted $ (highest-value first).
-export function buildOppViews(opps: PipelineOpp[]): OppView[] {
+// Maps the caller's open opps to display rows (stage name, source segment, age
+// tier, overdue), sorted by weighted $ (highest-value first).
+export function buildOppViews(opps: PipelineOpp[], benchmarks: BenchmarkMap): OppView[] {
   return opps
     .map((o) => ({
       account: o.account,
@@ -129,7 +114,8 @@ export function buildOppViews(opps: PipelineOpp[]): OppView[] {
       weighted: o.netBooking * (WEIGHT_BY_PREFIX.get(o.stagePrefix) ?? 0),
       closeDate: o.closeDate,
       daysInStage: o.daysInStage,
-      health: classifyHealth(o),
+      tier: classifyTier(o.daysInStage, o.stagePrefix, benchmarks.get(o.stagePrefix)),
+      overdue: o.overdueClose,
       detailsLink: o.detailsLink,
     }))
     .sort((a, b) => b.weighted - a.weighted);
@@ -145,9 +131,8 @@ const STAGE_LABEL_BY_PREFIX = new Map<number, string>([
   [-1, "Closed Lost"],
 ]);
 
-function titleCase(s: string): string {
-  return s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-}
+// Compact motion tag from the DOA category, using the design-system short label.
+const MOTION_BY_CATEGORY = new Map(SEGMENT_DEFS.map((d) => [d.category, d.label]));
 
 // Raw deal row for the last-7-days "This week" section (one rep, window-scoped).
 export interface ThisWeekDealRow {
@@ -197,7 +182,7 @@ export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek 
 
   for (const r of rows) {
     const value = Math.abs(r.value);
-    const motion = r.category ? titleCase(r.category) : null;
+    const motion = r.category ? (MOTION_BY_CATEGORY.get(r.category) ?? r.category) : null;
     const product = r.contractType;
     const account = r.account ?? "Unknown";
     const createdMs = r.createdAt ? r.createdAt.getTime() : null;
@@ -265,7 +250,7 @@ export function buildCoverage(callerOpps: OpenOppRow[], wonBookings: number, fyT
 }
 
 export interface FunnelStage {
-  prefix: number; // 0-5
+  prefix: number; // 0-5 open stages; 6 = the Closed Won tip band
   name: string;
   count: number; // caller's opps in this stage
   min: number; // caller Σ minPurchase
@@ -304,6 +289,7 @@ export interface FunnelData {
   rank: number;
   totalReps: number;
   targets: TargetsRow; // attached by the route via buildTargetsRow
+  won: FunnelStage; // Closed Won tip band (prefix 6), attached by the route via buildWonStage
 }
 
 // Per-rep pre-pipe target aggregate: plan districts (FY) with a target set and NO
@@ -328,6 +314,33 @@ export function buildTargetsRow(byRep: TargetRepAgg[], callerEmail: string): Tar
   };
 }
 
+// Per-rep closed-won aggregate: deal count + floor/ceiling (Σ minPurchase / Σ
+// maxBudget) over the rep's closed-won deals this SY. Feeds the funnel's Closed Won band.
+export interface WonRepAgg {
+  email: string;
+  count: number;
+  min: number;
+  max: number;
+}
+
+// The caller's Closed Won funnel band (prefix 6, the post-pipe tip): their closed-won
+// floor/ceiling + share of the team's won floor. Mirrors buildTargetsRow; attached by
+// the route like the Targets row, so the card's per-source re-scoping leaves it fixed.
+export function buildWonStage(byRep: WonRepAgg[], callerEmail: string): FunnelStage {
+  const mine = byRep.find((r) => r.email === callerEmail);
+  const teamMin = byRep.reduce((s, r) => s + r.min, 0);
+  const min = mine?.min ?? 0;
+  return {
+    prefix: 6,
+    name: "Closed Won",
+    count: mine?.count ?? 0,
+    min,
+    max: mine?.max ?? 0,
+    teamMin,
+    sharePct: teamMin > 0 ? Math.round((min / teamMin) * 100) : 0,
+  };
+}
+
 const pct = (you: number, team: number) => (team > 0 ? Math.round((you / team) * 100) : 0);
 const sourceOf = (o: OpenOppRow): SegmentKey | null => (o.category ? CATEGORY_TO_SEGMENT[o.category] ?? null : null);
 
@@ -339,7 +352,7 @@ export function buildFunnel(
   reps: { id: string; email: string }[],
   callerId: string,
   source: SegmentKey | "all",
-): Omit<FunnelData, "targets"> {
+): Omit<FunnelData, "targets" | "won"> {
   const callerEmail = reps.find((r) => r.id === callerId)?.email ?? null;
   const scoped = source === "all" ? teamOpps : teamOpps.filter((o) => sourceOf(o) === source);
   const callerScoped = callerEmail ? scoped.filter((o) => o.email === callerEmail) : [];
