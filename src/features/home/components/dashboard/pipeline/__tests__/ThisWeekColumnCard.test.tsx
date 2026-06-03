@@ -7,11 +7,21 @@ function col(n: number, prevCount = 0, prevTotal = 0): ThisWeekColumn {
   const deals = Array.from({ length: n }, (_, i) => ({
     account: `Acct ${i}`,
     value: (n - i) * 1000,
+    min: (n - i) * 500,
+    max: (n - i) * 2000,
     motion: i === 0 ? null : "Return",
     product: i === 0 ? null : "Tutoring",
     stage: "Discovery" as string | undefined,
   }));
-  return { count: n, total: deals.reduce((s, d) => s + d.value, 0), deals, prevCount, prevTotal };
+  return {
+    count: n,
+    total: deals.reduce((s, d) => s + d.value, 0),
+    totalMin: deals.reduce((s, d) => s + d.min, 0),
+    totalMax: deals.reduce((s, d) => s + d.max, 0),
+    deals,
+    prevCount,
+    prevTotal,
+  };
 }
 
 describe("ThisWeekColumnCard", () => {
@@ -42,7 +52,7 @@ describe("ThisWeekColumnCard", () => {
         accent="#F37167"
         sign="−"
         goodWhenUp={false}
-        column={{ count: 0, total: 0, deals: [], prevCount: 0, prevTotal: 0 }}
+        column={{ count: 0, total: 0, totalMin: 0, totalMax: 0, deals: [], prevCount: 0, prevTotal: 0 }}
       />,
     );
     expect(screen.getByText(/no deals/i)).toBeInTheDocument();
@@ -53,9 +63,11 @@ describe("ThisWeekColumnCard", () => {
     const column: ThisWeekColumn = {
       count: 2,
       total: 50000,
+      totalMin: 35000,
+      totalMax: 130000,
       deals: [
-        { account: "A", value: 30000, motion: null, product: null },
-        { account: "B", value: 20000, motion: null, product: null },
+        { account: "A", value: 30000, min: 20000, max: 80000, motion: null, product: null },
+        { account: "B", value: 20000, min: 15000, max: 50000, motion: null, product: null },
       ],
       prevCount: 1,
       prevTotal: 25000,

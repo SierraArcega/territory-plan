@@ -222,6 +222,8 @@ describe("buildThisWeek", () => {
   const row = (over: Partial<ThisWeekDealRow>): ThisWeekDealRow => ({
     account: "Acct",
     value: 1000,
+    minPurchase: 0,
+    maxBudget: 0,
     category: null,
     contractType: null,
     stagePrefix: 0,
@@ -320,5 +322,17 @@ describe("buildThisWeek", () => {
     const w = buildThisWeek(rows, NOW);
     expect(w.won.count).toBe(0); // closes later — not won this week
     expect(w.created.count).toBe(1); // but it was created this week
+  });
+
+  it("carries floor/ceiling per deal and sums them per column", () => {
+    const rows = [
+      row({ value: 50000, minPurchase: 30000, maxBudget: 90000, stagePrefix: 1, createdAt: day(-1) }),
+      row({ value: 20000, minPurchase: 10000, maxBudget: 40000, stagePrefix: 1, createdAt: day(-2) }),
+    ];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.created.deals[0].min).toBe(30000); // value-desc → 50k deal first
+    expect(w.created.deals[0].max).toBe(90000);
+    expect(w.created.totalMin).toBe(40000);
+    expect(w.created.totalMax).toBe(130000);
   });
 });

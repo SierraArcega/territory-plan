@@ -82,6 +82,8 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
     prisma.$queryRaw<ThisWeekDealRow[]>`
       SELECT o.district_name AS account,
              o.net_booking_amount::float AS value,
+             COALESCE(o.minimum_purchase_amount, 0)::float AS "minPurchase",
+             COALESCE(o.maximum_budget, 0)::float AS "maxBudget",
              c.category AS category,
              o.contract_type AS "contractType",
              ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",

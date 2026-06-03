@@ -28,7 +28,9 @@ const funnel = {
 const twCol = (count: number) => ({
   count,
   total: count * 1000,
-  deals: Array.from({ length: count }, (_, i) => ({ account: `D${i}`, value: 1000, motion: "Return", product: "Tutoring", stage: "Discovery" })),
+  totalMin: count * 500,
+  totalMax: count * 2000,
+  deals: Array.from({ length: count }, (_, i) => ({ account: `D${i}`, value: 1000, min: 500, max: 2000, motion: "Return", product: "Tutoring", stage: "Discovery" })),
   prevCount: 0,
   prevTotal: 0,
 });

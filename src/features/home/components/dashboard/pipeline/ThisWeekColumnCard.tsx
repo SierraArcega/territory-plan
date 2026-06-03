@@ -18,6 +18,9 @@ function tagLine(d: ThisWeekDeal): string {
   return [d.motion, d.product, trailing].filter(Boolean).join(" · ");
 }
 
+// Floor–ceiling range (min commit – max budget).
+const rangeLabel = (min: number, max: number) => `${formatCurrency(min, true)} – ${formatCurrency(max, true)}`;
+
 const signedCount = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : "±"}${Math.abs(n)}`;
 const signedMoney = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${formatCurrency(Math.abs(n), true)}`;
 // % is on dollars; "new" when last week was $0 (avoids ∞%), "—" when there's nothing either week.
@@ -75,6 +78,13 @@ export default function ThisWeekColumnCard({
         </span>
       </div>
 
+      {/* Column floor–ceiling (Σ min commit – Σ max budget) */}
+      {(column.totalMin > 0 || column.totalMax > 0) && (
+        <div className="-mt-1 text-[11px] tabular-nums whitespace-nowrap text-[#8A80A8]">
+          {rangeLabel(column.totalMin, column.totalMax)} <span className="text-[#C9C2DC]">floor–ceiling</span>
+        </div>
+      )}
+
       {/* Week-over-week vs the prior 7 days: Δcount · Δ$ · Δ% */}
       {showWow && (
         <div className="flex items-center gap-1 text-[11px] font-medium whitespace-nowrap" style={{ color: wowColor }}>
@@ -102,7 +112,12 @@ export default function ThisWeekColumnCard({
                   {formatCurrency(d.value, true)}
                 </span>
               </div>
-              <div className="mt-0.5 truncate text-[11px] text-[#8A80A8]">{tagLine(d)}</div>
+              <div className="mt-0.5 flex items-baseline justify-between gap-2 text-[11px] text-[#8A80A8]">
+                <span className="truncate">{tagLine(d)}</span>
+                {(d.min > 0 || d.max > 0) && (
+                  <span className="tabular-nums whitespace-nowrap text-[#9A8FC0]">{rangeLabel(d.min, d.max)}</span>
+                )}
+              </div>
             </li>
           ))}
         </ul>

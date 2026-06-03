@@ -138,6 +138,8 @@ const MOTION_BY_CATEGORY = new Map(SEGMENT_DEFS.map((d) => [d.category, d.label]
 export interface ThisWeekDealRow {
   account: string | null;
   value: number; // net_booking_amount
+  minPurchase: number; // minimum_purchase_amount (floor)
+  maxBudget: number; // maximum_budget (ceiling)
   category: string | null; // DOA segment category -> motion tag
   contractType: string | null; // product tag
   stagePrefix: number | null; // 0-5 open, 6 won, -1 lost
@@ -148,6 +150,8 @@ export interface ThisWeekDealRow {
 export interface ThisWeekDeal {
   account: string;
   value: number; // absolute; the column applies the +/- sign
+  min: number; // floor (min commit)
+  max: number; // ceiling (max budget)
   motion: string | null;
   product: string | null;
   daysToClose?: number; // Won only
@@ -157,6 +161,8 @@ export interface ThisWeekDeal {
 export interface ThisWeekColumn {
   count: number;
   total: number;
+  totalMin: number; // Σ floor across the current-window deals
+  totalMax: number; // Σ ceiling across the current-window deals
   deals: ThisWeekDeal[]; // value-desc (current 7-day window)
   prevCount: number; // count in the prior 7-day window (days 8-14) — for WoW deltas
   prevTotal: number; // Σ value in the prior 7-day window
@@ -170,7 +176,15 @@ export interface ThisWeek {
 
 function toColumn(deals: ThisWeekDeal[], prevCount: number, prevTotal: number): ThisWeekColumn {
   const sorted = [...deals].sort((a, b) => b.value - a.value);
-  return { count: sorted.length, total: sorted.reduce((s, d) => s + d.value, 0), deals: sorted, prevCount, prevTotal };
+  return {
+    count: sorted.length,
+    total: sorted.reduce((s, d) => s + d.value, 0),
+    totalMin: sorted.reduce((s, d) => s + d.min, 0),
+    totalMax: sorted.reduce((s, d) => s + d.max, 0),
+    deals: sorted,
+    prevCount,
+    prevTotal,
+  };
 }
 
 // Classify the caller's deal rows into won / lost / created for the current 7-day
@@ -188,6 +202,8 @@ export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek 
 
   for (const r of rows) {
     const value = Math.abs(r.value);
+    const min = Math.max(0, r.minPurchase);
+    const max = Math.max(0, r.maxBudget);
     const motion = r.category ? (MOTION_BY_CATEGORY.get(r.category) ?? r.category) : null;
     const product = r.contractType;
     const account = r.account ?? "Unknown";
@@ -206,14 +222,14 @@ export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek 
       if (closeCurrent) {
         const daysToClose =
           createdMs !== null && closeMs !== null ? Math.max(0, Math.round((closeMs - createdMs) / DAY_MS)) : undefined;
-        won.push({ account, value, motion, product, daysToClose });
+        won.push({ account, value, min, max, motion, product, daysToClose });
       } else if (closePrior) {
         prev.wonC++;
         prev.wonT += value;
       }
     }
     if (isLost) {
-      if (closeCurrent) lost.push({ account, value, motion, product });
+      if (closeCurrent) lost.push({ account, value, min, max, motion, product });
       else if (closePrior) {
         prev.lostC++;
         prev.lostT += value;
@@ -221,7 +237,7 @@ export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek 
     }
     if (createdCurrent) {
       const stage = r.stagePrefix !== null ? STAGE_LABEL_BY_PREFIX.get(r.stagePrefix) : undefined;
-      created.push({ account, value, motion, product, stage });
+      created.push({ account, value, min, max, motion, product, stage });
     } else if (createdPrior) {
       prev.createdC++;
       prev.createdT += value;
