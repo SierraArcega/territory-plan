@@ -22,6 +22,13 @@ describe("buildSparklines", () => {
     expect(out.bookings.prior).toEqual([0, 0, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80]);
     // YoY same-point: current cum at today (col 7 = 150) vs prior at col 7 (80) → +0.875
     expect(out.bookings.yoy).toBeCloseTo((150 - 80) / 80, 5);
+    // The "today" dot sits on the current column (Jan = 7).
+    expect(out.bookings.todayIndex).toBe(7);
+  });
+
+  it("puts the dot at the FY end (col 12) for a future fiscal year", () => {
+    const out = buildSparklines({ currentRows: empty(), priorRows: empty(), email: "me@x", fy: 2028, now });
+    expect(out.bookings.todayIndex).toBe(12);
   });
 
   it("reports yoy as null when the prior year has nothing to date", () => {

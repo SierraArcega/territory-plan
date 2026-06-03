@@ -13,4 +13,10 @@ describe("SparklineLegend", () => {
     render(<SparklineLegend currentFyLabel="FY26" priorFyLabel="FY25" tip="cumulative running total" />);
     expect(screen.getByRole("button", { name: /what this means/i })).toBeInTheDocument();
   });
+
+  it("omits the prior-FY swatch when there's no prior-year data", () => {
+    render(<SparklineLegend currentFyLabel="FY26" tip="no prior data" />);
+    expect(screen.getByText("FY26")).toBeInTheDocument();
+    expect(screen.queryByText("FY25")).not.toBeInTheDocument();
+  });
 });

@@ -17,6 +17,7 @@ export interface Sparkline {
   current: number[]; // 13 cumulative columns, this FY
   prior: number[]; // 13 cumulative columns, prior FY (full year)
   yoy: number | null; // (current − prior) / prior at today's column; null if prior is 0
+  todayIndex: number; // column the "today" dot sits on (clamped to the FY end for past/future years)
 }
 
 function callerColumns(rows: DatedValueRow[], fy: number, email: string): number[] {
@@ -44,6 +45,8 @@ export function buildSparklines(params: {
       current,
       prior,
       yoy: isFuture ? null : pctChange(current[todayIdx], prior[todayIdx]),
+      // A future FY has no "today" inside it — show the whole series (dot at year-end).
+      todayIndex: isFuture ? COLUMN_COUNT - 1 : todayIdx,
     };
   }
   return out;
