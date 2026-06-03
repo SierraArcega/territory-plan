@@ -2,6 +2,8 @@
 // deals won — each ranked vs the team with a prior-FY delta. Pure; the SQL that
 // feeds it lives in velocity-source.ts. All four metrics are higher-is-better.
 
+import { rankReps, rankForRep } from "./ranking";
+
 export type VelocityMetricKey = "closeRate" | "avgDealSize" | "grossMargin" | "dealsWon";
 export type DeltaUnit = "pts" | "pct" | "count";
 
@@ -34,8 +36,6 @@ export function median(values: number[]): number {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
-
-import { rankReps, rankForRep } from "./ranking";
 
 const ZERO: RepVelocityAgg = { wonCount: 0, closedCount: 0, wonBookingSum: 0, takeSum: 0, revSum: 0 };
 
