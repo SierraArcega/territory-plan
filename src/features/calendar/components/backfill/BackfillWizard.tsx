@@ -53,25 +53,36 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
   const total = frozenEvents.length;
   const progressPct = total === 0 ? 0 : Math.min(100, Math.round((currentIndex / total) * 100));
 
-  // Card edit state lives here so keyboard shortcuts (Y/Enter) can access the
-  // user's latest edits before submitting. Controlled BackfillEventCard below.
-  const [cardValues, setCardValues] = useState<BackfillCardValues>(() =>
-    frozenEvents[0] ? initialValuesFromEvent(frozenEvents[0]) : {
-      title: "",
-      activityType: "program_check_in" as ActivityType,
-      planIds: [],
-      districtLeaids: [],
-      notes: "",
-    }
+  // Per-event edit state, keyed by event id, so navigating away and back does
+  // NOT discard edits (staged contacts, district, plan, title, notes).
+  const [valuesByEventId, setValuesByEventId] = useState<Record<string, BackfillCardValues>>(() =>
+    frozenEvents[0] ? { [frozenEvents[0].id]: initialValuesFromEvent(frozenEvents[0]) } : {}
   );
 
-  // Reset card state (and clear inline errors) whenever the current event changes
+  // Clear any inline error when the visible event changes (but keep edits).
   useEffect(() => {
-    if (currentEvent) {
-      setCardValues(initialValuesFromEvent(currentEvent));
-    }
     setErrorMessage(null);
-  }, [currentIndex, currentEvent]);
+  }, [currentIndex]);
+
+  const cardValues: BackfillCardValues = currentEvent
+    ? valuesByEventId[currentEvent.id] ?? initialValuesFromEvent(currentEvent)
+    : {
+        title: "",
+        activityType: "program_check_in" as ActivityType,
+        planIds: [],
+        districtLeaids: [],
+        contactIds: [],
+        stagedContacts: [],
+        notes: "",
+      };
+
+  const setCardValues = useCallback(
+    (next: BackfillCardValues) => {
+      if (!currentEvent) return;
+      setValuesByEventId((prev) => ({ ...prev, [currentEvent.id]: next }));
+    },
+    [currentEvent]
+  );
 
   // Advance to the next event. Only call this when NOT on the last event —
   // completion is handled by the individual setters below so the final counts
@@ -94,6 +105,8 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
           title: overrides.title.trim() || currentEvent.title,
           planIds: overrides.planIds,
           districtLeaids: overrides.districtLeaids,
+          contactIds: overrides.contactIds,
+          stagedContacts: overrides.stagedContacts,
           notes: overrides.notes.trim() ? overrides.notes.trim() : undefined,
         },
         {
@@ -232,7 +245,9 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
           e.preventDefault();
           // Confirm with the *current* edited card values (not the raw
           // suggestions) so keyboard confirm respects user edits.
-          if (currentEvent) {
+          // Skip if the event is already confirmed — re-confirming is a no-op
+          // on the backend and would surface a confusing error.
+          if (currentEvent && !confirmedIds.has(currentEvent.id)) {
             handleConfirm(cardValues);
           }
           break;
@@ -252,7 +267,7 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [currentEvent, cardValues, handleConfirm, handleDismiss, handleSkip, handlePrev, onClose]);
+  }, [currentEvent, cardValues, confirmedIds, handleConfirm, handleDismiss, handleSkip, handlePrev, onClose]);
 
   if (total === 0 || !currentEvent) {
     return null;
@@ -263,6 +278,16 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
     skipped: skippedIds.size,
     dismissed: dismissedIds.size,
   };
+
+  const decisionStatus: "confirmed" | "skipped" | "dismissed" | null = currentEvent
+    ? confirmedIds.has(currentEvent.id)
+      ? "confirmed"
+      : dismissedIds.has(currentEvent.id)
+      ? "dismissed"
+      : skippedIds.has(currentEvent.id)
+      ? "skipped"
+      : null
+    : null;
 
   return (
     <div className="flex flex-col h-full" data-testid="backfill-wizard">
@@ -306,6 +331,7 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
           onDismiss={handleDismiss}
           isSaving={isSaving}
           errorMessage={errorMessage}
+          decisionStatus={decisionStatus}
         />
       </div>
 

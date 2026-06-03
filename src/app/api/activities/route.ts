@@ -465,6 +465,8 @@ export async function POST(request: NextRequest) {
     // Fields still needed by this route's road-trip orchestration below; the
     // create itself (validation + nested relations) is delegated to the service.
     const { type, planIds = [], districts: districtDetails = [] } = body;
+    // Opt-in: email linked contacts a Google Calendar invite on push (default off).
+    const sendCalendarInvite = body.sendCalendarInvite ?? false;
 
     const activity = await createActivity(body, user.id);
 
@@ -524,7 +526,7 @@ export async function POST(request: NextRequest) {
 
     // Push to Google Calendar if user has a connected calendar
     // This is best-effort — if it fails, the activity is still created
-    pushActivityToCalendar(user.id, activity.id);
+    pushActivityToCalendar(user.id, activity.id, { sendInvite: !!sendCalendarInvite });
 
     // Transform the activity response inline (type-safe via Prisma inference)
     return NextResponse.json({

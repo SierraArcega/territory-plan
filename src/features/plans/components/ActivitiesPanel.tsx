@@ -85,6 +85,7 @@ export default function ActivitiesPanel({ planId, planName, districts }: Activit
       districtLeaids: data.districtLeaid ? [data.districtLeaid] : undefined,
       contactIds: data.contactIds.length > 0 ? data.contactIds : undefined,
       notes: data.notes || undefined,
+      sendCalendarInvite: data.sendCalendarInvite,
     });
   };
 
@@ -99,6 +100,7 @@ export default function ActivitiesPanel({ planId, planName, districts }: Activit
       endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
       status: data.status,
       notes: data.notes || undefined,
+      sendCalendarInvite: data.sendCalendarInvite,
     });
   };
 

@@ -161,6 +161,7 @@ export function useCreateActivity() {
       outcome?: string | null;
       outcomeType?: string | null;
       rating?: number | null;
+      sendCalendarInvite?: boolean;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities`, {
         method: "POST",
@@ -209,6 +210,7 @@ export function useUpdateActivity() {
       expenses?: { description: string; amount: number }[];
       districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[];
       createdByUserId?: string;
+      sendCalendarInvite?: boolean;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",

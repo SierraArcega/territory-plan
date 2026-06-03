@@ -24,6 +24,16 @@ export async function POST(
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
 
+    const stagedContacts = Array.isArray(body.stagedContacts)
+      ? body.stagedContacts.filter(
+          (s: unknown): s is { email: string; name: string } =>
+            !!s &&
+            typeof s === "object" &&
+            typeof (s as { email?: unknown }).email === "string" &&
+            typeof (s as { name?: unknown }).name === "string"
+        )
+      : undefined;
+
     // Optional overrides — rep can adjust suggestions before confirming
     const overrides = {
       activityType: body.activityType || undefined,
@@ -31,6 +41,7 @@ export async function POST(
       planIds: body.planIds || undefined,
       districtLeaids: body.districtLeaids || undefined,
       contactIds: body.contactIds || undefined,
+      stagedContacts,
       notes: body.notes || undefined,
     };
 

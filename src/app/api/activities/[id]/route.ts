@@ -248,6 +248,8 @@ export async function PATCH(
     // change to Google Calendar.
     const activity = await updateActivity(id, body, user.id, () => isAdmin(user.id));
     const { attendeeUserIds, contactIds, expenses, opportunityIds, districts: districtUpdates } = body;
+    // Opt-in: email linked contacts a Google Calendar invite on push (default off).
+    const sendCalendarInvite = body.sendCalendarInvite ?? false;
 
     // opportunityIds is a relation reconciled below (not a scalar handled by the
     // service); validate its shape here to match the route's prior behavior.
@@ -353,7 +355,7 @@ export async function PATCH(
 
     // Push changes to Google Calendar if the activity has a linked event
     // Best-effort — doesn't block the response
-    updateActivityOnCalendar(user.id, activity.id);
+    updateActivityOnCalendar(user.id, activity.id, { sendInvite: !!sendCalendarInvite });
 
     // Fetch opportunities for response if they were updated
     const opportunities = opportunityIds !== undefined

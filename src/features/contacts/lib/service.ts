@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { ServiceError, type DbClient } from "@/features/shared/lib/service-error";
 import { isValidPersona, isValidSeniorityLevel } from "@/features/shared/types/contact-types";
+import { findContactByEmail } from "@/lib/contacts";
 
 /**
  * Contact mutation service. Extracted from the contact routes so the same
@@ -39,6 +40,14 @@ export async function createContact(input: CreateContactInput, db: DbClient = pr
   const district = await db.district.findUnique({ where: { leaid } });
   if (!district) {
     throw new ServiceError("District not found", 404);
+  }
+
+  // Dedup: reuse an existing contact with the same email in this district
+  // instead of creating a duplicate (idempotent add). Case-insensitive,
+  // district-scoped — see findContactByEmail.
+  const existing = await findContactByEmail(db, leaid, email);
+  if (existing) {
+    return existing;
   }
 
   // Promoting a new primary demotes the existing one(s) for that district.

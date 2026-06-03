@@ -134,6 +134,7 @@ export function useConfirmCalendarEvent() {
       planIds?: string[];
       districtLeaids?: string[];
       contactIds?: number[];
+      stagedContacts?: { email: string; name: string }[];
       notes?: string;
     }) =>
       fetchJson<{ activityId: string }>(
