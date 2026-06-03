@@ -48,9 +48,14 @@ export default function StageFunnelChart({
   const H = padY * 2 + rows.length * stageH;
   const usableW = W - padL - padR;
   const cx = padL + usableW / 2;
-  const maxAll = Math.max(...rows.map((r) => r.max), 1);
-  const topW = rows.map((r) => (r.max / maxAll) * usableW);
-  const botW = topW.slice(1).concat([topW[topW.length - 1] * 0.55]);
+  // Width is POSITIONAL — a clean funnel that always narrows top→bottom, regardless
+  // of each stage's $. Real budgets aren't monotonic (one big Proposal opp dwarfs the
+  // rest), so $-scaled widths bulge into a diamond; the actual max/min $ is read from
+  // the left/right labels + the inner (min-of-max) trapezoid ratio instead.
+  const T_TOP = 1, T_BOT = 0.4;
+  const wAt = (idx: number) => usableW * (T_TOP - (T_TOP - T_BOT) * (idx / rows.length));
+  const topW = rows.map((_, i) => wAt(i));
+  const botW = rows.map((_, i) => wAt(i + 1));
   const maxBarPct = Math.max(40, ...rows.map((r) => r.sharePct));
   const barW = 168;
 
