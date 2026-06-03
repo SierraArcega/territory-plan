@@ -114,7 +114,7 @@ export interface OppView {
 }
 
 // Maps the caller's open opps to display rows (stage name, source segment, health),
-// sorted by minimum commitment (largest first).
+// sorted by weighted $ (highest-value first).
 export function buildOppViews(opps: PipelineOpp[]): OppView[] {
   return opps
     .map((o) => ({
@@ -132,7 +132,7 @@ export function buildOppViews(opps: PipelineOpp[]): OppView[] {
       health: classifyHealth(o),
       detailsLink: o.detailsLink,
     }))
-    .sort((a, b) => b.minPurchase - a.minPurchase);
+    .sort((a, b) => b.weighted - a.weighted);
 }
 
 export interface Coverage {

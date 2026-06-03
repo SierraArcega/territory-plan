@@ -64,12 +64,12 @@ describe("buildOppViews", () => {
     daysInStage: 0, overdueClose: false, account: null, state: null, closeDate: null, detailsLink: null, ...p,
   });
 
-  it("sorts the caller's open opps by min commit (largest first) and labels stage/source/health", () => {
+  it("sorts the caller's open opps by weighted $ and labels stage/source/health", () => {
     const views = buildOppViews([
-      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, minPurchase: 30, daysInStage: 5, overdueClose: true }), // slip
-      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, minPurchase: 80, daysInStage: 40 }), // stall (>28)
+      pipeOpp({ account: "B", category: "new_business", stagePrefix: 5, netBooking: 50, daysInStage: 5, overdueClose: true }), // weighted 45, slip
+      pipeOpp({ account: "A", category: "renewal", stagePrefix: 4, netBooking: 100, daysInStage: 40 }), // weighted 75, stall (>28)
     ]);
-    expect(views.map((v) => v.account)).toEqual(["A", "B"]); // 80 min commit before 30
+    expect(views.map((v) => v.account)).toEqual(["A", "B"]); // 75 before 45
     expect(views[0]).toMatchObject({ stageName: "Negotiation", source: "return", health: "stall" });
     expect(views[1]).toMatchObject({ stageName: "Commitment", source: "new", health: "slip" });
   });
