@@ -18,7 +18,7 @@ describe("CopilotLauncher", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT open when dragged, and persists the dropped position", () => {
+  it("does NOT open when dragged, and persists the dropped clamped position", () => {
     const onOpen = vi.fn();
     render(<CopilotLauncher onOpen={onOpen} />);
     const btn = screen.getByRole("button", { name: /open copilot/i });
@@ -26,7 +26,10 @@ describe("CopilotLauncher", () => {
     fireEvent.pointerMove(btn, { clientX: 300, clientY: 250, pointerId: 1 });
     fireEvent.pointerUp(btn, { clientX: 300, clientY: 250, pointerId: 1 });
     expect(onOpen).not.toHaveBeenCalled();
-    expect(localStorage.getItem(LAUNCHER_POS_KEY)).toBeTruthy();
+    // default {960,648} + drag (+200,+150) = {1160,798}, clamped to viewport → {972,716}
+    expect(JSON.parse(localStorage.getItem(LAUNCHER_POS_KEY)!)).toEqual({ x: 972, y: 716 });
+    expect(btn.style.left).toBe("972px");
+    expect(btn.style.top).toBe("716px");
   });
 
   it("restores a persisted position on mount", () => {
