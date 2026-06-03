@@ -6,6 +6,7 @@ import type { Sparkline, SparklineMetricKey } from "./sparkline";
 import type { WowDeltas } from "./wow";
 import type { Coverage, StageHealth, OppView } from "./pipeline";
 import type { ThisWeek } from "./pipeline-source";
+import type { VelocityCell } from "./velocity";
 
 // Types for the alerts response
 
@@ -124,6 +125,20 @@ export function usePipeline(fy: number) {
   return useQuery({
     queryKey: ["dashboard", "pipeline", fy],
     queryFn: () => fetchJson<PipelineResponse>(`${API_BASE}/home/dashboard/pipeline?fy=${fy}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface VelocityResponse {
+  fy: number;
+  schoolYr: string;
+  cells: VelocityCell[];
+}
+
+export function useVelocity(fy: number) {
+  return useQuery({
+    queryKey: ["dashboard", "velocity", fy],
+    queryFn: () => fetchJson<VelocityResponse>(`${API_BASE}/home/dashboard/velocity?fy=${fy}`),
     staleTime: 5 * 60 * 1000,
   });
 }
