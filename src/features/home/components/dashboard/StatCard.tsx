@@ -7,6 +7,7 @@ import StatCardShell from "./StatCardShell";
 import RankPill from "./RankPill";
 import SegmentLegend from "./charts/SegmentLegend";
 import Sparkline from "./charts/Sparkline";
+import SparklineLegend from "./charts/SparklineLegend";
 
 interface StatCardProps {
   label: string;
@@ -18,6 +19,7 @@ interface StatCardProps {
   segments: ToplineSegment[];
   sparkline?: SparklineData;
   priorFyLabel?: string;
+  currentFyLabel?: string;
   wow?: number | null;
   pipelineDetail?: OpenPipelineDetail;
 }
@@ -26,11 +28,14 @@ interface StatCardProps {
 // YoY/WoW deltas, optional open-pipeline min/max line, vertical source legend,
 // sparkline, and the rank pill.
 export default function StatCard({
-  label, labelTooltip, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, wow, pipelineDetail,
+  label, labelTooltip, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, currentFyLabel, wow, pipelineDetail,
 }: StatCardProps) {
   const yoyPct = sparkline?.yoy != null ? Math.round(sparkline.yoy * 100) : null;
   const wowPct = wow != null ? Math.round(wow * 100) : null;
   const detail = pipelineDetail && pipelineDetail.oppCount > 0 ? pipelineDetail : null;
+  const hasSparkline = !!sparkline && sparkline.current.length >= 2;
+  const showLegend = hasSparkline && !!currentFyLabel && !!priorFyLabel;
+  const sparklineTip = `Your running ${label.toLowerCase()} through the fiscal year — ${currentFyLabel} so far (solid) vs ${priorFyLabel} (dashed). The dot marks today.`;
 
   const minMaxLine = detail ? (
     <div className="flex flex-col gap-0.5 whitespace-nowrap">
@@ -58,8 +63,11 @@ export default function StatCard({
       priorFyLabel={priorFyLabel}
       wowPct={wowPct}
       minMaxLine={minMaxLine}
-      footerLeft={sparkline && sparkline.current.length >= 2 ? (
-        <Sparkline data={sparkline.current} priorData={sparkline.prior} width={140} height={32} />
+      footerLeft={hasSparkline ? (
+        <>
+          <Sparkline data={sparkline!.current} priorData={sparkline!.prior} width={140} height={32} />
+          {showLegend && <SparklineLegend currentFyLabel={currentFyLabel!} priorFyLabel={priorFyLabel!} tip={sparklineTip} />}
+        </>
       ) : null}
       footerRight={<RankPill rank={rank} totalReps={totalReps} inRoster={inRoster} />}
     >

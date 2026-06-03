@@ -24,6 +24,14 @@ describe("StatCard", () => {
     expect(screen.getByText(/vs FY25/i)).toBeTruthy();
   });
 
+  it("labels the sparkline with the current/prior FY key when both labels are given", () => {
+    render(
+      <StatCard label="Bookings" value={612000} rank={2} totalReps={34} inRoster segments={[]} sparkline={spark(0.09)} priorFyLabel="FY25" currentFyLabel="FY26" />,
+    );
+    expect(screen.getByText("FY26")).toBeInTheDocument();
+    expect(screen.getByText("FY25")).toBeInTheDocument();
+  });
+
   it("renders a negative YoY chip", () => {
     render(<StatCard label="Take" value={98000} rank={5} totalReps={34} inRoster segments={[]} sparkline={spark(-0.05)} priorFyLabel="FY25" />);
     expect(screen.getByText("-5%")).toBeTruthy();

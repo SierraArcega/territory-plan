@@ -23,6 +23,7 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
   const { data, isLoading, isError, refetch } = useTopline(fy);
   const { data: sparkData } = useSparklines(fy);
   const priorFyLabel = `FY${String(fy - 1).slice(-2)}`;
+  const currentFyLabel = `FY${String(fy).slice(-2)}`;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -58,6 +59,7 @@ export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
             segments={card.segments}
             sparkline={sparkData?.sparklines[card.metricKey]}
             priorFyLabel={priorFyLabel}
+            currentFyLabel={currentFyLabel}
             wow={card.metricKey === "openPipeline" || card.metricKey === "bookings" ? sparkData?.wow?.[card.metricKey] : null}
             pipelineDetail={card.pipelineDetail}
           />
