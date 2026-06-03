@@ -24,9 +24,9 @@ export default function ThisWeekSection({ thisWeek }: { thisWeek: ThisWeek }) {
         <span className="text-[11px] text-[#8A80A8] whitespace-nowrap">{range}</span>
       </div>
       <div className="flex flex-col gap-5 sm:flex-row sm:gap-4">
-        <ThisWeekColumnCard title="Closed Won" accent="#2E7D5B" sign="+" column={thisWeek.won} />
-        <ThisWeekColumnCard title="Closed Lost" accent="#F37167" sign="−" column={thisWeek.lost} />
-        <ThisWeekColumnCard title="Newly Created" accent="#403770" sign="+" column={thisWeek.created} />
+        <ThisWeekColumnCard title="Closed Won" accent="#2E7D5B" sign="+" goodWhenUp column={thisWeek.won} />
+        <ThisWeekColumnCard title="Closed Lost" accent="#F37167" sign="−" goodWhenUp={false} column={thisWeek.lost} />
+        <ThisWeekColumnCard title="Newly Created" accent="#403770" sign="+" goodWhenUp column={thisWeek.created} />
       </div>
     </div>
   );

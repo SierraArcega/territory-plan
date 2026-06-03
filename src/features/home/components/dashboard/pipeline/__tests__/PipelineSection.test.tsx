@@ -29,6 +29,8 @@ const twCol = (count: number) => ({
   count,
   total: count * 1000,
   deals: Array.from({ length: count }, (_, i) => ({ account: `D${i}`, value: 1000, motion: "Return", product: "Tutoring", stage: "Discovery" })),
+  prevCount: 0,
+  prevTotal: 0,
 });
 const oppView = (p: Record<string, unknown>) => ({
   account: "Acct", state: "NY", source: "return", stageName: "Negotiation", stagePrefix: 4,

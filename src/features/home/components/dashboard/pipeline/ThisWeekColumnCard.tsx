@@ -6,6 +6,11 @@ import type { ThisWeekColumn, ThisWeekDeal } from "@/features/home/lib/pipeline"
 
 const TOP_N = 5;
 
+// WoW delta colors (good vs bad direction; flat is neutral plum-grey).
+const WOW_GOOD = "#2E7D5B";
+const WOW_BAD = "#F37167";
+const WOW_FLAT = "#8A80A8";
+
 // The tag line: motion · product · (Nd to close | stage). Nulls drop out so there
 // are never stray separators.
 function tagLine(d: ThisWeekDeal): string {
@@ -13,19 +18,36 @@ function tagLine(d: ThisWeekDeal): string {
   return [d.motion, d.product, trailing].filter(Boolean).join(" · ");
 }
 
+const signedCount = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : "±"}${Math.abs(n)}`;
+const signedMoney = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${formatCurrency(Math.abs(n), true)}`;
+// % is on dollars; "new" when last week was $0 (avoids ∞%), "—" when there's nothing either week.
+const wowPctLabel = (pct: number | null, total: number) =>
+  pct !== null ? `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${Math.abs(pct)}%` : total > 0 ? "new" : "—";
+
 export default function ThisWeekColumnCard({
   title,
   accent,
   sign,
+  goodWhenUp,
   column,
 }: {
   title: string;
   accent: string;
   sign: string; // "+" or "−"
+  goodWhenUp: boolean; // Won/Created: up is good; Lost: down is good
   column: ThisWeekColumn;
 }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? column.deals : column.deals.slice(0, TOP_N);
+
+  // Week-over-week vs the prior 7 days (days 8-14).
+  const dCount = column.count - column.prevCount;
+  const dTotal = column.total - column.prevTotal;
+  const wowPct = column.prevTotal > 0 ? Math.round((dTotal / column.prevTotal) * 100) : null;
+  const showWow = column.count > 0 || column.prevCount > 0 || column.prevTotal > 0;
+  const wowFlat = dCount === 0 && dTotal === 0;
+  const wowColor = wowFlat ? WOW_FLAT : (goodWhenUp ? dTotal >= 0 : dTotal <= 0) ? WOW_GOOD : WOW_BAD;
+  const wowArrow = dTotal > 0 ? "↑" : dTotal < 0 ? "↓" : "→";
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -52,6 +74,19 @@ export default function ThisWeekColumnCard({
           {formatCurrency(column.total, true)}
         </span>
       </div>
+
+      {/* Week-over-week vs the prior 7 days: Δcount · Δ$ · Δ% */}
+      {showWow && (
+        <div className="flex items-center gap-1 text-[11px] font-medium whitespace-nowrap" style={{ color: wowColor }}>
+          <span>{wowArrow}</span>
+          <span className="tabular-nums">{signedCount(dCount)}</span>
+          <span className="text-[#C9C2DC]">·</span>
+          <span className="tabular-nums">{signedMoney(dTotal)}</span>
+          <span className="text-[#C9C2DC]">·</span>
+          <span className="tabular-nums">{wowPctLabel(wowPct, column.total)}</span>
+          <span className="font-normal text-[#8A80A8]">vs last wk</span>
+        </div>
+      )}
 
       {/* Deals */}
       {column.deals.length === 0 ? (

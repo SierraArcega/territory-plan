@@ -74,9 +74,11 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
       WHERE p.fiscal_year = ${fy} AND u.email = ${callerEmail}`,
 
-    // Caller's last-7-days movement, as deal rows (won/lost by close_date, created
-    // by created_at). Bucketing + sign + totals happen in buildThisWeek. One rep x
-    // 7 days -> a handful of rows, so no server-side pagination.
+    // Caller's last-14-days movement, as deal rows (won/lost by close_date, created
+    // by created_at). buildThisWeek splits this into the current 7 days and the prior
+    // 7 days for week-over-week deltas. close_date is bounded to <= now so a future
+    // (projected) close date can't count as "closed this week". One rep x 14 days ->
+    // a handful of rows, so no server-side pagination.
     prisma.$queryRaw<ThisWeekDealRow[]>`
       SELECT o.district_name AS account,
              o.net_booking_amount::float AS value,
@@ -90,8 +92,8 @@ export async function fetchPipelineData(sy: string, fy: number, callerEmail: str
       WHERE o.school_yr = ${sy}
         AND o.sales_rep_email = ${callerEmail}
         AND o.net_booking_amount IS NOT NULL
-        AND (o.created_at >= now() - interval '7 days'
-             OR o.close_date >= now() - interval '7 days')`,
+        AND (o.created_at >= now() - interval '14 days'
+             OR (o.close_date >= now() - interval '14 days' AND o.close_date <= now()))`,
 
     // Per-rep pre-pipe targets: plan districts (this FY) that HAVE a target set and
     // have NO open opp for that rep. value = Σ all four target columns (estimated

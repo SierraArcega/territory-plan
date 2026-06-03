@@ -294,4 +294,31 @@ describe("buildThisWeek", () => {
     expect(w.won.deals[0].daysToClose).toBe(27);
     expect(w.created.deals[0].stage).toBe("Meeting Booked");
   });
+
+  it("carries prior-window (days 8-14) count + total for week-over-week", () => {
+    const rows = [
+      // current window
+      row({ value: 50000, stagePrefix: 6, createdAt: day(-30), closeDate: day(-2) }), // won now
+      row({ value: 30000, stagePrefix: 1, createdAt: day(-1) }), // created now
+      // prior window (days 8-14)
+      row({ value: 20000, stagePrefix: 6, createdAt: day(-40), closeDate: day(-10) }), // won prior
+      row({ value: 15000, stagePrefix: 1, createdAt: day(-9), closeDate: null }), // created prior
+    ];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.won.count).toBe(1);
+    expect(w.won.total).toBe(50000);
+    expect(w.won.prevCount).toBe(1);
+    expect(w.won.prevTotal).toBe(20000);
+    expect(w.created.count).toBe(1);
+    expect(w.created.total).toBe(30000);
+    expect(w.created.prevCount).toBe(1);
+    expect(w.created.prevTotal).toBe(15000);
+  });
+
+  it("does not count a closed deal with a future close_date as won/lost this week", () => {
+    const rows = [row({ account: "Future", value: 99000, stagePrefix: 6, createdAt: day(-3), closeDate: day(5) })];
+    const w = buildThisWeek(rows, NOW);
+    expect(w.won.count).toBe(0); // closes later — not won this week
+    expect(w.created.count).toBe(1); // but it was created this week
+  });
 });

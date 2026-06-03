@@ -157,7 +157,9 @@ export interface ThisWeekDeal {
 export interface ThisWeekColumn {
   count: number;
   total: number;
-  deals: ThisWeekDeal[]; // value-desc
+  deals: ThisWeekDeal[]; // value-desc (current 7-day window)
+  prevCount: number; // count in the prior 7-day window (days 8-14) — for WoW deltas
+  prevTotal: number; // Σ value in the prior 7-day window
 }
 
 export interface ThisWeek {
@@ -166,19 +168,23 @@ export interface ThisWeek {
   created: ThisWeekColumn;
 }
 
-function toColumn(deals: ThisWeekDeal[]): ThisWeekColumn {
+function toColumn(deals: ThisWeekDeal[], prevCount: number, prevTotal: number): ThisWeekColumn {
   const sorted = [...deals].sort((a, b) => b.value - a.value);
-  return { count: sorted.length, total: sorted.reduce((s, d) => s + d.value, 0), deals: sorted };
+  return { count: sorted.length, total: sorted.reduce((s, d) => s + d.value, 0), deals: sorted, prevCount, prevTotal };
 }
 
-// Classify the caller's window-scoped deal rows into won / lost / created columns.
-// A deal created AND closed in the same window lands in both Created and its close
-// column - matches the independent-column design.
+// Classify the caller's deal rows into won / lost / created for the current 7-day
+// window, carrying the prior window (days 8-14) count + total for week-over-week
+// deltas. Closed events use close_date bounded to [windowStart, now] — a future
+// close_date is not "won/lost this week"; created uses created_at. A deal created
+// AND closed in the same window lands in both Created and its close column.
 export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek {
   const windowStart = nowMs - 7 * DAY_MS;
+  const priorStart = nowMs - 14 * DAY_MS;
   const won: ThisWeekDeal[] = [];
   const lost: ThisWeekDeal[] = [];
   const created: ThisWeekDeal[] = [];
+  const prev = { wonC: 0, wonT: 0, lostC: 0, lostT: 0, createdC: 0, createdT: 0 };
 
   for (const r of rows) {
     const value = Math.abs(r.value);
@@ -187,24 +193,46 @@ export function buildThisWeek(rows: ThisWeekDealRow[], nowMs: number): ThisWeek 
     const account = r.account ?? "Unknown";
     const createdMs = r.createdAt ? r.createdAt.getTime() : null;
     const closeMs = r.closeDate ? r.closeDate.getTime() : null;
-    const closedInWindow = closeMs !== null && closeMs >= windowStart;
-    const createdInWindow = createdMs !== null && createdMs >= windowStart;
 
-    if (r.stagePrefix !== null && r.stagePrefix >= 6 && closedInWindow) {
-      const daysToClose =
-        createdMs !== null && closeMs !== null ? Math.max(0, Math.round((closeMs - createdMs) / DAY_MS)) : undefined;
-      won.push({ account, value, motion, product, daysToClose });
+    const closeCurrent = closeMs !== null && closeMs >= windowStart && closeMs <= nowMs;
+    const closePrior = closeMs !== null && closeMs >= priorStart && closeMs < windowStart;
+    const createdCurrent = createdMs !== null && createdMs >= windowStart && createdMs <= nowMs;
+    const createdPrior = createdMs !== null && createdMs >= priorStart && createdMs < windowStart;
+
+    const isWon = r.stagePrefix !== null && r.stagePrefix >= 6;
+    const isLost = r.stagePrefix === -1;
+
+    if (isWon) {
+      if (closeCurrent) {
+        const daysToClose =
+          createdMs !== null && closeMs !== null ? Math.max(0, Math.round((closeMs - createdMs) / DAY_MS)) : undefined;
+        won.push({ account, value, motion, product, daysToClose });
+      } else if (closePrior) {
+        prev.wonC++;
+        prev.wonT += value;
+      }
     }
-    if (r.stagePrefix === -1 && closedInWindow) {
-      lost.push({ account, value, motion, product });
+    if (isLost) {
+      if (closeCurrent) lost.push({ account, value, motion, product });
+      else if (closePrior) {
+        prev.lostC++;
+        prev.lostT += value;
+      }
     }
-    if (createdInWindow) {
+    if (createdCurrent) {
       const stage = r.stagePrefix !== null ? STAGE_LABEL_BY_PREFIX.get(r.stagePrefix) : undefined;
       created.push({ account, value, motion, product, stage });
+    } else if (createdPrior) {
+      prev.createdC++;
+      prev.createdT += value;
     }
   }
 
-  return { won: toColumn(won), lost: toColumn(lost), created: toColumn(created) };
+  return {
+    won: toColumn(won, prev.wonC, prev.wonT),
+    lost: toColumn(lost, prev.lostC, prev.lostT),
+    created: toColumn(created, prev.createdC, prev.createdT),
+  };
 }
 
 export interface Coverage {
