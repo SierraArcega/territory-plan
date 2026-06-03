@@ -36,7 +36,7 @@ describe("ToplineStatStrip", () => {
 
     expect(screen.getByText("Open Pipeline")).toBeInTheDocument();
     expect(screen.getByText("Closed Won Bookings")).toBeInTheDocument();
-    expect(screen.getByText("#3")).toBeInTheDocument();
+    expect(screen.getByText("#3/12")).toBeInTheDocument();
   });
 
   it("shows an error fallback when the query errors", () => {

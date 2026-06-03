@@ -12,7 +12,7 @@ describe("StatCard", () => {
   it("renders the label, value, and rank", () => {
     render(<StatCard label="Bookings" value={612000} rank={2} totalReps={34} inRoster segments={[]} />);
     expect(screen.getByText("Bookings")).toBeTruthy();
-    expect(screen.getByText(/of 34 reps/i)).toBeTruthy();
+    expect(screen.getByText("#2/34")).toBeInTheDocument();
   });
 
   it("renders the sparkline and a positive YoY chip", () => {
@@ -36,8 +36,7 @@ describe("StatCard", () => {
 
   it("renders the last-7d WoW chip when a delta is provided", () => {
     render(<StatCard label="Open Pipeline" value={480000} rank={3} totalReps={34} inRoster segments={[]} wow={0.18} />);
-    expect(screen.getByText("+18%")).toBeTruthy();
-    expect(screen.getByText(/7d/i)).toBeTruthy();
+    expect(screen.getByText(/\+18% · last 7d/)).toBeInTheDocument();
   });
 
   it("omits the WoW chip when there is no 7d delta (unsupported metric)", () => {
@@ -94,5 +93,38 @@ describe("StatCard", () => {
       />,
     );
     expect(screen.queryByText(/Min commit/i)).toBeNull();
+  });
+
+  it("renders the rank pill via the shell", () => {
+    render(<StatCard label="Open Pipeline" value={1200000} rank={3} totalReps={12} inRoster segments={[]} />);
+    expect(screen.getByText("#3/12")).toBeInTheDocument();
+    expect(screen.getByText("top 25%")).toBeInTheDocument();
+  });
+
+  it("renders a vertical segment legend with percents", () => {
+    render(
+      <StatCard
+        label="Open Pipeline" value={480000} rank={3} totalReps={12} inRoster
+        segments={[
+          { key: "return", label: "Return", value: 280000 },
+          { key: "new", label: "New biz", value: 140000 },
+          { key: "winback", label: "Win-back", value: 60000 },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Return")).toBeInTheDocument();
+    expect(screen.getByText("58%")).toBeInTheDocument();
+  });
+
+  it("shows open-pipeline min commit / max budget on the min/max line", () => {
+    render(
+      <StatCard
+        label="Open Pipeline" value={1200000} rank={3} totalReps={12} inRoster segments={[]}
+        pipelineDetail={{ minCommit: 840000, maxBudget: 1600000, oppCount: 12, accountCount: 9 }}
+      />,
+    );
+    expect(screen.getByText(/min commit/i)).toBeInTheDocument();
+    expect(screen.getByText(/max budget/i)).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument(); // opp count retained
   });
 });
