@@ -194,7 +194,17 @@ Opportunity-detail host passes a mapped opportunity. No internal logic differs.
   execution, no `PLAYWRIGHT_TRIGGER_URL` wiring. The form assembles + previews the
   payload and stops.
 - **BOCES Quote** doc type (separate spec:
-  `Docs/superpowers/specs/2026-06-04-boces-quote-document-type-design.md`).
+  `Docs/superpowers/specs/2026-06-04-boces-quote-document-type-design.md`, shipped in PR #261).
+  **Note for when BOCES support is later added to this placeholder:** the BOCES
+  Quote payload now carries its **own `payment` block** (added in PR #261 after the
+  block's deal-specific values were found hardcoded) — 11 per-deal variables:
+  `pay_terms`, `contract_end`, `unused_funds`, `billing_name/add/email/phone`,
+  `po_yn`, `pay_prepost`, `boces_name`, `po_number`. Unlike the Full Contract it is
+  a **single fixed block with no A/B/C `type` choice**, and it omits `invoice_date`,
+  `add_terms`, `imp_detail`. So the eventual shared Payment Terms sub-form must
+  support two shapes — the contract's A/B/C conditional block and BOCES's fixed
+  subset — and must **not** assume a quote-only doc has no payment fields. See the
+  BOCES spec § Payload Schema (~L122–157).
 - **Persistence** — payload is ephemeral; no `Quote` / `LineItem` Prisma model.
 - **Auth / secrets** for the generator endpoint.
 
@@ -221,7 +231,7 @@ Opportunity-detail host passes a mapped opportunity. No internal logic differs.
 | What | Where |
 |---|---|
 | Authoritative payload schema | `Docs/superpowers/specs/2026-05-29-project-sea-monkey-contract-generator-design.md` § JSON Payload Schema (~L119–155) |
-| BOCES Quote (out of scope here) | `Docs/superpowers/specs/2026-06-04-boces-quote-document-type-design.md` |
+| BOCES Quote (out of scope here; shipped PR #261) | `Docs/superpowers/specs/2026-06-04-boces-quote-document-type-design.md` § Payload Schema (~L122–157) — incl. its own `payment` block |
 | Apps Script generator (PR #254, merged) | `scripts/document-generation/appsscript/` |
 | Opportunity data model | `prisma/schema.prisma` (`Opportunity`, `Session`) |
 | Form pattern to mirror | `src/features/activities/components/ActivityFormModal.tsx` + `components/event-fields/` |
