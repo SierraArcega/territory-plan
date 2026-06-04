@@ -9,6 +9,7 @@ import {
   workedLeaidsForRep,
   type PlanDistrictTargets,
 } from "@/features/home/lib/targets";
+import { resolveScope } from "@/features/home/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +33,15 @@ export async function GET(request: Request) {
   const schoolYr = schoolYearForFY(fy);
 
   const reps = await getActiveReps();
-  const repIds = reps.map((r) => r.id);
-  const callerEmail = reps.find((r) => r.id === user.id)?.email ?? null;
+
+  const repParam = searchParams.get("rep");
+  const scope = resolveScope(repParam, reps, { id: user.id, email: user.email ?? "" });
+  if (!scope) return NextResponse.json({ error: "unknown rep" }, { status: 400 });
+  const subjectId = scope.mode === "rep" ? scope.rep.id : user.id;
 
   // Always include the caller's own plans even if they aren't in the rep roster
   // (e.g. an admin/manager viewing their own dashboard) so their worked count shows.
+  const repIds = reps.map((r) => r.id);
   const ownerIds = Array.from(new Set([...repIds, user.id]));
 
   const planDistrictRows = await prisma.territoryPlanDistrict.findMany({
@@ -77,25 +82,55 @@ export async function GET(request: Request) {
   const ranking = rankReps(
     reps.map((r) => ({ id: r.id, email: r.email, value: rollups.get(r.id)?.targetDollars ?? 0 })),
   );
-  const standing = rankForRep(ranking, user.id);
 
-  const callerRollup = rollups.get(user.id) ?? {
-    workedCount: 0,
-    untargetedCount: 0,
-    targetDollars: 0,
-    targetDollarsAll: 0,
-    segments: { new: 0, winback: 0, expansion: 0 },
-  };
-  const workedLeaids = workedLeaidsForRep(rows, user.id);
+  let workedCount: number;
+  let untargeted: number;
+  let targetTotal: number;
+  let segments: { new: number; winback: number; expansion: number };
+  let workedLeaids: string[];
+  let rank: number | null;
+  let inRoster: boolean;
 
-  // Caller-only rollups over the worked-district set: how many have open pipeline
+  if (scope.mode === "team") {
+    const all = [...rollups.values()];
+    workedCount = all.reduce((s, r) => s + r.workedCount, 0);
+    untargeted = all.reduce((s, r) => s + r.untargetedCount, 0);
+    targetTotal = all.reduce((s, r) => s + r.targetDollarsAll, 0);
+    segments = {
+      new: all.reduce((s, r) => s + r.segments.new, 0),
+      winback: all.reduce((s, r) => s + r.segments.winback, 0),
+      expansion: all.reduce((s, r) => s + r.segments.expansion, 0),
+    };
+    workedLeaids = rows.map((r) => r.leaid); // every worked district across the roster
+    rank = null;
+    inRoster = true;
+  } else {
+    const subjectRollup = rollups.get(subjectId) ?? {
+      workedCount: 0,
+      untargetedCount: 0,
+      targetDollars: 0,
+      targetDollarsAll: 0,
+      segments: { new: 0, winback: 0, expansion: 0 },
+    };
+    const standing = rankForRep(ranking, subjectId);
+    workedCount = subjectRollup.workedCount;
+    untargeted = subjectRollup.untargetedCount;
+    targetTotal = subjectRollup.targetDollarsAll;
+    segments = subjectRollup.segments;
+    workedLeaids = workedLeaidsForRep(rows, subjectId);
+    rank = standing.rank;
+    inRoster = standing.inRoster;
+  }
+
+  // Sub-count rollups over the worked-district set: how many have open pipeline
   // ("converted"), and the total open + closed-won $ on those same accounts (the
-  // pipeline side of the targeted-vs-pipeline bar). One pass over the caller's DOA.
+  // pipeline side of the targeted-vs-pipeline bar). One pass over the scope's DOA.
   let convertedToPipeline = 0;
   let pipelineOnAccounts = 0;
   let active90 = 0;
   if (workedLeaids.length > 0) {
-    if (callerEmail) {
+    const scopeEmails = scope.emails;
+    if (scopeEmails.length > 0) {
       const pipeRows = await prisma.$queryRaw<{ convertedCount: number; pipelineOnAccounts: number }[]>`
         SELECT
           COUNT(*) FILTER (WHERE open_pipe > 0)::int AS "convertedCount",
@@ -105,7 +140,7 @@ export async function GET(request: Request) {
                  SUM(open_pipeline) AS open_pipe,
                  SUM(bookings) AS won
           FROM district_opportunity_actuals
-          WHERE sales_rep_email = ${callerEmail}
+          WHERE sales_rep_email = ANY(${scopeEmails})
             AND school_yr = ${schoolYr}
             AND district_lea_id = ANY(${workedLeaids})
           GROUP BY district_lea_id
@@ -115,10 +150,17 @@ export async function GET(request: Request) {
       pipelineOnAccounts = pipeRows[0]?.pipelineOnAccounts ?? 0;
     }
 
+    const activityUserIds =
+      scope.mode === "team"
+        ? Array.from(new Set([...reps.map((r) => r.id), user.id]))
+        : [subjectId];
     const activeRows = await prisma.activityDistrict.findMany({
       where: {
         districtLeaid: { in: workedLeaids },
-        activity: { createdByUserId: user.id, startDate: { gte: new Date(Date.now() - NINETY_DAYS_MS) } },
+        activity: {
+          createdByUserId: { in: activityUserIds },
+          startDate: { gte: new Date(Date.now() - NINETY_DAYS_MS) },
+        },
       },
       select: { districtLeaid: true },
       distinct: ["districtLeaid"],
@@ -129,21 +171,22 @@ export async function GET(request: Request) {
   return NextResponse.json({
     fy,
     schoolYr,
+    mode: scope.mode,
     card: {
       metricKey: "targets",
       label: "Targets",
-      value: callerRollup.workedCount,
-      rank: standing.rank,
+      value: workedCount,
+      rank,
       totalReps: ranking.totalReps,
-      inRoster: standing.inRoster,
-      segments: callerRollup.segments,
-      untargeted: callerRollup.untargetedCount,
+      inRoster,
+      segments,
+      untargeted,
       convertedToPipeline,
       active90,
-      stale: callerRollup.workedCount - active90,
+      stale: workedCount - active90,
       // Targeted-vs-pipeline bar: all-four target $ vs open + closed-won $ on the
       // same worked accounts.
-      targetTotal: callerRollup.targetDollarsAll,
+      targetTotal,
       pipelineOnAccounts,
     },
   });

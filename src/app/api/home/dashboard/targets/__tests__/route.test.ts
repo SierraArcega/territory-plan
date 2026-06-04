@@ -21,7 +21,13 @@ const mockPlanDistricts = vi.mocked(prisma.territoryPlanDistrict.findMany);
 const mockActivityDistricts = vi.mocked(prisma.activityDistrict.findMany);
 const mockQueryRaw = vi.mocked(prisma.$queryRaw);
 
-function req(fy?: string): Request {
+function req(params: Record<string, string> = {}): Request {
+  const qs = new URLSearchParams(params).toString();
+  return new Request(`http://localhost/api/home/dashboard/targets${qs ? `?${qs}` : ""}`);
+}
+
+// Keep backwards-compat helper used by existing tests
+function reqFy(fy?: string): Request {
   return new Request(`http://localhost/api/home/dashboard/targets${fy != null ? `?fy=${fy}` : ""}`);
 }
 
@@ -30,7 +36,7 @@ describe("GET /api/home/dashboard/targets", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mockGetUser.mockResolvedValue(null);
-    expect((await GET(req("2026"))).status).toBe(401);
+    expect((await GET(reqFy("2026"))).status).toBe(401);
   });
 
   it("returns the Targets card: worked count, segments, rank by target $, and sub-counts", async () => {
@@ -51,7 +57,7 @@ describe("GET /api/home/dashboard/targets", () => {
     // Active in last 90d: district A.
     mockActivityDistricts.mockResolvedValue([{ districtLeaid: "A" }] as never);
 
-    const res = await GET(req("2026"));
+    const res = await GET(reqFy("2026"));
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -83,7 +89,7 @@ describe("GET /api/home/dashboard/targets", () => {
     mockQueryRaw.mockResolvedValue([] as never);
     mockActivityDistricts.mockResolvedValue([] as never);
 
-    const res = await GET(req("2026"));
+    const res = await GET(reqFy("2026"));
     const body = await res.json();
 
     expect(body.card.value).toBe(1); // admin's own plan district shows
@@ -93,6 +99,39 @@ describe("GET /api/home/dashboard/targets", () => {
 
   it("rejects a non-numeric fy param", async () => {
     mockGetUser.mockResolvedValue({ id: "me" } as never);
-    expect((await GET(req("abc"))).status).toBe(400);
+    expect((await GET(reqFy("abc"))).status).toBe(400);
+  });
+
+  it("returns 400 for an unknown rep id", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockGetActiveReps.mockResolvedValue([
+      { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
+    ]);
+    expect((await GET(req({ fy: "2026", rep: "not-a-real-rep" }))).status).toBe(400);
+  });
+
+  it("returns team aggregate: sums worked counts across all reps, rank is null", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockGetActiveReps.mockResolvedValue([
+      { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
+      { id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null },
+    ]);
+    // me has 2 districts, u2 has 1 — team worked count = 3
+    mockPlanDistricts.mockResolvedValue([
+      { districtLeaid: "A", newBusinessTarget: 30, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
+      { districtLeaid: "B", newBusinessTarget: 0, winbackTarget: 50, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "me", userId: null } },
+      { districtLeaid: "X", newBusinessTarget: 200, winbackTarget: 0, expansionTarget: 0, renewalTarget: 0, plan: { ownerId: "u2", userId: null } },
+    ] as never);
+    mockQueryRaw.mockResolvedValue([] as never);
+    mockActivityDistricts.mockResolvedValue([] as never);
+
+    const res = await GET(req({ fy: "2026", rep: "team" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.mode).toBe("team");
+    expect(body.card.rank).toBeNull();
+    expect(body.card.value).toBe(3); // 2 (me) + 1 (u2)
+    expect(body.card.segments).toEqual({ new: 2, winback: 1, expansion: 0 });
   });
 });
