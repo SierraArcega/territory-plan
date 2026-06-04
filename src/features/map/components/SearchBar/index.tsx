@@ -96,7 +96,7 @@ const DOMAIN_COLUMNS: Record<string, Set<string>> = {
     "state", "countyName", "urbanicity", "_zipRadius", "charterSchoolCount", "titleISchoolCount",
   ]),
   fullmind: new Set([
-    "isCustomer", "hasOpenPipeline", "salesExecutive", "owner",
+    "isCustomer", "hasOpenPipeline", "owner",
     "open_pipeline", "closed_won_bookings", "invoicing",
     "planNames", "tags",
   ]),

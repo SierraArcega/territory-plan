@@ -41,7 +41,6 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   // CRM / Revenue
   isCustomer: "isCustomer",
   hasOpenPipeline: "hasOpenPipeline",
-  salesExecutive: "salesExecutiveId",
   // Education
   graduationRate: "graduationRateTotal",
   mathProficiency: "mathProficiencyPct",

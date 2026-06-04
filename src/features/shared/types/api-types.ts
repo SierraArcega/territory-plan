@@ -68,7 +68,6 @@ export interface DistrictFinancial {
 export interface FullmindData {
   leaid: string;
   accountName: string | null;
-  salesExecutive: PersonRef | null;
   lmsid: string | null;
   districtFinancials: DistrictFinancial[];
   isCustomer: boolean;
@@ -863,7 +862,6 @@ export interface StateDistrictListItem {
   enrollment: number | null;
   isCustomer: boolean;
   hasOpenPipeline: boolean;
-  salesExecutive: PersonRef | null;
   districtFinancials: DistrictFinancial[];
   tags: Array<{ id: number; name: string; color: string }>;
 }

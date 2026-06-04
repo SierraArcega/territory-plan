@@ -36,11 +36,6 @@ export default function FullmindCard({ data, leaid }: FullmindCardProps) {
       }
     >
       <div className="space-y-3">
-        {data.fullmindData?.salesExecutive?.fullName && (
-          <div className="text-xs text-gray-500">
-            SE: <span className="font-medium text-[#403770]">{data.fullmindData.salesExecutive.fullName}</span>
-          </div>
-        )}
         <div className="flex items-center gap-2">
           <AddToPlanButton leaid={leaid} existingPlanIds={data.territoryPlanIds} />
           <FindSimilarDistricts

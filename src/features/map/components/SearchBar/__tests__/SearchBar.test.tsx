@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import SearchBar from "../index";
 
-// SearchBar's useDropdownData fires fetch() on mount for /api/sales-executives
-// and /api/tags. jsdom has no fetch, so stub it to return empty arrays.
+// SearchBar's useDropdownData fires fetch() on mount for /api/users and
+// /api/tags. jsdom has no fetch, so stub it to return empty arrays.
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
