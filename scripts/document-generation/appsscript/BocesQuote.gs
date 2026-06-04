@@ -73,7 +73,11 @@ function buildBocesQuoteTable(body, quote) {
   var dataRows  = t.rows.map(function(r) {
     return [r.product, formatCurrency(r.rate), String(r.qty), formatCurrency(r.total)];
   });
-  var feeRow   = ['', '', 'Fee', t.feePct + ' %'];
+  // The "Fee" and "Total" labels intentionally sit in the Hours column (index 2)
+  // with their values in the Total column (index 3) — matches the approved quote
+  // layout and the contract's TOTAL row convention in QuoteTable.gs.
+  // round2() on feePct strips any binary-float noise (e.g. 10.600000000000001).
+  var feeRow   = ['', '', 'Fee', round2(t.feePct) + ' %'];
   var totalRow = ['', '', 'Total', formatCurrency(t.total)];
 
   var allRows = [headerRow].concat(dataRows).concat([feeRow, totalRow]);
