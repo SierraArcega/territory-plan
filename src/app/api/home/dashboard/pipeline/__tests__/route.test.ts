@@ -17,19 +17,38 @@ const oppRow = (p: Record<string, unknown>) => ({
   email: "me@x", account: "Acct", state: "NY", netBooking: 0, minPurchase: 0, maxBudget: 0,
   daysInStage: 0, overdueClose: false, closeDate: null, category: "renewal", ...p,
 });
-const req = (fy?: string) => new Request(`http://localhost/api/home/dashboard/pipeline${fy != null ? `?fy=${fy}` : ""}`);
+
+const req = (qs?: string) =>
+  new Request(`http://localhost/api/home/dashboard/pipeline${qs != null ? `?${qs}` : ""}`);
+
+const BASE_FETCH_PAYLOAD = {
+  openOpps: [],
+  wonBookings: 0,
+  fyTarget: 0,
+  thisWeek: { won: 0, lost: 0, created: 0 },
+  targetsByRep: [],
+  wonByRep: [],
+  benchmarks: new Map(),
+} as never;
 
 describe("GET /api/home/dashboard/pipeline", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("returns 401 when unauthenticated", async () => {
     mockGetUser.mockResolvedValue(null);
-    expect((await GET(req("2026"))).status).toBe(401);
+    expect((await GET(req("fy=2026"))).status).toBe(401);
   });
 
   it("rejects a non-numeric fy", async () => {
     mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
-    expect((await GET(req("abc"))).status).toBe(400);
+    expect((await GET(req("fy=abc"))).status).toBe(400);
+  });
+
+  it("returns 400 for an unknown rep id", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
+    const res = await GET(req("fy=2026&rep=unknown-id"));
+    expect(res.status).toBe(400);
   });
 
   it("assembles coverage, stage health, top opps, and at-risk for the caller", async () => {
@@ -52,11 +71,12 @@ describe("GET /api/home/dashboard/pipeline", () => {
       benchmarks: new Map(),
     } as never);
 
-    const res = await GET(req("2026"));
+    const res = await GET(req("fy=2026"));
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.fy).toBe(2026);
+    expect(body.mode).toBe("rep");
     expect(body.coverage).toMatchObject({ minCommit: 90, maxBudget: 260, gap: 400, wonBookings: 600, fyTarget: 1000 });
     expect(body.funnel.stages).toHaveLength(6);
     // caller has one open opp in Negotiation (the 40d stall); the other open opp is in Discovery
@@ -66,6 +86,38 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(body.atRisk.map((o: { tier: string }) => o.tier)).toEqual(["stale"]); // 40d Negotiation, no benchmark → fallback healthyMax 28
     expect(body.thisWeek).toEqual({ won: 1, lost: 0, created: 2 });
     expect(body.inRoster).toBe(true);
+    // fetchPipelineData is called with an array of emails, not a plain string
+    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), 2026, ["me@x"]);
+  });
+
+  it("team mode: returns mode=team, rank=null funnel, and passes all roster emails", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockReps.mockResolvedValue([
+      { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
+      { id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null },
+    ]);
+    mockFetch.mockResolvedValue({
+      openOpps: [
+        oppRow({ email: "me@x", stagePrefix: 4, netBooking: 100, minPurchase: 80, maxBudget: 200, daysInStage: 5 }),
+        oppRow({ email: "u2@x", stagePrefix: 1, netBooking: 50, minPurchase: 30, maxBudget: 60, daysInStage: 3 }),
+      ],
+      wonBookings: 0,
+      fyTarget: 0,
+      thisWeek: { won: 0, lost: 0, created: 0 },
+      targetsByRep: [],
+      wonByRep: [],
+      benchmarks: new Map(),
+    } as never);
+
+    const res = await GET(req("fy=2026&rep=team"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.mode).toBe("team");
+    expect(body.funnel.rank).toBeNull();
+    expect(body.inRoster).toBe(true);
+    // fetchPipelineData is called with all roster emails
+    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), 2026, ["me@x", "u2@x"]);
   });
 
   it("derives at-risk from the full book, not just the top-50 displayed opps", async () => {
@@ -77,7 +129,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
     const lowValueAtRisk = oppRow({ email: "me@x", stagePrefix: 0, netBooking: 1, daysInStage: 1, overdueClose: true }); // sorts last, slip
     mockFetch.mockResolvedValue({ openOpps: [...healthy, lowValueAtRisk], wonBookings: 0, fyTarget: 1000, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [], wonByRep: [], benchmarks: new Map() } as never);
 
-    const body = await (await GET(req("2026"))).json();
+    const body = await (await GET(req("fy=2026"))).json();
     expect(body.opps).toHaveLength(50); // capped
     expect(body.atRisk).toHaveLength(1); // still surfaced despite being 51st
     expect(body.atRisk[0].overdue).toBe(true); // surfaced by its passed close date
@@ -86,8 +138,8 @@ describe("GET /api/home/dashboard/pipeline", () => {
   it("flags a caller outside the active-rep roster as not in roster", async () => {
     mockGetUser.mockResolvedValue({ id: "admin", email: "admin@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
-    mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 0, lost: 0, created: 0 }, targetsByRep: [], wonByRep: [], benchmarks: new Map() } as never);
-    const body = await (await GET(req("2026"))).json();
+    mockFetch.mockResolvedValue(BASE_FETCH_PAYLOAD);
+    const body = await (await GET(req("fy=2026"))).json();
     expect(body.inRoster).toBe(false);
   });
 
@@ -95,7 +147,7 @@ describe("GET /api/home/dashboard/pipeline", () => {
     mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
     mockReps.mockResolvedValue([{ id: "me", email: "me@x", fullName: "Me", avatarUrl: null }]);
     mockFetch.mockResolvedValue({ openOpps: [], wonBookings: 0, fyTarget: 0, thisWeek: { won: 5, lost: 2, created: 9 }, targetsByRep: [], wonByRep: [], benchmarks: new Map() } as never);
-    const body = await (await GET(req("2024"))).json(); // past FY still returns its payload
+    const body = await (await GET(req("fy=2024"))).json(); // past FY still returns its payload
     expect(body.thisWeek).toEqual({ won: 5, lost: 2, created: 9 });
   });
 });

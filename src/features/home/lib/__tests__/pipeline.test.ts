@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCoverage, buildOppViews,
-  buildFunnel, buildTargetsRow, classifyTier,
+  buildFunnel, buildFunnelTeam, buildTargetsRow, buildTargetsRowTeam, buildWonStageTeam,
+  classifyTier,
   buildThisWeek,
   PIPELINE_STAGES, type OpenOppRow, type PipelineOpp, type OppView, type TargetRepAgg,
   type AgeTier, type StageBenchmark, type BenchmarkMap, type ThisWeekDealRow,
+  type WonRepAgg,
 } from "../pipeline";
 
 const reps = [
@@ -334,5 +336,82 @@ describe("buildThisWeek", () => {
     expect(w.created.deals[0].max).toBe(90000);
     expect(w.created.totalMin).toBe(40000);
     expect(w.created.totalMax).toBe(130000);
+  });
+});
+
+describe("buildFunnelTeam", () => {
+  // rep1: Meeting(min30/max100, renewal), Negotiation(min80/max200, new_business)
+  // rep2: Meeting(min10/max40, renewal)
+  const teamOpps: OpenOppRow[] = [
+    { email: "rep1@x", stagePrefix: 0, netBooking: 0, minPurchase: 30, maxBudget: 100, daysInStage: 5, overdueClose: false, category: "renewal" },
+    { email: "rep1@x", stagePrefix: 4, netBooking: 0, minPurchase: 80, maxBudget: 200, daysInStage: 5, overdueClose: false, category: "new_business" },
+    { email: "rep2@x", stagePrefix: 0, netBooking: 0, minPurchase: 10, maxBudget: 40, daysInStage: 5, overdueClose: false, category: "renewal" },
+  ];
+
+  it("team mode: rank is null and each stage headline equals the team total", () => {
+    const data = buildFunnelTeam(teamOpps, "all");
+    expect(data.rank).toBeNull();
+    // Meeting stage: team sum = 30 + 10 = 40; min === teamMin
+    const meeting = data.stages[0];
+    expect(meeting.min).toBe(40);
+    expect(meeting.teamMin).toBe(40);
+    expect(meeting.sharePct).toBe(100);
+    // Negotiation stage: team sum = 80; min === teamMin
+    const nego = data.stages[4];
+    expect(nego.min).toBe(80);
+    expect(nego.teamMin).toBe(80);
+    expect(nego.sharePct).toBe(100);
+    // totals
+    expect(data.totalMin).toBe(120);
+    expect(data.totalMax).toBe(340);
+    expect(data.openCount).toBe(3);
+    expect(data.overallSharePct).toBe(100);
+    expect(data.teamMinTotal).toBe(120);
+  });
+
+  it("source filter scopes the team aggregate to that source", () => {
+    const data = buildFunnelTeam(teamOpps, "return"); // renewal -> "return" segment
+    expect(data.totalMin).toBe(40); // only renewal opps
+    expect(data.stages[0].min).toBe(40);
+    expect(data.stages[4].min).toBe(0); // no renewal in Negotiation
+  });
+
+  it("returns rank: null and totalReps: 0 always", () => {
+    const data = buildFunnelTeam([], "all");
+    expect(data.rank).toBeNull();
+    expect(data.totalReps).toBe(0);
+  });
+});
+
+describe("buildTargetsRowTeam", () => {
+  const byRep: TargetRepAgg[] = [
+    { email: "rep1@x", count: 3, value: 500 },
+    { email: "rep2@x", count: 2, value: 300 },
+  ];
+
+  it("sums all reps and returns 100% share", () => {
+    const t = buildTargetsRowTeam(byRep);
+    expect(t).toMatchObject({ count: 5, value: 800, teamValue: 800, sharePct: 100 });
+  });
+
+  it("handles an empty roster", () => {
+    expect(buildTargetsRowTeam([])).toMatchObject({ count: 0, value: 0, teamValue: 0, sharePct: 0 });
+  });
+});
+
+describe("buildWonStageTeam", () => {
+  const byRep: WonRepAgg[] = [
+    { email: "rep1@x", count: 2, min: 100, max: 200 },
+    { email: "rep2@x", count: 1, min: 50, max: 80 },
+  ];
+
+  it("sums all reps' won figures and returns 100% share", () => {
+    const s = buildWonStageTeam(byRep);
+    expect(s).toMatchObject({ prefix: 6, name: "Closed Won", count: 3, min: 150, max: 280, teamMin: 150, sharePct: 100 });
+  });
+
+  it("handles an empty roster", () => {
+    const s = buildWonStageTeam([]);
+    expect(s).toMatchObject({ count: 0, min: 0, max: 0, teamMin: 0, sharePct: 0 });
   });
 });

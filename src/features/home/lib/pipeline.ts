@@ -330,7 +330,7 @@ export interface FunnelData {
   spread: number; // totalMax − totalMin (upside)
   teamMinTotal: number;
   overallSharePct: number;
-  rank: number;
+  rank: number | null; // null in team mode (no individual ranking)
   totalReps: number;
   targets: TargetsRow; // attached by the route via buildTargetsRow
   won: FunnelStage; // Closed Won tip band (prefix 6), attached by the route via buildWonStage
@@ -443,5 +443,67 @@ export function buildFunnel(
     overallSharePct: pct(totalMin, teamMinTotal),
     rank,
     totalReps: ranking.totalReps,
+  };
+}
+
+// Whole-team funnel: the team IS the subject, so each stage headline = the team
+// total and share is trivially 100%. No rank. Mirrors buildFunnel's return shape.
+export function buildFunnelTeam(teamOpps: OpenOppRow[], source: SegmentKey | "all"): Omit<FunnelData, "targets" | "won"> {
+  const scoped = source === "all" ? teamOpps : teamOpps.filter((o) => sourceOf(o) === source);
+  const stages: FunnelStage[] = PIPELINE_STAGES.map(({ prefix, name }) => {
+    const inStage = scoped.filter((o) => o.stagePrefix === prefix);
+    const min = inStage.reduce((s, o) => s + o.minPurchase, 0);
+    return {
+      prefix,
+      name,
+      count: inStage.length,
+      min,
+      max: inStage.reduce((s, o) => s + o.maxBudget, 0),
+      teamMin: min,
+      sharePct: min > 0 ? 100 : 0,
+    };
+  });
+  const totalMin = stages.reduce((s, x) => s + x.min, 0);
+  const totalMax = stages.reduce((s, x) => s + x.max, 0);
+  const sources: SourceShare[] = SEGMENT_DEFS.map((d) => {
+    const team = scoped.filter((o) => sourceOf(o) === d.key).reduce((s, o) => s + o.minPurchase, 0);
+    return { key: d.key, label: d.label, color: d.color, you: team, team, pct: team > 0 ? 100 : 0 };
+  });
+  return {
+    stages,
+    sources,
+    openCount: scoped.length,
+    totalMin,
+    totalMax,
+    spread: totalMax - totalMin,
+    teamMinTotal: totalMin,
+    overallSharePct: totalMin > 0 ? 100 : 0,
+    rank: null,
+    totalReps: 0,
+  };
+}
+
+// Team Closed-Won tip: sum every rep's won aggregate; share is 100%.
+export function buildWonStageTeam(byRep: WonRepAgg[]): FunnelStage {
+  const min = byRep.reduce((s, r) => s + r.min, 0);
+  return {
+    prefix: 6,
+    name: "Closed Won",
+    count: byRep.reduce((s, r) => s + r.count, 0),
+    min,
+    max: byRep.reduce((s, r) => s + r.max, 0),
+    teamMin: min,
+    sharePct: min > 0 ? 100 : 0,
+  };
+}
+
+// Team pre-pipe Targets row: sum every rep's targets; share is 100%.
+export function buildTargetsRowTeam(byRep: TargetRepAgg[]): TargetsRow {
+  const value = byRep.reduce((s, r) => s + r.value, 0);
+  return {
+    count: byRep.reduce((s, r) => s + r.count, 0),
+    value,
+    teamValue: value,
+    sharePct: value > 0 ? 100 : 0,
   };
 }
