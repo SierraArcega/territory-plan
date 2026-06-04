@@ -20,6 +20,20 @@ function testContractBOCES() {
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
 
+function testBocesQuote() {
+  var result = generateBocesQuote(PAYLOAD_BOCES_QUOTE);
+  Logger.log('Result: ' + JSON.stringify(result));
+  if (result.success) {
+    Logger.log('✅ Open doc: ' + result.url);
+    if (result.agreementUrl) Logger.log('📎 Agreement: ' + result.agreementUrl);
+  }
+}
+
+function testDocTypeRouting() {
+  var r = generateDocument(PAYLOAD_BOCES_QUOTE);            // doc_type: 'boces_quote'
+  Logger.log('boces_quote → ' + (r.success ? 'OK ' + r.url : 'FAIL'));
+}
+
 /**
  * Exercises the full pipeline including the Dropbox Sign auto_send branch.
  * Clones PAYLOAD_FULL, flips auto_send to true, runs generateFullContract.
