@@ -323,7 +323,7 @@ export function useCreateAccount() {
       city?: string;
       state?: string;
       zip?: string;
-      salesExecutiveId?: string;
+      ownerId?: string;
       phone?: string;
       websiteUrl?: string;
     }) => {

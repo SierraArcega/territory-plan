@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       zip,
       lat,
       lng,
-      salesExecutiveId,
+      ownerId,
       phone,
       websiteUrl,
     } = body;
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         streetLocation: street || null,
         cityLocation: city || null,
         zipLocation: zip || null,
-        salesExecutiveId: salesExecutiveId || null,
+        ownerId: ownerId || null,
         phone: phone || null,
         websiteUrl: websiteUrl || null,
       },

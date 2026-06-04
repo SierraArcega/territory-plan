@@ -49,11 +49,6 @@ export async function GET(request: Request) {
                 AND LOWER(TRIM(owner)) = LOWER(TRIM(${crmName}))
             `,
             prisma.$executeRaw`
-              UPDATE districts SET sales_executive_id = ${userId}::uuid
-              WHERE sales_executive_id IS NULL
-                AND LOWER(TRIM(sales_executive)) = LOWER(TRIM(${crmName}))
-            `,
-            prisma.$executeRaw`
               UPDATE states SET territory_owner_id = ${userId}::uuid
               WHERE territory_owner_id IS NULL
                 AND LOWER(TRIM(territory_owner)) = LOWER(TRIM(${crmName}))
@@ -62,11 +57,6 @@ export async function GET(request: Request) {
               UPDATE schools SET owner_id = ${userId}::uuid
               WHERE owner_id IS NULL
                 AND LOWER(TRIM(owner)) = LOWER(TRIM(${crmName}))
-            `,
-            prisma.$executeRaw`
-              UPDATE unmatched_accounts SET sales_executive_id = ${userId}::uuid
-              WHERE sales_executive_id IS NULL
-                AND LOWER(TRIM(sales_executive)) = LOWER(TRIM(${crmName}))
             `,
           ])
         }

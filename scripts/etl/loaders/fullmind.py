@@ -347,7 +347,6 @@ def update_districts_with_fullmind_data(
     print("Updating districts table...")
     update_cols = """
             account_name = u.account_name,
-            sales_executive = u.sales_executive,
             lmsid = u.lmsid,
             fy25_sessions_revenue = u.fy25_sessions_revenue,
             fy25_sessions_take = u.fy25_sessions_take,
