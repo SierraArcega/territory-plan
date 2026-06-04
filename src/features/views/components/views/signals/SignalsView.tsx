@@ -31,7 +31,7 @@ import {
   ViewScroll,
 } from "../_shared";
 import GridPager from "../../grid/GridPager";
-import { GRID_PAGE_SIZE, pageMeta } from "../../grid/grid-pagination";
+import { DEFAULT_PAGE_SIZE, pageMeta, type PageSize } from "../../grid/grid-pagination";
 import { useSignalsSummary } from "./queries";
 import SignalsControls, { type SignalsToolbarState } from "./SignalsControls";
 import SignalDistrictRow from "./SignalDistrictRow";
@@ -50,6 +50,7 @@ export default function SignalsView({
 }: ViewBodyProps) {
   const [toolbar, setToolbar] = useState<SignalsToolbarState>(INITIAL_TOOLBAR);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   // Controlled expand set — drives both per-row expansion and expand-all.
   const [expandedSet, setExpandedSet] = useState<Set<string>>(() => new Set());
 
@@ -122,6 +123,24 @@ export default function SignalsView({
     patchToolbar(patch);
   }
 
+  // Reset to first page when pageSize changes (matches GridView pattern).
+  const querySig = [
+    parentKind,
+    parentId,
+    leaids ? leaids.slice().sort().join(",") : "",
+    JSON.stringify(toolbar.types),
+    toolbar.since,
+    toolbar.search.trim().toLowerCase(),
+    String(pageSize),
+  ].join("|");
+  const [prevQuerySig, setPrevQuerySig] = useState(querySig);
+  let effectivePage = page;
+  if (prevQuerySig !== querySig) {
+    setPrevQuerySig(querySig);
+    setPage(1);
+    effectivePage = 1;
+  }
+
   function toggleRow(leaid: string) {
     setExpandedSet((prev) => {
       const next = new Set(prev);
@@ -162,10 +181,10 @@ export default function SignalsView({
 
   const total = filtered.length;
   // One fixed-size window per page (matches the table grids' pager).
-  const meta = pageMeta(total, page, GRID_PAGE_SIZE);
+  const meta = pageMeta(total, effectivePage, pageSize);
   const visible = filtered.slice(
-    (meta.page - 1) * GRID_PAGE_SIZE,
-    meta.page * GRID_PAGE_SIZE,
+    (meta.page - 1) * pageSize,
+    meta.page * pageSize,
   );
   const searchActive = toolbar.search.trim().length > 0;
 
@@ -196,12 +215,13 @@ export default function SignalsView({
           </ul>
         )}
       </ViewScroll>
-      {total > GRID_PAGE_SIZE && (
+      {total > pageSize && (
         <GridPager
           total={total}
           page={meta.page}
-          pageSize={GRID_PAGE_SIZE}
+          pageSize={pageSize}
           onPageChange={setPage}
+          onPageSizeChange={setPageSize}
         />
       )}
     </div>

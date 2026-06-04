@@ -23,6 +23,19 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
+// jsdom doesn't implement PointerEvent; extend MouseEvent so pointer events
+// carry clientX/clientY through to React handlers (needed by drag interactions).
+if (typeof window.PointerEvent === "undefined") {
+  class PointerEventPolyfill extends MouseEvent {
+    readonly pointerId: number;
+    constructor(type: string, props: PointerEventInit = {}) {
+      super(type, props);
+      this.pointerId = props.pointerId ?? 0;
+    }
+  }
+  window.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent;
+}
+
 // Reset mocks between tests
 beforeEach(() => {
   vi.clearAllMocks();

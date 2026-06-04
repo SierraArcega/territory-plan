@@ -44,6 +44,16 @@ vi.mock("@/features/plans/lib/queries", () => ({
   }),
 }));
 
+// BackfillEventCard (rendered transitively via BackfillWizard) calls
+// useCreateContact, which needs a QueryClient. Stub it so the modal renders
+// without wrapping the tree in a QueryClientProvider.
+vi.mock("@/features/shared/lib/queries", () => ({
+  useCreateContact: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({ id: 1 }),
+    isPending: false,
+  }),
+}));
+
 import BackfillSetupModal from "../BackfillSetupModal";
 
 function makeEvent(id: string, overrides: Partial<CalendarEvent> = {}): CalendarEvent {

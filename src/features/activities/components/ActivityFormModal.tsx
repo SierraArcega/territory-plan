@@ -28,6 +28,7 @@ import ActivityFormTabs from "./ActivityFormTabs";
 import StatusSelect from "./event-fields/StatusSelect";
 import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
 import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
+import SendInviteToggle from "./event-fields/SendInviteToggle";
 import DistrictSearchInput from "./event-fields/DistrictSearchInput";
 import ActivityViewPanel from "./ActivityViewPanel";
 import { type OutcomeType } from "@/features/activities/outcome-types";
@@ -93,6 +94,7 @@ export default function ActivityFormModal({
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
+  const [sendCalendarInvite, setSendCalendarInvite] = useState(false);
   const [selectedDistricts, setSelectedDistricts] = useState<
     { leaid: string; name: string; stateAbbrev: string | null; visitDate?: string; notes?: string }[]
   >(defaultDistricts ?? []);
@@ -144,6 +146,7 @@ export default function ActivityFormModal({
     setMetadata({});
     setAttendeeUserIds([]);
     setSelectedContacts([]);
+    setSendCalendarInvite(false);
     setOutcomeRating(0);
     setSelectedOutcomes([]);
     setOutcomeNote("");
@@ -275,8 +278,12 @@ export default function ActivityFormModal({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const isEvent = getCategoryForType(type) === "events";
-    const hasMetadata = isEvent && Object.keys(metadata).length > 0;
+    // Persist type-specific metadata only for categories whose fields we save
+    // (events + outreach). Mirrors ActivityViewPanel.handleSave.
+    const submitCategory = getCategoryForType(type);
+    const hasMetadata =
+      (submitCategory === "events" || submitCategory === "outreach") &&
+      Object.keys(metadata).length > 0;
 
     // Address now lives on real columns. The type-specific sub-fields still
     // collect it into the metadata bag for backwards compat — pull it out
@@ -317,6 +324,7 @@ export default function ActivityFormModal({
             visitDate: d.visitDate || null,
             notes: d.notes || null,
           })),
+          sendCalendarInvite,
         });
         onClose();
         return;
@@ -362,6 +370,7 @@ export default function ActivityFormModal({
         outcome: outcomeNote.trim() || undefined,
         outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes[0] : undefined,
         rating: outcomeRating > 0 ? outcomeRating : undefined,
+        sendCalendarInvite,
       });
 
       // Create linked tasks
@@ -432,6 +441,7 @@ export default function ActivityFormModal({
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
   const typeCategory = getCategoryForType(type);
   const isEventCategory = typeCategory === "events" || typeCategory === "thought_leadership";
+  const showTypeDetails = isEventCategory || typeCategory === "outreach";
 
   if (!isOpen) return null;
 
@@ -620,8 +630,19 @@ export default function ActivityFormModal({
                 <div>
                   <ContactSelect
                     selectedContacts={selectedContacts}
-                    onChange={setSelectedContacts}
+                    onChange={(contacts) => {
+                      setSelectedContacts(contacts);
+                      if (contacts.length === 0) setSendCalendarInvite(false);
+                    }}
                   />
+                  {selectedContacts.length > 0 && (
+                    <div className="mt-3">
+                      <SendInviteToggle
+                        checked={sendCalendarInvite}
+                        onChange={setSendCalendarInvite}
+                      />
+                    </div>
+                  )}
                   {/* Auto-linked districts & states as chips */}
                   {selectedContacts.length > 0 && (() => {
                     const explicitLeaids = new Set(selectedDistricts.map((d) => d.leaid));
@@ -720,7 +741,7 @@ export default function ActivityFormModal({
                 <div className="border-t border-[#E2DEEC]" />
 
                 {/* Type-specific details */}
-                {isEventCategory && (
+                {showTypeDetails && (
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
                     <EventTypeFields

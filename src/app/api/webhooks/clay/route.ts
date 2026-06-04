@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { normalizePersona, normalizeSeniorityLevel } from "@/features/shared/types/contact-types";
+import { findContactByEmail } from "@/lib/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -195,12 +196,7 @@ async function handleClayWebhook(request: NextRequest) {
       // Upsert: update if exists (by email within district), create if not
       if (email) {
         // Try to find existing contact by email in this district
-        const existing = await prisma.contact.findFirst({
-          where: {
-            leaid,
-            email,
-          },
-        });
+        const existing = await findContactByEmail(prisma, leaid, email);
 
         if (existing) {
           // Update existing contact with new data from Clay

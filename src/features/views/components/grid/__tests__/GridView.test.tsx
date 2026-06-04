@@ -12,6 +12,41 @@ vi.mock("@/features/views/hooks/useViewsData", () => ({
   useViewsData: (...args: unknown[]) => mockUseViewsData(...args),
 }));
 
+// Stub plans/lib/queries so RowActionsMenu and BulkActionsMenu render without side effects.
+vi.mock("@/features/plans/lib/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/plans/lib/queries")>();
+  return {
+    ...actual,
+    useBulkRemoveDistrictsFromPlan: () => ({
+      mutateAsync: vi.fn().mockResolvedValue({ removed: 0 }),
+      isPending: false,
+    }),
+    useRemoveDistrictFromPlan: () => ({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    }),
+    useUpdateDistrictTargets: () => ({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    }),
+    usePlanDistrictDetail: () => ({
+      isLoading: false,
+      data: null,
+    }),
+  };
+});
+vi.mock("../actions/FindContactsPopover", () => ({
+  FindContactsPopover: () => null,
+}));
+vi.mock("../actions/export-helpers", () => ({
+  fetchExportRows: vi.fn().mockResolvedValue([]),
+  resolvePlanLeaids: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("../AnchoredPopover", () => ({
+  AnchoredPopover: ({ children, open }: { children: import("react").ReactNode; open: boolean }) =>
+    open ? <div>{children}</div> : null,
+}));
+
 function makeWrapper() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -143,12 +178,11 @@ describe("GridView — districts source", () => {
       </Wrapper>,
     );
 
-    const headers = container.querySelectorAll("th");
-    const headerTexts = Array.from(headers).map((h) => h.textContent?.trim());
-
-    // Target (order: 0) should appear before District (order: 99) in the rendered header row.
-    const targetIdx = headerTexts.indexOf("Target");
-    const districtIdx = headerTexts.indexOf("District");
+    const headers = Array.from(container.querySelectorAll("th"));
+    // Target header now contains a chevron button + "Target" text, so use
+    // includes() rather than exact match.
+    const targetIdx = headers.findIndex((h) => h.textContent?.includes("Target"));
+    const districtIdx = headers.findIndex((h) => h.textContent?.trim() === "District");
     expect(targetIdx).toBeGreaterThanOrEqual(0);
     expect(districtIdx).toBeGreaterThanOrEqual(0);
     expect(targetIdx).toBeLessThan(districtIdx);
@@ -752,6 +786,40 @@ describe("GridView — group rendering", () => {
     expect(container.querySelector('tr[data-group-key="NY"]')).not.toBeNull();
   });
 
+  it("pins the group-divider label (sticky left:0) so it stays visible during horizontal scroll", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: groupedRows(), total: 4 },
+    });
+
+    const layout: GridViewLayout = {
+      ...emptyLayout(),
+      groupBy: { id: "state" },
+    };
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1", "2", "3", "4"]}
+          listId={null}
+          layout={layout}
+        />
+      </Wrapper>,
+    );
+
+    const nyRow = container.querySelector('tr[data-group-key="NY"]')!;
+    const labelSpan = Array.from(nyRow.querySelectorAll("span")).find(
+      (s) => s.textContent === "NY",
+    )!;
+    const sticky = labelSpan.closest('[style*="sticky"]') as HTMLElement | null;
+    expect(sticky).not.toBeNull();
+    expect(sticky!.style.position).toBe("sticky");
+    expect(sticky!.style.left).toBe("0px");
+  });
+
   it("no headers render when layout.groupBy is null", () => {
     mockUseViewsData.mockReturnValue({
       isLoading: false,
@@ -773,5 +841,430 @@ describe("GridView — group rendering", () => {
 
     expect(container.querySelectorAll("tr[data-group-key]").length).toBe(0);
     expect(container.querySelectorAll("tbody tr:not([data-group-key])").length).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PR #246 follow-up: New-Biz-first, frozen name column, working resize
+// ---------------------------------------------------------------------------
+describe("GridView — target sub-column order (New Biz first)", () => {
+  function renderPlanDistricts(layout?: GridViewLayout) {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [
+          { leaid: "1111", name: "Alpha USD", stateAbbrev: "CA",
+            renewalTarget: 10, expansionTarget: 20, winbackTarget: 30, newBusinessTarget: 40 },
+        ],
+        total: 1,
+      },
+    });
+    const Wrapper = makeWrapper();
+    return render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={layout ?? emptyLayout()}
+          onLayoutChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+  }
+
+  it("renders the four target sub-columns with New Biz first when expanded", () => {
+    const { container } = renderPlanDistricts();
+
+    // Expand the target breakdown.
+    fireEvent.click(screen.getByRole("button", { name: /expand target breakdown/i }));
+
+    const headers = Array.from(container.querySelectorAll("th"));
+    const idx = (label: string) =>
+      headers.findIndex((h) => h.textContent?.includes(label));
+
+    const newBiz = idx("New Biz");
+    const renewal = idx("Renewal");
+    const expansion = idx("Expansion");
+    const winBack = idx("Win Back");
+
+    expect(newBiz).toBeGreaterThanOrEqual(0);
+    expect(newBiz).toBeLessThan(renewal);
+    expect(renewal).toBeLessThan(expansion);
+    expect(expansion).toBeLessThan(winBack);
+  });
+
+  it("puts the collapse button on the first sub-column (New Biz)", () => {
+    const { container } = renderPlanDistricts();
+    fireEvent.click(screen.getByRole("button", { name: /expand target breakdown/i }));
+
+    const collapseBtn = screen.getByRole("button", { name: /collapse target breakdown/i });
+    const owningTh = collapseBtn.closest("th");
+    expect(owningTh).not.toBeNull();
+    expect(owningTh!.textContent).toContain("New Biz");
+    expect(owningTh!.textContent).not.toContain("Renewal");
+    // Sanity: collapse button lives in the same <th> as the first sub-column.
+    expect(container.contains(collapseBtn)).toBe(true);
+  });
+});
+
+describe("GridView — frozen district-name column", () => {
+  function renderPlanDistricts() {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [{ leaid: "1111", name: "Alpha USD", stateAbbrev: "CA" }],
+        total: 1,
+      },
+    });
+    const Wrapper = makeWrapper();
+    return render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={emptyLayout()}
+          onLayoutChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+  }
+
+  it("freezes the checkbox header at left:0 and the District header at left:36px", () => {
+    const { container } = renderPlanDistricts();
+
+    const ths = Array.from(container.querySelectorAll("thead th"));
+    const checkboxTh = ths.find((th) => th.querySelector('input[type="checkbox"]')) as HTMLElement;
+    const districtTh = ths.find((th) => th.textContent?.trim() === "District") as HTMLElement;
+
+    expect(checkboxTh).toBeTruthy();
+    expect(districtTh).toBeTruthy();
+    expect(checkboxTh.style.position).toBe("sticky");
+    expect(checkboxTh.style.left).toBe("0px");
+    expect(districtTh.style.position).toBe("sticky");
+    expect(districtTh.style.left).toBe("36px");
+  });
+
+  it("freezes the checkbox and name cells in each body row", () => {
+    const { container } = renderPlanDistricts();
+
+    const firstRow = container.querySelector("tbody tr:not([data-group-key])")!;
+    const stickyCells = Array.from(firstRow.querySelectorAll("td")).filter(
+      (td) => (td as HTMLElement).style.position === "sticky",
+    );
+    // checkbox cell + name cell
+    expect(stickyCells.length).toBe(2);
+
+    const nameCell = Array.from(firstRow.querySelectorAll("td")).find(
+      (td) => td.textContent?.includes("Alpha USD"),
+    ) as HTMLElement;
+    expect(nameCell.style.position).toBe("sticky");
+    expect(nameCell.style.left).toBe("36px");
+  });
+
+  it("freezes the District header at left:0 when there is no checkbox column", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: [{ leaid: "1111", name: "Alpha USD", stateAbbrev: "CA" }], total: 1 },
+    });
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView source="districts" leaids={["1111"]} listId={null} layout={emptyLayout()} />
+      </Wrapper>,
+    );
+    const districtTh = Array.from(container.querySelectorAll("thead th")).find(
+      (th) => th.textContent?.trim() === "District",
+    ) as HTMLElement;
+    expect(districtTh.style.position).toBe("sticky");
+    expect(districtTh.style.left).toBe("0px");
+  });
+});
+
+describe("GridView — column resize (table-layout: fixed + colgroup)", () => {
+  function renderDistricts(layout?: GridViewLayout, onChange = vi.fn()) {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: [{ leaid: "1111", name: "Alpha USD", stateAbbrev: "CA" }], total: 1 },
+    });
+    const Wrapper = makeWrapper();
+    const utils = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111"]}
+          listId={null}
+          layout={layout ?? emptyLayout()}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+    return { ...utils, onChange };
+  }
+
+  it("renders the table with table-layout: fixed and a colgroup", () => {
+    const { container } = renderDistricts();
+    const table = container.querySelector("table") as HTMLElement;
+    expect(table.style.tableLayout).toBe("fixed");
+    const cols = container.querySelectorAll("colgroup col");
+    expect(cols.length).toBeGreaterThan(0);
+  });
+
+  it("sizes the table to an explicit px total + min-width:100% (not max-content)", () => {
+    // `width: max-content` lets columns grow to content and silently breaks
+    // shrinking a column below its text. The width must be an explicit px sum.
+    const { container } = renderDistricts();
+    const table = container.querySelector("table") as HTMLElement;
+    expect(table.style.width).not.toBe("max-content");
+    expect(table.style.width).toMatch(/^\d+px$/);
+    expect(table.style.minWidth).toBe("100%");
+  });
+
+  it("applies an explicit column width from layout to the matching <col>", () => {
+    const layout: GridViewLayout = {
+      ...emptyLayout(),
+      columns: [{ id: "name", order: 0, visible: true, width: 300 }],
+    };
+    const { container } = renderDistricts(layout);
+    // name is the first visible column (no checkbox in non-plan context)
+    const firstCol = container.querySelector("colgroup col") as HTMLElement;
+    expect(firstCol.style.width).toBe("300px");
+  });
+
+  it("falls back to a sensible default width when none is set", () => {
+    const { container } = renderDistricts();
+    const firstCol = container.querySelector("colgroup col") as HTMLElement;
+    // default width for the district name column
+    expect(firstCol.style.width).toBe("240px");
+  });
+
+  it("commits a new width to layout when a resize handle is dragged", () => {
+    const onChange = vi.fn();
+    const { container } = renderDistricts(undefined, onChange);
+
+    // Find the State header's resize handle (State default width = 90).
+    const stateTh = Array.from(container.querySelectorAll("thead th")).find(
+      (th) => th.textContent?.includes("State"),
+    ) as HTMLElement;
+    const handle = stateTh.querySelector('[class*="cursor-col-resize"]') as HTMLElement;
+    expect(handle).toBeTruthy();
+
+    // jsdom's PointerEvent does not carry clientX; MouseEvent does, and React's
+    // delegated listener reads nativeEvent.clientX either way. Dispatch
+    // MouseEvents typed as the pointer events the handler listens for.
+    const pointer = (type: string, clientX: number) =>
+      fireEvent(handle, new MouseEvent(type, { clientX, bubbles: true, cancelable: true }));
+    pointer("pointerdown", 100);
+    pointer("pointermove", 160);
+    pointer("pointerup", 160);
+
+    expect(onChange).toHaveBeenCalled();
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1][0] as GridViewLayout;
+    const stateCol = last.columns.find((c) => c.id === "state");
+    // Resize starts from the resolved default width (90) + drag delta (60) = 150.
+    expect(stateCol?.width).toBe(150);
+  });
+
+  it("updates the column live during a drag (before pointer-up)", () => {
+    const { container } = renderDistricts();
+
+    const stateTh = Array.from(container.querySelectorAll("thead th")).find(
+      (th) => th.textContent?.includes("State"),
+    ) as HTMLElement;
+    const handle = stateTh.querySelector('[class*="cursor-col-resize"]') as HTMLElement;
+    const pointer = (type: string, clientX: number) =>
+      fireEvent(handle, new MouseEvent(type, { clientX, bubbles: true, cancelable: true }));
+
+    // No pointer-up: the width is only applied imperatively to the <col>.
+    pointer("pointerdown", 100);
+    pointer("pointermove", 160);
+
+    const cols = Array.from(container.querySelectorAll("colgroup col")) as HTMLElement[];
+    // State default is 90; a 60px drag previews 150px live, before any commit.
+    expect(cols.some((c) => c.style.width === "150px")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bulk selection (plan/districts context)
+// ---------------------------------------------------------------------------
+describe("GridView — bulk selection (plan/districts context)", () => {
+  /** Three rows with leaid fields — the minimum for meaningful selection tests. */
+  function threeDistrictRows() {
+    return [
+      { leaid: "1111", name: "Alpha USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 0, stage: "Prospect" },
+      { leaid: "2222", name: "Beta USD",  stateAbbrev: "CA", tier: "Tier 2", metricValue: 0, stage: "Prospect" },
+      { leaid: "3333", name: "Gamma USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 0, stage: "Prospect" },
+    ];
+  }
+
+  /** Render GridView in the plan/districts context that activates bulk selection. */
+  function renderBulkContext(overrideLayout?: GridViewLayout) {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: threeDistrictRows(), total: 3 },
+    });
+
+    const layout = overrideLayout ?? emptyLayout();
+    const Wrapper = makeWrapper();
+    return render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111", "2222", "3333"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={layout}
+          onLayoutChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+  }
+
+  it("renders checkbox column when showRowActions is enabled", () => {
+    const { container } = renderBulkContext();
+
+    // Header checkbox
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]');
+    expect(headerCheckbox).not.toBeNull();
+
+    // Body checkboxes — one per row
+    const bodyCheckboxes = container.querySelectorAll('tbody input[type="checkbox"]');
+    expect(bodyCheckboxes.length).toBe(3);
+  });
+
+  it("header checkbox selects all page rows", () => {
+    const { container } = renderBulkContext();
+
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+
+    // Selection bar should appear with count text
+    expect(screen.getByText(/3 of 3 on this page selected/)).toBeTruthy();
+  });
+
+  it("clicking a row checkbox selects that row", () => {
+    const { container } = renderBulkContext();
+
+    const bodyCheckboxes = container.querySelectorAll('tbody input[type="checkbox"]');
+    fireEvent.click(bodyCheckboxes[0].parentElement!); // click the <td>
+
+    // Selection bar should appear showing 1 row selected
+    expect(screen.getByText(/1 of 3 on this page selected/)).toBeTruthy();
+  });
+
+  it("clicking the ✕ clear button resets selection", () => {
+    const { container } = renderBulkContext();
+
+    // First select all via header checkbox
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+
+    // Selection bar should be visible
+    expect(screen.getByText(/3 of 3 on this page selected/)).toBeTruthy();
+
+    // Click the clear (✕) button
+    const clearBtn = screen.getByRole("button", { name: /clear selection/i });
+    fireEvent.click(clearBtn);
+
+    // Selection bar should disappear
+    expect(screen.queryByText(/on this page selected/)).toBeNull();
+  });
+
+  it("querySig change (filter change) resets selection to none", () => {
+    const onChange = vi.fn();
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: threeDistrictRows(), total: 3 },
+    });
+
+    const initialLayout = emptyLayout();
+    let currentLayout = initialLayout;
+    const Wrapper = makeWrapper();
+    const { container, rerender } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111", "2222", "3333"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={currentLayout}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+
+    // Select all rows
+    const headerCheckbox = container.querySelector('th input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    expect(screen.getByText(/3 of 3 on this page selected/)).toBeTruthy();
+
+    // Change layout filters (simulates a filter change that changes querySig)
+    currentLayout = {
+      ...emptyLayout(),
+      filters: {
+        kind: "and",
+        children: [{ kind: "rule", fieldId: "state", op: "eq", value: "NY" }],
+      },
+    };
+
+    rerender(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1111", "2222", "3333"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={currentLayout}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+
+    // Selection bar should be gone after query sig change
+    expect(screen.queryByText(/on this page selected/)).toBeNull();
+  });
+
+  it("does NOT render checkbox column when source is not districts", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [{ id: "opp-1", stage: "Proposal", netBookingAmount: 50000, closeDate: "2026-06-01", ownerName: "Sierra" }],
+        total: 1,
+      },
+    });
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="opps"
+          leaids={["0100005"]}
+          listId={null}
+          parentKind="plan"
+          parentId="plan-1"
+          layout={emptyLayout()}
+          onLayoutChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+
+    // No checkboxes should appear for opps source
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
   });
 });

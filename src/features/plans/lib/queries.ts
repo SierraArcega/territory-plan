@@ -206,6 +206,28 @@ export function useRemoveDistrictFromPlan() {
   });
 }
 
+export function useBulkRemoveDistrictsFromPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, leaids }: { planId: string; leaids: string[] }) =>
+      fetchJson<{ removed: number }>(
+        `${API_BASE}/territory-plans/${planId}/districts`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({ leaids }),
+        }
+      ),
+    onSuccess: (_, { planId }) => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", planId] });
+      queryClient.invalidateQueries({ queryKey: ["views", "data"] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
+      queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+}
+
 export function usePlanOpportunities(planId: string | null) {
   return useQuery({
     queryKey: ["planOpportunities", planId],
@@ -504,6 +526,8 @@ export function useUpdateDistrictTargets() {
       // Refresh dashboards that aggregate target data
       queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      // Refresh GridView so target sum column reflects new total
+      queryClient.invalidateQueries({ queryKey: ["views", "data"] });
     },
   });
 }

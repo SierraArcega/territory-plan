@@ -30,6 +30,7 @@ const CATEGORY_STYLE: Record<ActivityCategory, { bg: string; ink: string; dot: s
   meetings: { bg: "#EFEDF5", ink: "#403770", dot: "#403770", label: CATEGORY_LABELS.meetings },
   events: { bg: "#EEF5F8", ink: "#3A6B85", dot: "#6EA3BE", label: CATEGORY_LABELS.events },
   campaigns: { bg: "#FFF8E6", ink: "#7A5F00", dot: "#FFCF70", label: CATEGORY_LABELS.campaigns },
+  outreach: { bg: "#FEF3EE", ink: "#8C4A25", dot: "#E07B4A", label: CATEGORY_LABELS.outreach },
   gift_drop: { bg: "#FEF2F1", ink: "#A8463F", dot: "#F37167", label: CATEGORY_LABELS.gift_drop },
   sponsorships: { bg: "#EFF5F0", ink: "#5A6F61", dot: "#8AA891", label: CATEGORY_LABELS.sponsorships },
   thought_leadership: { bg: "#F5F0FA", ink: "#6B5292", dot: "#A78BCA", label: CATEGORY_LABELS.thought_leadership },

@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { extractCitations, type CopilotCitation, type CitationCarrier } from "@/features/copilot/lib/citations";
 import { handleListTables } from "@/features/reports/lib/tools/list-tables";
 import { handleDescribeTable } from "@/features/reports/lib/tools/describe-table";
 import { handleSearchMetadata } from "@/features/reports/lib/tools/search-metadata";
@@ -25,12 +26,15 @@ import {
 } from "./types";
 
 /**
- * Agent variant — controls which terminal tool the loop expects and which
+ * Agent variant — controls which terminal tool(s) the loop expects and which
  * result variant the loop produces. The default 'reports' preserves the
  * original behavior; 'list-builder' is used by the saved-views AI list
- * builder route.
+ * builder route; 'copilot' is the write-capable cross-app assistant, which is
+ * the one variant with TWO terminal tools — `run_sql` (answer-a-question turns,
+ * reused verbatim from reports) and a custom `propose_actions` terminal (write
+ * proposals). The loop picks the path by the called tool's name, not by variant.
  */
-export type AgentVariant = "reports" | "list-builder";
+export type AgentVariant = "reports" | "list-builder" | "copilot";
 
 /**
  * Generic terminal-tool config. When passed to runAgentLoop, the loop
@@ -81,6 +85,11 @@ export type AgentResult<TTerminal = unknown> = AgentTelemetry &
         terminalResult: TTerminal;
         assistantText: string;
       }
+    | {
+        kind: "research";
+        assistantText: string;
+        citations: CopilotCitation[];
+      }
     | { kind: "clarifying"; text: string }
     | { kind: "surrender"; text: string }
   );
@@ -110,11 +119,12 @@ interface RunAgentLoopArgs<TTerminal = unknown> {
    */
   systemPrompt?: string;
   /**
-   * Optional override for the tool set. When omitted, the reports variant
-   * uses AGENT_TOOLS; list-builder must supply its own (read-only schema
-   * introspection + emit_list_spec).
+   * Optional override for the tool set. Widened from `Tool[]` to `ToolUnion[]`
+   * so server tools (WebSearchTool20250305, WebFetchTool20250910) fit without a
+   * cast. Callers using only local tools (reports, list-builder) pass `Tool[]`,
+   * which is assignable to `ToolUnion[]`.
    */
-  tools?: Anthropic.Tool[];
+  tools?: Anthropic.ToolUnion[];
   /**
    * Optional terminal-tool config. When provided, the loop substitutes the
    * default `run_sql` terminal for this one. The 'reports' variant ignores
@@ -131,6 +141,14 @@ interface RunAgentLoopArgs<TTerminal = unknown> {
     toolUse: Anthropic.ToolUseBlock,
     userId: string,
   ) => Promise<string>;
+  /**
+   * Optional `output_config.effort` (Opus 4.7). Omitted → the model's default
+   * (`high`). The copilot passes `medium`: its turns are id lookups + a
+   * propose, or a single run_sql — rarely reasoning-bound — so lower effort
+   * cuts per-iteration latency. Reports/list-builder leave it unset so their
+   * reasoning depth is unchanged.
+   */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 
 // Set AGENT_LOOP_DIAG=1 in the deployment env to capture full system-prompt +
@@ -177,6 +195,38 @@ function containsSqlFence(text: string): boolean {
   return bareFence.test(text);
 }
 
+// Places a single rolling prompt-cache breakpoint on the tail of the
+// conversation prefix so each agent-loop iteration reads the prior
+// tool_results (and replayed prior turns) from cache instead of reprocessing
+// them at full input price. The large static prefix (tools + system) is cached
+// separately via the system block's 1h breakpoint; this one moves forward each
+// iteration as tool_results accumulate. Anchored on the last *array-content*
+// message's final block — trailing string messages (the user question) are a
+// tiny, uncacheable suffix. Clearing prior breakpoints first keeps the count at
+// system(1) + conversation(1) = 2, within the 4-breakpoint cap.
+function markConversationCacheBreakpoint(messages: Anthropic.MessageParam[]): void {
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue;
+    for (const block of m.content) {
+      if (block && typeof block === "object" && "cache_control" in block) {
+        delete (block as { cache_control?: unknown }).cache_control;
+      }
+    }
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const content = messages[i].content;
+    if (Array.isArray(content) && content.length > 0) {
+      const lastBlock = content[content.length - 1];
+      if (lastBlock && typeof lastBlock === "object") {
+        (lastBlock as { cache_control?: Anthropic.CacheControlEphemeral }).cache_control = {
+          type: "ephemeral",
+        };
+      }
+      return;
+    }
+  }
+}
+
 export async function runAgentLoop<TTerminal = unknown>(
   args: RunAgentLoopArgs<TTerminal>,
 ): Promise<AgentResult<TTerminal>> {
@@ -192,14 +242,21 @@ export async function runAgentLoop<TTerminal = unknown>(
     tools: toolsOverride,
     terminalTool,
     exploratoryToolHandler,
+    effort,
   } = args;
-  // The variant defines which terminal tool name the loop should detect.
-  // Reports keeps the historical `run_sql`. List-builder uses whatever the
-  // caller passed in (typically `emit_list_spec`).
-  const terminalToolName =
-    agentVariant === "list-builder"
-      ? (terminalTool?.name ?? RUN_SQL_TOOL_NAME)
-      : RUN_SQL_TOOL_NAME;
+  // Which tool name(s) terminate the loop. Reports keeps the historical
+  // `run_sql`. List-builder uses whatever the caller passed in (typically
+  // `emit_list_spec`). Copilot is the only variant with two terminals: the
+  // reused `run_sql` (answers) AND the caller's `terminalTool` (propose_actions).
+  const isTerminalTool = (name: string): boolean => {
+    if (agentVariant === "copilot") {
+      return name === RUN_SQL_TOOL_NAME || name === terminalTool?.name;
+    }
+    if (agentVariant === "list-builder") {
+      return name === (terminalTool?.name ?? RUN_SQL_TOOL_NAME);
+    }
+    return name === RUN_SQL_TOOL_NAME;
+  };
 
   // Replay prior turns as tool_use/tool_result pairs (not Markdown SQL blocks)
   // so the model sees structured execution it can't mimic in plain-text replies.
@@ -251,6 +308,12 @@ export async function runAgentLoop<TTerminal = unknown>(
   let ghostReportRetriesUsed = 0;
   let exploratoryCalls = 0;
   let assistantText = "";
+  let usedServerTools = false;
+  let pauseContinuations = 0;
+  const MAX_PAUSE_CONTINUATIONS = 10;
+  // Accumulated assistant content across iterations, for citation extraction at
+  // the research exit. extractCitations ignores non-text blocks.
+  const serverContent: CitationCarrier[] = [];
   let iteration = 0;
   const events: TurnEvent[] = [];
   // Push helper that also forwards to the streaming callback. Keeps the
@@ -291,14 +354,24 @@ export async function runAgentLoop<TTerminal = unknown>(
 
   while (true) {
     iteration++;
-    const response = await anthropic.messages.create({
+    markConversationCacheBreakpoint(messages);
+    // Stream the call so assistant text reaches the client token-by-token
+    // (the loop logic below is unchanged — `finalMessage()` yields the same
+    // full Message that `create()` returned). `text_delta` events are emitted
+    // before this iteration's terminal `model_call` event.
+    const modelStream = anthropic.messages.stream({
       model: "claude-opus-4-7",
       max_tokens: 16000,
       thinking: { type: "adaptive" },
+      ...(effort ? { output_config: { effort } } : {}),
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } }],
       tools: toolSet,
       messages,
     });
+    modelStream.on("text", (delta) => {
+      if (delta) pushEvent({ kind: "text_delta", iteration, delta });
+    });
+    const response = await modelStream.finalMessage();
 
     const callUsage = extractUsage((response as { usage?: unknown }).usage);
     totalUsage = addUsage(totalUsage, callUsage);
@@ -337,6 +410,24 @@ export async function runAgentLoop<TTerminal = unknown>(
       assistantText: turnText || null,
       toolUses: toolUses.map((t) => ({ id: t.id, name: t.name, input: t.input })),
     });
+
+    if (response.content.some((b) => (b as { type?: string }).type === "server_tool_use")) {
+      usedServerTools = true;
+    }
+    serverContent.push(...(response.content as CitationCarrier[]));
+
+    // Server tools (web_search/web_fetch) pause the turn while Anthropic runs
+    // them. Re-send the partial assistant content and continue — the model
+    // resumes with the results. Bounded so a runaway sequence surrenders.
+    if ((response as { stop_reason?: string | null }).stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: response.content as Anthropic.MessageParam["content"] });
+      pauseContinuations++;
+      if (pauseContinuations >= MAX_PAUSE_CONTINUATIONS) {
+        const text = assistantText || "I wasn't able to finish researching that. Could you narrow it down?";
+        return { kind: "surrender", text, events, usage: totalUsage };
+      }
+      continue;
+    }
 
     if (toolUses.length === 0) {
       const text = assistantText || "(no text)";
@@ -383,6 +474,18 @@ export async function runAgentLoop<TTerminal = unknown>(
         };
       }
 
+      // A turn that used server tools (web_search/web_fetch) and finished with
+      // text is a researched answer, not a clarifying question.
+      if (usedServerTools) {
+        return {
+          kind: "research",
+          assistantText: text,
+          citations: extractCitations(serverContent),
+          events,
+          usage: totalUsage,
+        };
+      }
+
       logDiag("no_tools", "clarifying", text);
       return {
         kind: "clarifying",
@@ -398,14 +501,19 @@ export async function runAgentLoop<TTerminal = unknown>(
     // `list-builder` (or any variant with a custom terminalTool) we look for
     // the configured tool name. Both branches share the same retry budget and
     // tool_result emission shape so SSE consumers can render either uniformly.
-    const terminalUse = toolUses.find((t) => t.name === terminalToolName);
+    const terminalUse = toolUses.find((t) => isTerminalTool(t.name));
+    const terminalToolName = terminalUse?.name ?? RUN_SQL_TOOL_NAME;
     let terminalErrShape:
       | { kind: "error"; message: string }
       | { kind: "validation_error"; errors: string[] }
       | null = null;
 
     if (terminalUse) {
-      if (agentVariant === "reports") {
+      // Dispatch by the called tool, not the variant: `run_sql` (reports always,
+      // copilot when answering) runs the reused SQL terminal → `result`;
+      // anything else (list-builder's emit_list_spec, copilot's propose_actions)
+      // runs the custom `terminalTool.handle` → `terminal_result`.
+      if (terminalUse.name === RUN_SQL_TOOL_NAME) {
         // Original run_sql path — preserved verbatim so existing behavior is
         // unchanged for the reports caller.
         const input = terminalUse.input as { sql: string; summary: QuerySummary };
@@ -533,7 +641,7 @@ export async function runAgentLoop<TTerminal = unknown>(
           });
           const text =
             assistantText ||
-            "I couldn't build a valid list spec after retries. Could you rephrase?";
+            "I couldn't complete that after a couple of tries. Could you rephrase?";
           logDiag("sql_retries_exhausted", "surrender", text);
           return {
             kind: "surrender",

@@ -99,3 +99,6 @@ playwright-report/
 
 # Apps Script CLASP project link (contains personal script ID)
 scripts/document-generation/appsscript/.clasp.json
+
+# Data change-logs written by territory-owner tooling scripts
+scripts/exports/

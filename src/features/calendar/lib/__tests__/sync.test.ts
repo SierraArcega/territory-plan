@@ -50,7 +50,7 @@ import {
   getValidAccessToken,
   filterExternalAttendees,
 } from "@/features/calendar/lib/google";
-import { syncCalendarEvents } from "../sync";
+import { syncCalendarEvents, confirmCalendarEvent } from "../sync";
 
 // ---------------------------------------------------------------------------
 // Helpers for building stable mock payloads
@@ -618,6 +618,175 @@ describe("syncCalendarEvents — multi-domain internal filtering", () => {
     expect(filterExternalAttendees).toHaveBeenCalledWith(
       expect.any(Array),
       []
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// confirmCalendarEvent — stagedContacts path
+// ---------------------------------------------------------------------------
+describe("confirmCalendarEvent — stagedContacts", () => {
+  const EVENT_ID = "cal-event-1";
+  const PRIMARY_LEAID = "1234567";
+
+  // Build a tx stub that $transaction will invoke its callback with.
+  function makeTx() {
+    return {
+      activity: {
+        create: vi.fn().mockResolvedValue({ id: "act-1" }),
+      },
+      activityPlan: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      activityDistrict: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      district: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      territoryPlanDistrict: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      activityState: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      activityContact: {
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      contact: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Provide the pending calendar event
+    vi.mocked(prisma.calendarEvent.findUnique).mockResolvedValue({
+      id: EVENT_ID,
+      userId: USER_ID,
+      status: "pending",
+      title: "Test Meeting",
+      description: null,
+      startTime: new Date(Date.now() - 60 * 60 * 1000),
+      endTime: new Date(),
+      googleEventId: "goog-evt-1",
+      suggestedActivityType: "meeting",
+      suggestedPlanId: null,
+      suggestedDistrictId: PRIMARY_LEAID,
+      suggestedContactIds: [],
+    } as never);
+
+    vi.mocked(prisma.calendarEvent.update).mockResolvedValue({} as never);
+  });
+
+  it("creates a new contact when findFirst returns null and links it to the activity", async () => {
+    const tx = makeTx();
+    tx.contact.findFirst.mockResolvedValue(null);
+    tx.contact.create.mockResolvedValue({ id: 999 });
+
+    // Wire $transaction to invoke the callback with our tx stub
+    (prisma as unknown as Record<string, unknown>).$transaction = vi
+      .fn()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb(tx));
+
+    await confirmCalendarEvent(USER_ID, EVENT_ID, {
+      districtLeaids: [PRIMARY_LEAID],
+      stagedContacts: [{ email: "new@school.org", name: "New Person" }],
+    });
+
+    expect(tx.contact.findFirst).toHaveBeenCalledWith({
+      where: {
+        leaid: PRIMARY_LEAID,
+        email: { equals: "new@school.org", mode: "insensitive" },
+      },
+    });
+    expect(tx.contact.create).toHaveBeenCalledWith({
+      data: {
+        leaid: PRIMARY_LEAID,
+        name: "New Person",
+        email: "new@school.org",
+      },
+    });
+    expect(tx.activityContact.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ contactId: 999 }),
+        ]),
+        skipDuplicates: true,
+      })
+    );
+  });
+
+  it("warns and skips contact creation when stagedContacts are provided but no district is attached", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const tx = makeTx();
+
+    // Provide a calEvent with no suggested district so primaryLeaid resolves to null
+    vi.mocked(prisma.calendarEvent.findUnique).mockResolvedValue({
+      id: EVENT_ID,
+      userId: USER_ID,
+      status: "pending",
+      title: "Test Meeting",
+      description: null,
+      startTime: new Date(Date.now() - 60 * 60 * 1000),
+      endTime: new Date(),
+      googleEventId: "goog-evt-no-district",
+      suggestedActivityType: "meeting",
+      suggestedPlanId: null,
+      suggestedDistrictId: null,
+      suggestedContactIds: [],
+    } as never);
+
+    (prisma as unknown as Record<string, unknown>).$transaction = vi
+      .fn()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb(tx));
+
+    await confirmCalendarEvent(USER_ID, EVENT_ID, {
+      stagedContacts: [{ email: "x@y.org", name: "X" }],
+    });
+
+    expect(tx.contact.create).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("dropping 1 staged contact(s)")
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it("reuses an existing contact (findFirst returns { id: 555 }) without calling create", async () => {
+    const tx = makeTx();
+    tx.contact.findFirst.mockResolvedValue({ id: 555 });
+
+    (prisma as unknown as Record<string, unknown>).$transaction = vi
+      .fn()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockImplementation((cb: (tx: any) => Promise<unknown>) => cb(tx));
+
+    await confirmCalendarEvent(USER_ID, EVENT_ID, {
+      districtLeaids: [PRIMARY_LEAID],
+      stagedContacts: [{ email: "existing@school.org", name: "Existing Person" }],
+    });
+
+    expect(tx.contact.findFirst).toHaveBeenCalledWith({
+      where: {
+        leaid: PRIMARY_LEAID,
+        email: { equals: "existing@school.org", mode: "insensitive" },
+      },
+    });
+    expect(tx.contact.create).not.toHaveBeenCalled();
+    expect(tx.activityContact.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ contactId: 555 }),
+        ]),
+        skipDuplicates: true,
+      })
     );
   });
 });

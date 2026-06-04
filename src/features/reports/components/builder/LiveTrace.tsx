@@ -111,8 +111,7 @@ function eventsToLines(events: TurnEvent[], completed: boolean): Line[] {
           key: t.id,
         });
       }
-    } else {
-      // tool_result
+    } else if (e.kind === "tool_result") {
       if (HIDDEN_TOOL_NAMES.has(e.toolName)) continue;
       const start = pending.get(e.toolUseId);
       const lineIndex = lines.findIndex((l) => l.key === e.toolUseId);

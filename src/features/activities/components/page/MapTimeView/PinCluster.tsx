@@ -9,6 +9,7 @@ const CATEGORY_DOT: Record<ActivityCategory, string> = {
   meetings: "#403770",
   events: "#6EA3BE",
   campaigns: "#FFCF70",
+  outreach: "#E07B4A",
   gift_drop: "#F37167",
   sponsorships: "#8AA891",
   thought_leadership: "#A78BCA",

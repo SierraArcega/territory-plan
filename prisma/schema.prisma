@@ -144,6 +144,10 @@ model District {
   ownerUser          UserProfile? @relation("DistrictOwner", fields: [ownerId], references: [id])
   salesExecutiveUser UserProfile? @relation("DistrictSalesExec", fields: [salesExecutiveId], references: [id])
 
+  // ===== Collaborators & Watchers =====
+  collaborators DistrictCollaborator[]
+  watchers      DistrictWatcher[]
+
   // ===== Rollup Relationship =====
   // Self-relation for districts that roll up into a parent (e.g., NYC Geographic
   // Districts roll up into NYC DOE leaid 3620580). See docs/nyc-doe-rollup plan.
@@ -582,6 +586,39 @@ model TerritoryPlanCollaborator {
   @@map("territory_plan_collaborators")
 }
 
+// People (besides the owner) who actively work a district. `source` = 'auto'
+// rows are managed by the owner/collaborator sync (non-owner reps with an open
+// opp on, or a territory-plan target for, the district); 'manual' rows are
+// added by users and never touched by the sync.
+model DistrictCollaborator {
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  userId       String   @map("user_id") @db.Uuid
+  source       String   @default("manual")
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  district District    @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+  user     UserProfile @relation("DistrictCollaborator", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([districtLeaid, userId])
+  @@index([userId])
+  @@map("district_collaborators")
+}
+
+// People who want to stay updated on a district (no owner/edit rights implied).
+// Notification delivery is deferred; this only stores the subscription.
+model DistrictWatcher {
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  userId       String   @map("user_id") @db.Uuid
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  district District    @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+  user     UserProfile @relation("DistrictWatcher", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([districtLeaid, userId])
+  @@index([userId])
+  @@map("district_watchers")
+}
+
 // ===== Saved Views =====
 // Per-rep saved filtered queries over one of six entity sources. Paired with
 // TerritoryPlan rows in the unified "My views" sidebar. The filter tree is an
@@ -1014,11 +1051,11 @@ model UserProfile {
   assignedTasks       Task[]                      @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
   integrations        UserIntegration[]
-  // Initiative leaderboard scores
-  initiativeScores    InitiativeScore[]
   // Inverse relations for normalized person FKs
   ownedDistricts      District[]                  @relation("DistrictOwner")
   assignedDistricts   District[]                  @relation("DistrictSalesExec")
+  collaboratingDistricts DistrictCollaborator[]   @relation("DistrictCollaborator")
+  watchingDistricts      DistrictWatcher[]        @relation("DistrictWatcher")
   ownedStates         State[]                     @relation("StateOwner")
   ownedSchools        School[]                    @relation("SchoolOwner")
   // Query tool audit + saved reports
@@ -1032,6 +1069,9 @@ model UserProfile {
   hiddenPlans         TerritoryPlanHidden[]       @relation("TerritoryPlanHiddenUser")
   // Notes authored on district note logs
   authoredDistrictNotes DistrictNote[]            @relation("DistrictNoteAuthor")
+  // AI Copilot conversation turns + write audit log
+  copilotTurns          CopilotTurn[]             @relation("UserCopilotTurns")
+  copilotActionLogs     CopilotActionLog[]        @relation("UserCopilotActionLogs")
 
   @@map("user_profiles")
 }
@@ -1738,92 +1778,6 @@ model VacancyKeywordConfig {
   @@map("vacancy_keyword_config")
 }
 
-// ===== Initiative Leaderboard =====
-// Gamified point system with tiered rankings and initiative-based rotation.
-
-model Initiative {
-  id                        Int       @id @default(autoincrement())
-  name                      String    @db.VarChar(100)
-  initiativeUid             String?   @unique @map("initiative_uid") @db.VarChar(30)
-  startDate                 DateTime  @map("start_date") @db.Timestamptz
-  endDate                   DateTime? @map("end_date") @db.Timestamptz
-  isActive                  Boolean   @default(false) @map("is_active")
-  showName                  Boolean   @default(true) @map("show_name")
-  showDates                 Boolean   @default(true) @map("show_dates")
-  softResetTiers            Int       @default(1) @map("soft_reset_tiers")
-  initiativeWeight          Decimal   @default(0.4) @map("initiative_weight") @db.Decimal(3, 2)
-  pipelineWeight            Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
-  pipelineFiscalYear        String?   @map("pipeline_fiscal_year") @db.VarChar(10)
-  takeWeight                Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
-  takeFiscalYear            String?   @map("take_fiscal_year") @db.VarChar(10)
-  revenueWeight             Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
-  revenueFiscalYear         String?   @map("revenue_fiscal_year") @db.VarChar(10)
-  revenueTargetedWeight     Decimal   @default(0.0) @map("revenue_targeted_weight") @db.Decimal(3, 2)
-  revenueTargetedFiscalYear String?   @map("revenue_targeted_fiscal_year") @db.VarChar(10)
-  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-
-  metrics    InitiativeMetric[]
-  scores     InitiativeScore[]
-  thresholds InitiativeTierThreshold[]
-
-  @@map("initiatives")
-}
-
-model InitiativeMetric {
-  id           Int     @id @default(autoincrement())
-  initiativeId Int     @map("initiative_id")
-  action       String  @db.VarChar(50)
-  pointValue   Int     @map("point_value")
-  label        String  @db.VarChar(100)
-  weight       Decimal @default(1.0) @map("weight") @db.Decimal(4, 2)
-
-  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
-
-  @@index([initiativeId])
-  @@map("initiative_metrics")
-}
-
-model InitiativeScore {
-  id           Int      @id @default(autoincrement())
-  initiativeId Int      @map("initiative_id")
-  userId       String   @map("user_id") @db.Uuid
-  totalPoints  Int      @default(0) @map("total_points")
-  tier         String   @default("freshman") @db.VarChar(20)
-  rank         Int      @default(0)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  initiative Initiative  @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
-  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([initiativeId, userId])
-  @@index([initiativeId, totalPoints(sort: Desc)])
-  @@map("initiative_scores")
-}
-
-model InitiativeTierThreshold {
-  id           Int    @id @default(autoincrement())
-  initiativeId Int    @map("initiative_id")
-  tier         String @db.VarChar(20)
-  minPoints    Int    @map("min_points")
-
-  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
-
-  @@unique([initiativeId, tier])
-  @@index([initiativeId])
-  @@map("initiative_tier_thresholds")
-}
-
-model MetricRegistry {
-  id          Int    @id @default(autoincrement())
-  action      String @unique @db.VarChar(50)
-  label       String @db.VarChar(100)
-  description String @db.VarChar(255)
-  category    String @db.VarChar(50)
-
-  @@map("metric_registry")
-}
-
 // ===== Query Tool Audit & Saved Reports =====
 // Added for the Claude query tool (MAP-5), agentic actions (MAP-3), and MCP (MAP-4).
 // query_log records every natural-language query, generated SQL, and action execution.
@@ -1855,6 +1809,58 @@ model QueryLog {
   @@index([createdAt(sort: Desc)])
   @@index([action])
   @@map("query_log")
+}
+
+// AI Copilot conversation turn. Mirrors the QueryLog persistence pattern but is
+// dedicated to the write-capable copilot: a turn may answer a question (sql +
+// summary, like reports) OR propose actions (proposedActions). Replayed into the
+// agent loop as PriorTurn[] for conversation continuity.
+model CopilotTurn {
+  id                       Int      @id @default(autoincrement())
+  conversationId           String   @map("conversation_id") @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  question                 String
+  assistantText            String?  @map("assistant_text")
+  sql                      String?
+  summary                  Json?
+  proposedActions          Json?    @map("proposed_actions")
+  toolTrace                Json?    @map("tool_trace")
+  inputTokens              Int?     @map("input_tokens")
+  outputTokens             Int?     @map("output_tokens")
+  cacheCreationInputTokens Int?     @map("cache_creation_input_tokens")
+  cacheReadInputTokens     Int?     @map("cache_read_input_tokens")
+  error                    String?
+  createdAt                DateTime @default(now()) @map("created_at")
+
+  user UserProfile @relation("UserCopilotTurns", fields: [userId], references: [id])
+
+  @@index([conversationId])
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("copilot_turn")
+}
+
+// Audit log of every executed copilot write (after the rep confirms). One row
+// per action with before/after snapshots — written in the same transaction as
+// the mutation so the audit can never drift from the data.
+model CopilotActionLog {
+  id             Int      @id @default(autoincrement())
+  userId         String   @map("user_id") @db.Uuid
+  conversationId String?  @map("conversation_id") @db.Uuid
+  objectType     String   @map("object_type")
+  operation      String
+  targetId       String?  @map("target_id")
+  beforeJson     Json?    @map("before_json")
+  afterJson      Json?    @map("after_json")
+  status         String
+  errorMessage   String?  @map("error_message")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user UserProfile @relation("UserCopilotActionLogs", fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([conversationId])
+  @@map("copilot_action_log")
 }
 
 model SavedReport {

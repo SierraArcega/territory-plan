@@ -161,5 +161,33 @@ BEGIN
   DROP TABLE _session_counts;
   DROP TABLE _sub_agg;
 
+  -- Sync denormalized flags on districts from district_financials so every
+  -- Railway sync cycle keeps is_customer / has_open_pipeline current without
+  -- requiring a manual CSV re-export.
+  --
+  -- is_customer: any completed revenue ever, OR a FY25+ booking in flight
+  --   (FY25 cutoff excludes stale FY22-FY24 Closed Won deals that were never
+  --    delivered and were never moved to a cancellation stage in Salesforce)
+  --
+  -- has_open_pipeline: any open pipeline in FY26 or later
+  --   (FY25 pipeline is past; no point showing it as active)
+  UPDATE districts d SET
+    is_customer = EXISTS (
+      SELECT 1 FROM district_financials df
+      WHERE df.leaid = d.leaid
+        AND df.vendor = 'fullmind'
+        AND (
+          df.completed_revenue > 0
+          OR (df.closed_won_bookings > 0 AND df.fiscal_year >= 'FY25')
+        )
+    ),
+    has_open_pipeline = EXISTS (
+      SELECT 1 FROM district_financials df
+      WHERE df.leaid = d.leaid
+        AND df.vendor = 'fullmind'
+        AND df.open_pipeline > 0
+        AND df.fiscal_year >= 'FY26'
+    );
+
 END;
 $$ LANGUAGE plpgsql;

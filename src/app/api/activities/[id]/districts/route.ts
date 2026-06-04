@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser, isAdmin } from "@/lib/supabase/server";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,18 @@ export async function POST(
       skipDuplicates: true,
     });
 
+    // Auto-link: attach this activity to every plan that contains any of the
+    // newly added districts (idempotent via skipDuplicates).
+    const autoPlanIds = await findPlanIdsForDistricts(leaids);
+    let plansLinked = 0;
+    if (autoPlanIds.length > 0) {
+      const planResult = await prisma.activityPlan.createMany({
+        data: autoPlanIds.map((planId) => ({ activityId: id, planId })),
+        skipDuplicates: true,
+      });
+      plansLinked = planResult.count;
+    }
+
     // Auto-derive states from districts
     // Get current activity states
     const currentStates = await prisma.activityState.findMany({
@@ -99,6 +112,7 @@ export async function POST(
       linked: result.count,
       activityId: id,
       statesAdded: newStates.length,
+      plansLinked,
     });
   } catch (error) {
     console.error("Error linking districts to activity:", error);

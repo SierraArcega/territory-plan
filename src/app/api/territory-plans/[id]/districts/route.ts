@@ -197,3 +197,50 @@ export async function POST(
     );
   }
 }
+
+// DELETE /api/territory-plans/[id]/districts — bulk remove a list of districts
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: planId } = await params;
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { leaids } = body as { leaids?: unknown };
+
+    if (!Array.isArray(leaids) || leaids.length === 0) {
+      return NextResponse.json({ error: "leaids must be a non-empty array" }, { status: 400 });
+    }
+
+    const leaidStrings = leaids.filter((l): l is string => typeof l === "string");
+    if (leaidStrings.length === 0) {
+      return NextResponse.json({ error: "leaids must contain strings" }, { status: 400 });
+    }
+
+    const result = await prisma.territoryPlanDistrict.deleteMany({
+      where: { planId, districtLeaid: { in: leaidStrings } },
+    });
+
+    // Sync classification tags in batches of 10 (same pattern as POST handler).
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < leaidStrings.length; i += BATCH_SIZE) {
+      await Promise.all(
+        leaidStrings.slice(i, i + BATCH_SIZE).map((leaid) =>
+          syncClassificationTagsForDistrict(leaid)
+        )
+      );
+    }
+
+    await syncPlanRollups(planId);
+
+    return NextResponse.json({ removed: result.count });
+  } catch (error) {
+    console.error("Error bulk-removing districts from plan:", error);
+    return NextResponse.json({ error: "Failed to bulk-remove districts" }, { status: 500 });
+  }
+}

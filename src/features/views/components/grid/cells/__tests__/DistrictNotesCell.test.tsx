@@ -44,4 +44,15 @@ describe("DistrictNotesCell", () => {
     fireEvent.click(screen.getByRole("button", { name: /notes/i }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
+
+  it("renders the open popover outside the cell's own subtree (portaled)", () => {
+    const { container } = wrap(
+      <DistrictNotesCell leaid="3601234" districtName="Lincoln" latest="hi" count={1} latestType={null} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /notes/i }));
+    const dialog = screen.getByRole("dialog");
+    // The popover must NOT live inside the cell's render container — otherwise the
+    // grid's `overflow-auto` ancestor clips it. AnchoredPopover portals it to <body>.
+    expect(container.contains(dialog)).toBe(false);
+  });
 });

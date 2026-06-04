@@ -97,6 +97,8 @@ export function useCreateContact() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["planContacts"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
 }
@@ -112,6 +114,8 @@ export function useUpdateContact() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["planContacts"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
 }

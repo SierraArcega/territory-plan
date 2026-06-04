@@ -7,12 +7,15 @@ vi.mock("@/lib/supabase/server", () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
 }));
 
-// Scripted Anthropic mock — list-builder pipeline returns the same shape as
-// the reports agent test harness.
-const anthropicMessagesCreate = vi.fn();
+// Scripted Anthropic mock — the loop calls messages.stream(...).on("text", …)
+// then awaits finalMessage(), so route each scripted response through
+// finalMessage. (One stream() per iteration → finalMessage call count matches.)
+const anthropicFinalMessage = vi.fn();
 vi.mock("@/features/reports/lib/claude-client", () => ({
   getAnthropic: () => ({
-    messages: { create: anthropicMessagesCreate },
+    messages: {
+      stream: () => ({ on: vi.fn(), finalMessage: () => anthropicFinalMessage() }),
+    },
   }),
 }));
 
@@ -97,7 +100,7 @@ describe("POST /api/lists/ai-build", () => {
   it("streams a result event when the model emits a valid list spec", async () => {
     mockGetUser.mockResolvedValue({ id: "u1" });
     // The model calls emit_list_spec on its first iteration.
-    anthropicMessagesCreate.mockResolvedValueOnce({
+    anthropicFinalMessage.mockResolvedValueOnce({
       stop_reason: "tool_use",
       usage: { input_tokens: 100, output_tokens: 50, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       content: [
@@ -136,7 +139,7 @@ describe("POST /api/lists/ai-build", () => {
 
   it("streams a clarifying result when the model asks a question instead of emitting", async () => {
     mockGetUser.mockResolvedValue({ id: "u1" });
-    anthropicMessagesCreate.mockResolvedValueOnce({
+    anthropicFinalMessage.mockResolvedValueOnce({
       stop_reason: "end_turn",
       usage: { input_tokens: 50, output_tokens: 20, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       content: [
@@ -158,7 +161,7 @@ describe("POST /api/lists/ai-build", () => {
   it("retries when emit_list_spec input fails validation (bad source)", async () => {
     mockGetUser.mockResolvedValue({ id: "u1" });
     // First call: invalid source. Second call: valid.
-    anthropicMessagesCreate
+    anthropicFinalMessage
       .mockResolvedValueOnce({
         stop_reason: "tool_use",
         content: [
@@ -198,6 +201,6 @@ describe("POST /api/lists/ai-build", () => {
     const resultEvent = parsed.find((p) => p.event === "result");
     expect(resultEvent?.data?.kind).toBe("ok");
     expect(resultEvent?.data?.listSpec?.source).toBe("districts");
-    expect(anthropicMessagesCreate).toHaveBeenCalledTimes(2);
+    expect(anthropicFinalMessage).toHaveBeenCalledTimes(2);
   });
 });

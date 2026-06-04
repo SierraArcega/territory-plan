@@ -3,20 +3,12 @@
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { TABLE_REGISTRY } from "@/lib/district-column-metadata";
 import { formatCell, humanizeColumnName } from "../lib/format-cell";
+import { isIdColumn } from "../lib/result-columns";
 
 interface Props {
   columns: string[];
   rows: Array<Record<string, unknown>>;
-}
-
-function isIdColumn(columnName: string): boolean {
-  for (const tbl of Object.values(TABLE_REGISTRY)) {
-    const match = tbl.columns.find((c) => c.column === columnName);
-    if (match && (match.format as string) === "id") return true;
-  }
-  return /^(id|leaid|.*_id|uuid)$/i.test(columnName);
 }
 
 const URL_PATTERN = /^https?:\/\/[^\s]+$/i;

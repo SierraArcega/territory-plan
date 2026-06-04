@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import PortfolioView from "../PortfolioView";
@@ -68,6 +68,7 @@ function plan(overrides: Partial<PlanWithStats> = {}): PlanWithStats {
     fiscalYear: 2026,
     districtCount: 12,
     districtLeaids: ["0100005", "0100006"],
+    states: [{ abbrev: "MT", name: "Montana" }],
     owner: { id: "u1", fullName: "Sierra Arcega", avatarUrl: null },
     collaborators: [],
     hidden: false,
@@ -81,6 +82,7 @@ function plan(overrides: Partial<PlanWithStats> = {}): PlanWithStats {
     contactsCount: 84,
     oppsCount: 14,
     closedWonMinCommit: 0,
+    recentNewsCount: 0,
     ...overrides,
   };
 }
@@ -92,7 +94,7 @@ beforeEach(() => {
 });
 
 describe("PortfolioView", () => {
-  it("renders the FY26 Portfolio header by default", async () => {
+  it("renders the portfolio header by default", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => [plan()],
@@ -104,7 +106,8 @@ describe("PortfolioView", () => {
         <PortfolioView />
       </Wrapper>,
     );
-    expect(getByText(/FY26 Portfolio/i)).toBeTruthy();
+    // Eyebrow + title render synchronously (outside the loading branch).
+    expect(getByText(/^Portfolio$/i)).toBeTruthy();
     expect(getByText(/All plans/i)).toBeTruthy();
   });
 
@@ -260,6 +263,46 @@ describe("PortfolioView", () => {
     expect(await findByText(/No team plans/i)).toBeTruthy();
   });
 
+  it("filters the active bucket by plan owner", async () => {
+    routerState.bucket = "team";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        plan({
+          id: "p2",
+          name: "Alpha Plan",
+          owner: { id: "u2", fullName: "Alice", avatarUrl: null },
+          collaborators: [],
+        }),
+        plan({
+          id: "p3",
+          name: "Bravo Plan",
+          owner: { id: "u3", fullName: "Bob", avatarUrl: null },
+          collaborators: [],
+        }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    const { findByText, getByText, queryByText, getByRole } = render(
+      <Wrapper>
+        <PortfolioView />
+      </Wrapper>,
+    );
+    // Both team plans render before any filter is applied.
+    expect(await findByText("Alpha Plan")).toBeTruthy();
+    expect(getByText("Bravo Plan")).toBeTruthy();
+
+    // Open the owner dropdown (trigger label is the "Owner" placeholder) and
+    // pick Alice — the portaled option list carries the owner's full name.
+    fireEvent.click(getByRole("button", { name: /owner/i }));
+    fireEvent.click(await findByText("Alice"));
+
+    // Only Alice's plan survives the filter.
+    await waitFor(() => expect(queryByText("Bravo Plan")).toBeNull());
+    expect(getByText("Alpha Plan")).toBeTruthy();
+  });
+
   it("shows skeletons while loading", async () => {
     // Never-resolving fetch keeps loading state observable.
     fetchMock.mockImplementation(() => new Promise(() => undefined));
@@ -272,5 +315,91 @@ describe("PortfolioView", () => {
     await waitFor(() => {
       expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
     });
+  });
+
+  it("shows the filter bar on the team tab", async () => {
+    routerState.bucket = "team";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        plan({ id: "p2", owner: { id: "u2", fullName: "Aston Arcega", avatarUrl: null } }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    render(<Wrapper><PortfolioView /></Wrapper>);
+    // Wait for plan data to load (tab count updates once data is in)
+    await waitFor(() =>
+      expect(screen.getByText(/Team plans · 1/)).toBeInTheDocument(),
+    );
+    expect(screen.getByPlaceholderText(/contains district/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /owner/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /state/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /status/i })).toBeInTheDocument();
+  });
+
+  it("does not show the filter bar on the mine tab", async () => {
+    routerState.bucket = "mine";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [plan()],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    render(<Wrapper><PortfolioView /></Wrapper>);
+    await waitFor(() => expect(screen.getByText("Mountain West FY26")).toBeInTheDocument());
+    expect(screen.queryByPlaceholderText(/contains district/i)).not.toBeInTheDocument();
+  });
+
+  it("filters team plans by owner when owner filter is set", async () => {
+    routerState.bucket = "team";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        plan({
+          id: "p-alice",
+          name: "Alice Plan",
+          owner: { id: "u-alice", fullName: "Alice Smith", avatarUrl: null },
+        }),
+        plan({
+          id: "p-bob",
+          name: "Bob Plan",
+          owner: { id: "u-bob", fullName: "Bob Jones", avatarUrl: null },
+        }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    render(<Wrapper><PortfolioView /></Wrapper>);
+    await waitFor(() => expect(screen.getByText("Alice Plan")).toBeInTheDocument());
+    expect(screen.getByText("Bob Plan")).toBeInTheDocument();
+
+    // Open the Owner MultiSelect and select Alice only
+    fireEvent.click(screen.getByRole("button", { name: /owner/i }));
+    fireEvent.click(await screen.findByText("Alice Smith"));
+
+    await waitFor(() => expect(screen.queryByText("Bob Plan")).not.toBeInTheDocument());
+    expect(screen.getByText("Alice Plan")).toBeInTheDocument();
+  });
+
+  it("filters team plans by status when status filter is set", async () => {
+    routerState.bucket = "team";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        plan({ id: "p1", name: "Working Plan", status: "working", owner: { id: "u2", fullName: "Rep B", avatarUrl: null } }),
+        plan({ id: "p2", name: "Stale Plan", status: "stale", owner: { id: "u3", fullName: "Rep C", avatarUrl: null } }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    render(<Wrapper><PortfolioView /></Wrapper>);
+    await waitFor(() => expect(screen.getByText("Working Plan")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /status/i }));
+    fireEvent.click(await screen.findByText("Working"));
+
+    await waitFor(() => expect(screen.queryByText("Stale Plan")).not.toBeInTheDocument());
+    expect(screen.getByText("Working Plan")).toBeInTheDocument();
   });
 });
