@@ -1,3 +1,7 @@
+// Shared CSV helpers used by every export surface (reports, copilot, activities,
+// and the dashboard deal modals). One escaping/quoting implementation so a column
+// with a comma/quote/newline can't break one feature's export and not another's.
+
 function escapeCell(v: unknown): string {
   if (v == null) return "";
   let s: string;
@@ -28,6 +32,9 @@ export function slugifyForFilename(s: string): string {
 }
 
 export function downloadCsv(filename: string, csv: string): void {
+  // jsdom / unsupported environments have no object-URL support — no-op so tests
+  // that trigger an export don't throw.
+  if (typeof URL?.createObjectURL !== "function") return;
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AnswerBlock } from "../AnswerBlock";
-import { downloadCsv } from "@/features/reports/lib/csv";
+import { downloadCsv } from "@/features/shared/lib/csv";
 
 // Keep rowsToCsv / slugifyForFilename real so we can assert on the produced CSV
 // and filename; only stub the DOM download side-effect.
-vi.mock("@/features/reports/lib/csv", async (importActual) => {
-  const actual = await importActual<typeof import("@/features/reports/lib/csv")>();
+vi.mock("@/features/shared/lib/csv", async (importActual) => {
+  const actual = await importActual<typeof import("@/features/shared/lib/csv")>();
   return { ...actual, downloadCsv: vi.fn() };
 });
 

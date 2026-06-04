@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Download, ChevronDown } from "lucide-react";
-import { rowsToCsv, downloadCsv } from "@/features/reports/lib/csv";
+import { rowsToCsv, downloadCsv } from "@/features/shared/lib/csv";
 import type { ActivityListItem } from "@/features/shared/types/api-types";
 import { ACTIVITY_TYPE_LABELS, ACTIVITY_STATUS_CONFIG, type ActivityStatus, type ActivityType } from "@/features/activities/types";
 import { cn } from "@/features/shared/lib/cn";

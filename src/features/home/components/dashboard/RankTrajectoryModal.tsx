@@ -1,8 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { X, ChevronRight, Download } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { ChevronRight, Download } from "lucide-react";
 import { formatCurrency } from "@/features/shared/lib/format";
+import { rowsToCsv, downloadCsv } from "@/features/shared/lib/csv";
+import Modal from "@/features/shared/components/Modal";
 import { useRankTrajectory } from "@/features/home/lib/queries";
 import type { MetricSeries } from "@/features/home/lib/rank-trajectory";
 import { SEGMENT_COLORS, SEGMENT_DEFS, type SegmentKey } from "@/features/home/lib/segments";
@@ -43,13 +45,6 @@ export default function RankTrajectoryModal({ open, onClose, fy, repScope }: Pro
   const [segment, setSegment] = useState<FilterKey>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [open, onClose]);
-
   const totalReps = useMemo(
     () => (data ? Math.max(1, ...data.metrics.map((m) => m.reps.length)) : 1),
     [data],
@@ -88,42 +83,26 @@ export default function RankTrajectoryModal({ open, onClose, fy, repScope }: Pro
     const header = ["Metric", "Segment", ...columns];
     const rows = visibleMetrics.map((m) => {
       const v = viewFor(m, segment);
-      return [m.name, segMeta.label, ...v.caller.values.map((x) => Math.round(x))];
+      const rec: Record<string, unknown> = { Metric: m.name, Segment: segMeta.label };
+      columns.forEach((c, i) => { rec[c] = Math.round(v.caller.values[i]); });
+      return rec;
     });
-    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
-    if (typeof URL?.createObjectURL !== "function") return; // jsdom / unsupported
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `rank-trajectory-FY${String(fy).slice(-2)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`rank-trajectory-FY${String(fy).slice(-2)}`, rowsToCsv(header, rows));
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#403770]/60 p-4 sm:p-8"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Rank trajectory — expanded"
-    >
-      <div className="w-[96vw] max-w-[1480px] rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} ariaLabel="Rank trajectory — expanded" maxWidth="max-w-[1480px]">
+      <div>
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-[#E2DEEC] p-5">
-          <div>
-            <h2 className="text-lg font-bold text-[#403770]">Rank trajectory</h2>
-            <p className="mt-0.5 text-xs text-[#8A80A8]">
-              {isolatedMetric ? (
-                <>Showing <strong style={{ color: isolatedMetric.color }}>{isolatedMetric.name}</strong>{segActive && <> · <strong style={{ color: segColor(segment) }}>{segMeta.label}</strong></>} across all {totalReps} reps — your line is in color, teammates in gray.</>
-              ) : (
-                <>All metrics, month by month. Click a metric to compare against the team, or filter by segment.</>
-              )}
-            </p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1 text-[#5C5378] hover:bg-[#EFEDF5]">
-            <X size={16} />
-          </button>
+        <div className="border-b border-[#E2DEEC] p-5 pr-12">
+          <h2 className="text-lg font-bold text-[#403770]">Rank trajectory</h2>
+          <p className="mt-0.5 text-xs text-[#8A80A8]">
+            {isolatedMetric ? (
+              <>Showing <strong style={{ color: isolatedMetric.color }}>{isolatedMetric.name}</strong>{segActive && <> · <strong style={{ color: segColor(segment) }}>{segMeta.label}</strong></>} across all {totalReps} reps — your line is in color, teammates in gray.</>
+            ) : (
+              <>All metrics, month by month. Click a metric to compare against the team, or filter by segment.</>
+            )}
+          </p>
         </div>
 
         {/* Toolbar: metric pills + FY label */}
@@ -321,6 +300,6 @@ export default function RankTrajectoryModal({ open, onClose, fy, repScope }: Pro
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
