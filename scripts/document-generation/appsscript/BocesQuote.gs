@@ -126,23 +126,10 @@ function generateBocesQuote(payload) {
 
     var sections = payload.sections || {};
 
-    // Optional: staffing type descriptions (same Drive doc as the All Services contract)
-    appendOptionalSection(doc, {
-      include:     !!sections.staffing_include,
-      sourceId:    props[PROP.STAFFING_ID],
-      startMarker: '{{STAFFING_SECTION_START}}',
-      endMarker:   '{{STAFFING_SECTION_END}}',
-      placeholder: '[Staffing descriptions will be appended here]',
-    });
-
-    // Optional: BOCES pricing table
-    appendOptionalSection(doc, {
-      include:     !!sections.pricing_boces,
-      sourceId:    props[PROP.PRICING_BOCES_ID],
-      startMarker: '{{PRICING_BOCES_START}}',
-      endMarker:   '{{PRICING_BOCES_END}}',
-      placeholder: '[BOCES pricing sheet]',
-    });
+    // Optional inserts — same shared helpers the full contract uses, so the
+    // Drive doc IDs and markers are defined in exactly one place (AppendedSections.gs).
+    appendStaffingSection(doc, sections.staffing_include, props);
+    appendBocesPricingSection(doc, sections.pricing_boces, props);
 
     validateMergeFields(body);
     doc.saveAndClose();
@@ -163,6 +150,10 @@ function generateBocesQuote(payload) {
     return result;
 
   } catch (err) {
+    // No GmailApp failure notification here (unlike generateFullContract): the
+    // BOCES quote is currently editor/manual-invoked and quote-only. doPost
+    // serializes the rethrown error to the caller. Revisit adding an alert when
+    // the Territory Planner integration drives this automatically.
     try { copy.setTrashed(true); } catch (e2) {}
     Logger.log('BOCES quote generation failed: ' + err.message + '\n' + (err.stack || ''));
     throw err;
