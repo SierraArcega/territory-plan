@@ -17,33 +17,24 @@ function handleAppendedSections(doc, sections, props) {
   }
 
   // SOW
-  if (sections.sow_type) {
-    deleteMarkerParagraph(body, '{{SOW_SECTION_START}}');
-    deleteMarkerParagraph(body, '{{SOW_SECTION_END}}');
-    var sowId = sections.sow_type === 'live_streaming'
-      ? props[PROP.SOW_LIVESTREAM_ID]
-      : props[PROP.SOW_INSTRUCTION_ID];
-    if (sowId) {
-      appendDocContent(doc, sowId, '[SOW content will be appended here]');
-    } else {
-      Logger.log('Warning: SOW doc ID not set for type: ' + sections.sow_type);
-    }
-  } else {
-    deleteBetweenMarkers(body, '{{SOW_SECTION_START}}', '{{SOW_SECTION_END}}');
-  }
+  appendOptionalSection(doc, {
+    include:     !!sections.sow_type,
+    sourceId:    sections.sow_type === 'live_streaming'
+                   ? props[PROP.SOW_LIVESTREAM_ID]
+                   : props[PROP.SOW_INSTRUCTION_ID],
+    startMarker: '{{SOW_SECTION_START}}',
+    endMarker:   '{{SOW_SECTION_END}}',
+    placeholder: '[SOW content will be appended here]',
+  });
 
   // Staffing type descriptions
-  if (sections.staffing_include) {
-    deleteMarkerParagraph(body, '{{STAFFING_SECTION_START}}');
-    deleteMarkerParagraph(body, '{{STAFFING_SECTION_END}}');
-    if (props[PROP.STAFFING_ID]) {
-      appendDocContent(doc, props[PROP.STAFFING_ID], '[Staffing descriptions will be appended here]');
-    } else {
-      Logger.log('Warning: STAFFING_ID not set');
-    }
-  } else {
-    deleteBetweenMarkers(body, '{{STAFFING_SECTION_START}}', '{{STAFFING_SECTION_END}}');
-  }
+  appendOptionalSection(doc, {
+    include:     !!sections.staffing_include,
+    sourceId:    props[PROP.STAFFING_ID],
+    startMarker: '{{STAFFING_SECTION_START}}',
+    endMarker:   '{{STAFFING_SECTION_END}}',
+    placeholder: '[Staffing descriptions will be appended here]',
+  });
 
   // Pricing sheets — each independently toggled
   var pricingSheets = [
@@ -54,19 +45,13 @@ function handleAppendedSections(doc, sections, props) {
   ];
 
   pricingSheets.forEach(function(sheet) {
-    var startMarker = '{{PRICING_' + sheet.marker + '_START}}';
-    var endMarker   = '{{PRICING_' + sheet.marker + '_END}}';
-    if (sections[sheet.flag]) {
-      deleteMarkerParagraph(body, startMarker);
-      deleteMarkerParagraph(body, endMarker);
-      if (props[sheet.propKey]) {
-        appendDocContent(doc, props[sheet.propKey], sheet.placeholder);
-      } else {
-        Logger.log('Warning: ' + sheet.propKey + ' not set');
-      }
-    } else {
-      deleteBetweenMarkers(body, startMarker, endMarker);
-    }
+    appendOptionalSection(doc, {
+      include:     !!sections[sheet.flag],
+      sourceId:    props[sheet.propKey],
+      startMarker: '{{PRICING_' + sheet.marker + '_START}}',
+      endMarker:   '{{PRICING_' + sheet.marker + '_END}}',
+      placeholder: sheet.placeholder,
+    });
   });
 
   // Remove outer pricing section wrapper markers
