@@ -88,7 +88,10 @@ export default function StageFunnelChart({
           const y2 = y1 + stageH;
           const tW = topW[i], bW = botW[i];
           // Won uses a solid tip (booked floor can exceed ceiling, so no nested min/max).
-          const ratio = !r.isWon && r.max > 0 ? r.min / r.max : 0;
+          // Clamp to 1: when a stage's summed min commit exceeds its summed max budget
+          // (opps with a min but little/no recorded budget), the nested inner band would
+          // otherwise balloon wider than the funnel and bleed full-width across the row.
+          const ratio = !r.isWon && r.max > 0 ? Math.min(1, r.min / r.max) : 0;
           const iT = tW * ratio, iB = bW * ratio;
           const midY = (y1 + y2) / 2;
           const outer = `M ${cx - tW / 2} ${y1} L ${cx + tW / 2} ${y1} L ${cx + bW / 2} ${y2} L ${cx - bW / 2} ${y2} Z`;

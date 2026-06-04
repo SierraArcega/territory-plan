@@ -51,6 +51,23 @@ describe("StageFunnelChart", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("keeps the nested min band inside the funnel when min commit exceeds max budget", () => {
+    // Opps with a min commit but little/no recorded budget make a stage's summed
+    // min exceed its summed max. The inner (min) band must clamp to the outer band
+    // instead of ballooning full-width across the row and over the side rails.
+    const overflow = [stage({ prefix: 2, name: "Presentation", count: 7, min: 500000, max: 10000 })];
+    const { container } = render(
+      <StageFunnelChart stages={overflow} targets={targets} won={noWon} overallSharePct={50} onStageClick={() => {}} />,
+    );
+    // viewBox is "0 0 1080 H" — every trapezoid coordinate must stay within [0, 1080].
+    const coords = Array.from(container.querySelectorAll("path"))
+      .flatMap((p) => (p.getAttribute("d") ?? "").match(/-?\d+(\.\d+)?/g) ?? [])
+      .map(Number);
+    expect(coords.length).toBeGreaterThan(0);
+    expect(Math.min(...coords)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...coords)).toBeLessThanOrEqual(1080);
+  });
+
   it("renders the Closed Won tip with real data even when open pipeline is empty", () => {
     const empty = [stage({ prefix: 0, name: "Meeting Booked", count: 0 })];
     const won: FunnelStage = { prefix: 6, name: "Closed Won", count: 52, min: 3120000, max: 1330000, teamMin: 8000000, sharePct: 39 };
