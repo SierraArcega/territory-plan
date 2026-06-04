@@ -16,6 +16,7 @@ export const ACTIVITY_CATEGORIES = {
     "proposal_review",
     "renewal_conversation",
   ],
+  outreach: ["email", "cold_call"],
   gift_drop: ["gift_drop"],
   sponsorships: ["booth_exhibit", "conference_sponsor", "meal_reception", "charity_event"],
   thought_leadership: ["webinar", "speaking_engagement", "professional_development", "course"],
@@ -53,6 +54,9 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   program_check_in: "Program Check-In",
   proposal_review: "Proposal Review",
   renewal_conversation: "Renewal Conversation",
+  // Outreach
+  email: "Email",
+  cold_call: "Cold Call",
   // Gift Drop
   gift_drop: "Gift Drop",
   // Sponsorships
@@ -83,6 +87,9 @@ export const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
   program_check_in: "📋",
   proposal_review: "📝",
   renewal_conversation: "🔄",
+  // Outreach
+  email: "✉️",
+  cold_call: "📞",
   // Gift Drop
   gift_drop: "🎁",
   // Sponsorships
@@ -102,6 +109,7 @@ export const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   events: "Events",
   campaigns: "Campaigns",
   meetings: "Meetings",
+  outreach: "Outreach",
   gift_drop: "Gift Drop",
   sponsorships: "Sponsorships",
   thought_leadership: "Thought Leadership",
@@ -112,6 +120,7 @@ export const CATEGORY_ICONS: Record<ActivityCategory, string> = {
   events: "🎤",
   campaigns: "📧",
   meetings: "🤝",
+  outreach: "📣",
   gift_drop: "🎁",
   sponsorships: "🏆",
   thought_leadership: "💡",
@@ -122,6 +131,7 @@ export const CATEGORY_DESCRIPTIONS: Record<ActivityCategory, string> = {
   events: "Conferences, road trips, dinners, happy hours",
   campaigns: "Email sequences and outreach campaigns",
   meetings: "Calls, check-ins, reviews, and conversations",
+  outreach: "Cold calls and 1:1 email outreach",
   gift_drop: "Send gifts to contacts and champions",
   sponsorships: "Booths, conference sponsors, meals, and charity events",
   thought_leadership: "Webinars, talks, PD sessions, and courses",
@@ -219,6 +229,16 @@ export interface SponsorshipMetadata {
   addressLng?: number;
 }
 
+export interface EmailMetadata {
+  subject?: string;
+  direction?: "outbound" | "inbound";
+  threadLink?: string;
+}
+
+export interface ColdCallMetadata {
+  callResult?: "connected" | "voicemail" | "no_answer" | "gatekeeper";
+}
+
 // Road Trip uses no metadata — districts (with visit dates), attendees, and expenses cover it
 export type ActivityMetadata =
   | ConferenceMetadata
@@ -228,6 +248,8 @@ export type ActivityMetadata =
   | SponsorshipMetadata
   | ProfessionalDevelopmentMetadata
   | CourseMetadata
+  | EmailMetadata
+  | ColdCallMetadata
   | null;
 
 // Default type for each category (used when creating from category tab)
@@ -235,6 +257,7 @@ export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> =
   events: "conference",
   campaigns: "mixmax_campaign",
   meetings: "discovery_call",
+  outreach: "email",
   gift_drop: "gift_drop",
   sponsorships: "booth_exhibit",
   thought_leadership: "webinar",

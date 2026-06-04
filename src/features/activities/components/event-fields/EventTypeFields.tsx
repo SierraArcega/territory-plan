@@ -9,6 +9,8 @@ import type {
   ProfessionalDevelopmentMetadata,
   CourseMetadata,
   SponsorshipMetadata,
+  EmailMetadata,
+  ColdCallMetadata,
 } from "@/features/activities/types";
 import ConferenceFields from "./ConferenceFields";
 import RoadTripFields from "./RoadTripFields";
@@ -18,6 +20,8 @@ import SpeakingEngagementFields from "./SpeakingEngagementFields";
 import ProfessionalDevelopmentFields from "./ProfessionalDevelopmentFields";
 import CourseFields from "./CourseFields";
 import SponsorshipFields from "./SponsorshipFields";
+import EmailFields from "./EmailFields";
+import ColdCallFields from "./ColdCallFields";
 
 interface DistrictStop {
   leaid: string;
@@ -109,6 +113,22 @@ export default function EventTypeFields({
       return (
         <SponsorshipFields
           metadata={metadata as SponsorshipMetadata}
+          onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
+        />
+      );
+
+    case "email":
+      return (
+        <EmailFields
+          metadata={metadata as EmailMetadata}
+          onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
+        />
+      );
+
+    case "cold_call":
+      return (
+        <ColdCallFields
+          metadata={metadata as ColdCallMetadata}
           onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
         />
       );

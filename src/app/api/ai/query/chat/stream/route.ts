@@ -151,8 +151,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             result: null,
           });
         } else {
-          // terminal_result — unreachable for the reports variant. Send a
-          // safe fallback to keep the client unblocked.
+          // terminal_result or research — both unreachable for the reports
+          // variant (no terminalTool, server tools disabled), and both carry
+          // `assistantText`. Send a safe fallback to keep the client unblocked.
           send("result", {
             conversationId,
             assistantText: result.assistantText,

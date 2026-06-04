@@ -1,5 +1,9 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
+
+const MIN_WIDTH = 60;
+const MAX_WIDTH = 600;
+const clampWidth = (w: number) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w));
 
 interface GridHeaderCellProps {
   label: string;
@@ -8,18 +12,21 @@ interface GridHeaderCellProps {
   sortIndex?: number;       // 1-based precedence when participating in multi-sort
   onSortChange: (next: "asc" | "desc" | null, shift: boolean) => void;
   width?: number;
+  /** Fired on every pointer-move during a drag for live (uncommitted) feedback. */
+  onWidthPreview?: (next: number) => void;
+  /** Fired once on pointer-up with the final width to persist. */
   onWidthChange?: (next: number) => void;
 }
 
-export function GridHeaderCell({ label, sortable, sortDir, sortIndex, onSortChange, width, onWidthChange }: GridHeaderCellProps) {
+export function GridHeaderCell({ label, sortable, sortDir, sortIndex, onSortChange, width, onWidthPreview, onWidthChange }: GridHeaderCellProps) {
   const handleRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const [draggingWidth, setDraggingWidth] = useState<number | null>(null);
 
   const beginResize = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    const startWidth = width ?? 0;
+    // Start from the column's resolved width so the first drag pixel maps 1:1.
+    const startWidth = width ?? MIN_WIDTH;
     dragStateRef.current = { startX: e.clientX, startWidth };
     handleRef.current?.setPointerCapture?.(e.pointerId);
   };
@@ -27,9 +34,8 @@ export function GridHeaderCell({ label, sortable, sortDir, sortIndex, onSortChan
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const state = dragStateRef.current;
     if (!state) return;
-    const delta = e.clientX - state.startX;
-    const next = Math.max(60, Math.min(600, state.startWidth + delta));
-    setDraggingWidth(next);
+    const next = clampWidth(state.startWidth + (e.clientX - state.startX));
+    onWidthPreview?.(next);
   };
 
   const endResize = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -38,10 +44,8 @@ export function GridHeaderCell({ label, sortable, sortDir, sortIndex, onSortChan
     handleRef.current?.releasePointerCapture?.(e.pointerId);
     dragStateRef.current = null;
     const delta = e.clientX - state.startX;
-    const finalWidth = Math.max(60, Math.min(600, state.startWidth + delta));
-    // Only commit if the pointer actually moved (delta != 0 or draggingWidth was set).
-    if (draggingWidth != null || delta !== 0) onWidthChange?.(finalWidth);
-    setDraggingWidth(null);
+    // Only commit if the pointer actually moved — a plain click is a no-op.
+    if (delta !== 0) onWidthChange?.(clampWidth(state.startWidth + delta));
   };
 
   const resizeHandle = onWidthChange ? (

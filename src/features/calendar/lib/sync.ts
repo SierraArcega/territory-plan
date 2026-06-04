@@ -14,6 +14,8 @@ import {
   type CalendarEventAttendee,
 } from "@/features/calendar/lib/google";
 import { encrypt, decrypt } from "@/features/integrations/lib/encryption";
+import { findContactByEmail } from "@/lib/contacts";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 
 // ===== Types =====
 
@@ -484,6 +486,7 @@ export async function confirmCalendarEvent(
     planIds?: string[];
     districtLeaids?: string[];
     contactIds?: number[];
+    stagedContacts?: { email: string; name: string }[];
     notes?: string;
   }
 ): Promise<{ activityId: string }> {
@@ -509,6 +512,11 @@ export async function confirmCalendarEvent(
 
   // Create the Activity with all associations in a single transaction
   const activity = await prisma.$transaction(async (tx) => {
+    // Auto-link: every plan containing the resolved districts, in addition to
+    // the suggested/override plan(s). Uses tx for read consistency.
+    const autoPlanIds = await findPlanIdsForDistricts(districtLeaids, tx);
+    const allPlanIds = [...new Set([...planIds, ...autoPlanIds])];
+
     // Create the activity
     const newActivity = await tx.activity.create({
       data: {
@@ -525,9 +533,9 @@ export async function confirmCalendarEvent(
     });
 
     // Link to plans
-    if (planIds.length > 0) {
+    if (allPlanIds.length > 0) {
       await tx.activityPlan.createMany({
-        data: planIds.map((planId) => ({
+        data: allPlanIds.map((planId) => ({
           activityId: newActivity.id,
           planId,
         })),
@@ -563,10 +571,38 @@ export async function confirmCalendarEvent(
       }
     }
 
+    // Resolve staged contacts (added from the backfill card but not yet created)
+    // into real contact ids, filed under the first attached district. Dedup by
+    // (leaid, email) so re-adds/retries reuse an existing contact.
+    const stagedContacts = overrides?.stagedContacts ?? [];
+    const primaryLeaid = districtLeaids[0] ?? null;
+    const resolvedContactIds = [...contactIds];
+    if (stagedContacts.length > 0 && !primaryLeaid) {
+      console.warn(
+        `confirmCalendarEvent: dropping ${stagedContacts.length} staged contact(s) — no district attached to file them under`
+      );
+    }
+    if (stagedContacts.length > 0 && primaryLeaid) {
+      for (const staged of stagedContacts) {
+        const existing = await findContactByEmail(tx, primaryLeaid, staged.email);
+        const contact =
+          existing ??
+          (await tx.contact.create({
+            data: {
+              leaid: primaryLeaid,
+              name: staged.name || staged.email,
+              email: staged.email || null,
+            },
+          }));
+        resolvedContactIds.push(contact.id);
+      }
+    }
+
     // Link to contacts
-    if (contactIds.length > 0) {
+    const uniqueContactIds = [...new Set(resolvedContactIds)];
+    if (uniqueContactIds.length > 0) {
       await tx.activityContact.createMany({
-        data: contactIds.map((contactId) => ({
+        data: uniqueContactIds.map((contactId) => ({
           activityId: newActivity.id,
           contactId,
         })),

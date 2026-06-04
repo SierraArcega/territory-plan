@@ -6,6 +6,8 @@ import { getUser } from "@/lib/supabase/server";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { expandPlanRollups } from "@/features/districts/lib/expandRollups";
 import { viewLayoutsSchema } from "@/lib/saved-views/grid-layout-schema";
+import { updatePlan } from "@/features/plans/lib/service";
+import { isServiceError } from "@/features/shared/lib/service-error";
 
 const patchPlanBodySchema = z.object({
   viewLayouts: viewLayoutsSchema().optional(),
@@ -389,68 +391,19 @@ export async function PUT(
   try {
     const { id } = await params;
     const user = await getUser();
-    const body = await request.json();
-    const { name, description, ownerId, color, status, fiscalYear, startDate, endDate, stateFips, collaboratorIds } = body;
-
     if (!user) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Check if plan exists (any authenticated user can update)
-    const existing = await prisma.territoryPlan.findUnique({
-      where: { id },
-    });
+    const body = await request.json();
+    const { stateFips, collaboratorIds } = body;
 
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Territory plan not found" },
-        { status: 404 }
-      );
-    }
-
-    // Validate color format if provided
-    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-      return NextResponse.json(
-        { error: "color must be a valid hex color (e.g., #403770)" },
-        { status: 400 }
-      );
-    }
-
-    // Validate status if provided
-    const validStatuses = ["planning", "working", "stale", "archived"];
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: `status must be one of: ${validStatuses.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate fiscal year if provided
-    if (fiscalYear !== undefined && (typeof fiscalYear !== "number" || fiscalYear < 2024 || fiscalYear > 2030)) {
-      return NextResponse.json(
-        { error: "fiscalYear must be between 2024 and 2030" },
-        { status: 400 }
-      );
-    }
-
-    // Build update data - only include fields that were provided
-    const updateData: Record<string, unknown> = {};
-    if (name !== undefined) updateData.name = name.trim();
-    if (description !== undefined) updateData.description = description?.trim() || null;
-    if (ownerId !== undefined) updateData.ownerId = ownerId || null;
-    if (color !== undefined) updateData.color = color;
-    if (status !== undefined) updateData.status = status;
-    if (fiscalYear !== undefined) updateData.fiscalYear = fiscalYear;
-    if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
-    if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
+    // Validation + 404 + scalar update, shared with the copilot. Runs before the
+    // transaction (the route's 404 check has always been a plain findUnique); the
+    // transaction below reconciles relations and re-fetches with includes.
+    await updatePlan(id, body);
 
     const plan = await prisma.$transaction(async (tx) => {
-      // Update scalar fields
-      await tx.territoryPlan.update({
-        where: { id },
-        data: updateData,
-      });
-
       // Replace states if provided
       if (stateFips !== undefined) {
         await tx.territoryPlanState.deleteMany({ where: { planId: id } });
@@ -507,6 +460,9 @@ export async function PUT(
       collaborators: plan.collaborators.map((pc) => ({ id: pc.user.id, fullName: pc.user.fullName, avatarUrl: pc.user.avatarUrl })),
     });
   } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error updating territory plan:", error);
     return NextResponse.json(
       { error: "Failed to update territory plan" },

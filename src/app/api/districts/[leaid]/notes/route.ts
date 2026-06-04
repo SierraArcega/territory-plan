@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { isNoteType, DEFAULT_NOTE_TYPE } from "@/features/views/lib/note-types";
+import { createDistrictNote } from "@/features/districts/lib/note-service";
+import { isServiceError } from "@/features/shared/lib/service-error";
 
 export const dynamic = "force-dynamic";
 
@@ -54,22 +55,19 @@ export async function POST(
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json().catch(() => null);
-  const bodyText = typeof body?.bodyText === "string" ? body.bodyText.trim() : "";
-  const bodyJson = body?.bodyJson;
-  if (!bodyText || bodyJson == null || typeof bodyJson !== "object") {
-    return NextResponse.json({ error: "bodyJson + non-empty bodyText required" }, { status: 400 });
+  try {
+    const body = await request.json().catch(() => ({}));
+    const note = await createDistrictNote(
+      leaid,
+      { bodyText: body?.bodyText, bodyJson: body?.bodyJson, noteType: body?.noteType },
+      user.id,
+    );
+    return NextResponse.json(note);
+  } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    console.error("Error creating district note:", error);
+    return NextResponse.json({ error: "Failed to create note" }, { status: 500 });
   }
-
-  const noteType = body?.noteType === undefined ? DEFAULT_NOTE_TYPE : body.noteType;
-  if (!isNoteType(noteType)) {
-    return NextResponse.json({ error: "Invalid noteType" }, { status: 400 });
-  }
-
-  const note = await prisma.districtNote.create({
-    data: { districtLeaid: leaid, authorId: user.id, bodyJson, bodyText, noteType },
-    include: { author: { select: AUTHOR_SELECT } },
-  });
-
-  return NextResponse.json(serialize(note));
 }

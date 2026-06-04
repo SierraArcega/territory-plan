@@ -356,14 +356,18 @@ export function buildOrderBy(
         }
         if (id === "churn_risk") {
           if (!options?.planId) return ""; // no-op outside plan context
-          // Severity ordering — higher number = worse risk.
+          // Severity ordering — higher number = worse risk. Districts with no
+          // churn risk set (no row / NULL from the LEFT JOIN) fall through the
+          // CASE to NULL and sort LAST via NULLS LAST — matching the grid's
+          // "No value" bucket, which always renders last. (An `ELSE 0` here
+          // would float the empty group to the top and, with pagination, fill
+          // the whole first page with "No value".)
           return `(
             CASE __churn_cte.churn_risk
               WHEN 'churned' THEN 4
               WHEN 'high' THEN 3
               WHEN 'medium' THEN 2
               WHEN 'low' THEN 1
-              ELSE 0
             END
           ) ${safeDir} NULLS LAST`;
         }
@@ -379,5 +383,15 @@ export function buildOrderBy(
     })
     .filter(Boolean);
   if (parts.length === 0) return "";
+  // Append a stable tie-breaker on the primary key so that rows with the
+  // same value in the user-chosen sort column(s) are returned in a
+  // deterministic order regardless of which query plan Postgres picks.
+  // This is especially important for boolean columns (is_customer, etc.)
+  // where a large limit can cause Postgres to switch to a merge-join plan
+  // that interleaves rows from both values.
+  const alreadySortedByLeaid = parts.some((p) => p.includes('"leaid"'));
+  if (!alreadySortedByLeaid) {
+    parts.push(`${safeAlias}."leaid" ASC`);
+  }
   return `ORDER BY ${parts.join(", ")}`;
 }

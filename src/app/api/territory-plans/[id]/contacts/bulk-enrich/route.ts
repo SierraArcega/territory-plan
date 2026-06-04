@@ -52,6 +52,12 @@ export async function POST(
       }
     }
 
+    // Parse optional leaids scope (when provided, restrict enrichment to those districts)
+    const leaidsScope: string[] | null =
+      Array.isArray(body.leaids) && body.leaids.length > 0
+        ? (body.leaids as string[]).filter((l) => typeof l === "string")
+        : null;
+
     const plan = await prisma.territoryPlan.findUnique({
       where: { id },
       include: { districts: { select: { districtLeaid: true } } },
@@ -61,7 +67,12 @@ export async function POST(
       return NextResponse.json({ error: "Territory plan not found" }, { status: 404 });
     }
 
-    const allLeaids = plan.districts.map((d) => d.districtLeaid);
+    const planLeaids = plan.districts.map((d) => d.districtLeaid);
+    // When a leaids scope is provided, restrict to only those leaids that are
+    // actually in the plan (intersection prevents spoofing of non-plan districts).
+    const allLeaids = leaidsScope
+      ? planLeaids.filter((l) => leaidsScope.includes(l))
+      : planLeaids;
 
     // Rollup pre-check — fail fast with a reason code the UI can act on.
     // This is a defensive layer on top of T7's auto-migrate (which runs on plan GET);

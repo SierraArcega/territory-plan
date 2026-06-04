@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { useLowHangingFruitList } from "../lib/queries";
 import type { IncreaseTarget, IncreaseTargetCategory } from "../lib/types";
 import { formatCurrencyShort, getInitials } from "../lib/format";
@@ -222,6 +223,8 @@ function RowActions({ district, isConfirmed, confirmedPlanLabel, onAdded }: RowA
 
 export default function LowHangingFruitView() {
   const query = useLowHangingFruitList();
+  const setCopilotView = useMapStore((s) => s.setCopilotView);
+  const clearCopilotView = useMapStore((s) => s.clearCopilotView);
   const [filters, setFilters] = useState<LHFFilters>(DEFAULT_FILTERS);
   const [confirmed, setConfirmed] = useState<{ leaid: string; planName: string } | null>(null);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -295,6 +298,31 @@ export default function LowHangingFruitView() {
     () => sortByCategoryThenRevenue(applyFilters(allRows, filters)),
     [allRows, filters],
   );
+
+  // Publish the visible list to the copilot's page context so it can answer
+  // "which of these should I target?" about exactly what's on screen. Trimmed to
+  // the decision-relevant columns and the top rows; cleared when this view unmounts.
+  useEffect(() => {
+    // Skip the loading/empty phase so we don't churn the store every render.
+    if (filtered.length === 0) return;
+    setCopilotView({
+      source:
+        "Low-hanging-fruit list — ranked districts to grow or win back (reflects the rep's current filters)",
+      rows: filtered.slice(0, 30).map((r) => ({
+        district: r.districtName,
+        state: r.state,
+        category: r.category,
+        enrollment: r.enrollment,
+        priorRevenue: Math.round(r.priorYearRevenue),
+        fy26Revenue: Math.round(r.fy26Revenue),
+        fy27Pipeline: Math.round(r.fy27OpenPipeline),
+        suggestedTarget: r.suggestedTarget != null ? Math.round(r.suggestedTarget) : null,
+        inPlan: r.inFy27Plan,
+        leaid: r.leaid,
+      })),
+    });
+    return () => clearCopilotView();
+  }, [filtered, setCopilotView, clearCopilotView]);
 
   const totalRevenue = useMemo(
     () => filtered.reduce((s, r) => s + heroRevenue(r), 0),

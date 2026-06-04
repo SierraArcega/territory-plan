@@ -7,9 +7,10 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import type { CalendarEvent } from "@/features/shared/types/api-types";
+import { X, Plus, Check, Info } from "lucide-react";
+import type { CalendarEvent, CalendarEventAttendee } from "@/features/shared/types/api-types";
 import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPE_ICONS,
@@ -18,6 +19,8 @@ import {
 } from "@/features/activities/types";
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import { useTerritoryPlans } from "@/features/plans/lib/queries";
+import DistrictSearchInput from "@/features/activities/components/event-fields/DistrictSearchInput";
+import { isExternalEmail } from "@/features/calendar/lib/internal-domains";
 
 // Edited, in-flight values for a single event card. The wizard holds this
 // state so keyboard shortcuts can read the user's latest edits.
@@ -26,6 +29,8 @@ export interface BackfillCardValues {
   activityType: ActivityType;
   planIds: string[];
   districtLeaids: string[];
+  contactIds: number[];
+  stagedContacts: { email: string; name: string }[];
   notes: string;
 }
 
@@ -41,6 +46,8 @@ export function initialValuesFromEvent(event: CalendarEvent): BackfillCardValues
       (event.suggestedActivityType as ActivityType | null) ?? "program_check_in",
     planIds: event.suggestedPlanId ? [event.suggestedPlanId] : [],
     districtLeaids: event.suggestedDistrictId ? [event.suggestedDistrictId] : [],
+    contactIds: event.suggestedContactIds ?? [],
+    stagedContacts: [],
     notes: event.description ?? "",
   };
 }
@@ -54,6 +61,7 @@ interface BackfillEventCardProps {
   onDismiss: () => void;
   isSaving: boolean;
   errorMessage?: string | null;
+  decisionStatus?: "confirmed" | "skipped" | "dismissed" | null;
 }
 
 type ConfidenceVariant = "high" | "medium" | "low" | "none";
@@ -105,6 +113,7 @@ export default function BackfillEventCard({
   onDismiss,
   isSaving,
   errorMessage,
+  decisionStatus,
 }: BackfillEventCardProps) {
   const { data: plans } = useTerritoryPlans();
 
@@ -112,6 +121,73 @@ export default function BackfillEventCard({
 
   const setField = <K extends keyof BackfillCardValues>(key: K, value: BackfillCardValues[K]) => {
     onValuesChange({ ...values, [key]: value });
+  };
+
+  // Human-readable labels for attached district leaids. Seeded from the event's
+  // suggested district, then augmented as the rep picks results from search.
+  // The card is re-mounted per event (key={event.id}) so this resets correctly.
+  const [districtLabels, setDistrictLabels] = useState<Record<string, string>>(
+    () => {
+      if (!event.suggestedDistrictId) return {};
+      const label = event.suggestedDistrictName
+        ? event.suggestedDistrictState
+          ? `${event.suggestedDistrictName} (${event.suggestedDistrictState})`
+          : event.suggestedDistrictName
+        : event.suggestedDistrictId;
+      return { [event.suggestedDistrictId]: label };
+    }
+  );
+
+  const labelForLeaid = (leaid: string) => districtLabels[leaid] ?? leaid;
+
+  const handleSelectDistrict = (d: {
+    leaid: string;
+    name: string;
+    stateAbbrev: string | null;
+  }) => {
+    if (districtLeaids.includes(d.leaid)) return;
+    setDistrictLabels((prev) => ({
+      ...prev,
+      [d.leaid]: d.stateAbbrev ? `${d.name} (${d.stateAbbrev})` : d.name,
+    }));
+    setField("districtLeaids", [...districtLeaids, d.leaid]);
+  };
+
+  const handleRemoveDistrict = (leaid: string) => {
+    const nextLeaids = districtLeaids.filter((l) => l !== leaid);
+    const removedPrimary = districtLeaids[0] === leaid;
+    onValuesChange({
+      ...values,
+      districtLeaids: nextLeaids,
+      stagedContacts:
+        nextLeaids.length === 0 || removedPrimary ? [] : values.stagedContacts,
+    });
+    setDistrictLabels((prev) => {
+      const next = { ...prev };
+      delete next[leaid];
+      return next;
+    });
+  };
+
+  // New contacts file under the first attached district (the "primary").
+  const primaryLeaid = districtLeaids[0] ?? null;
+
+  const stagedEmails = new Set(values.stagedContacts.map((s) => s.email.toLowerCase()));
+
+  const handleToggleStage = (attendee: CalendarEventAttendee) => {
+    if (!primaryLeaid) return;
+    const key = attendee.email.toLowerCase();
+    if (stagedEmails.has(key)) {
+      setField(
+        "stagedContacts",
+        values.stagedContacts.filter((s) => s.email.toLowerCase() !== key)
+      );
+    } else {
+      setField("stagedContacts", [
+        ...values.stagedContacts,
+        { email: attendee.email, name: attendee.name || attendee.email },
+      ]);
+    }
   };
 
   // Build plan options from all active plans + guarantee the suggested plan is present
@@ -132,19 +208,6 @@ export default function BackfillEventCard({
     return list;
   }, [plans, event.suggestedPlanId, event.suggestedPlanName]);
 
-  // District options — just the suggested district when present. Users can clear
-  // the selection; editing to a different district happens via the full Edit &
-  // Confirm flow in the main inbox. This keeps the wizard focused on triage.
-  const districtOptions = useMemo(() => {
-    if (!event.suggestedDistrictId) return [];
-    const label = event.suggestedDistrictName
-      ? event.suggestedDistrictState
-        ? `${event.suggestedDistrictName} (${event.suggestedDistrictState})`
-        : event.suggestedDistrictName
-      : event.suggestedDistrictId;
-    return [{ value: event.suggestedDistrictId, label }];
-  }, [event.suggestedDistrictId, event.suggestedDistrictName, event.suggestedDistrictState]);
-
   const typeOptions = useMemo(
     () => ALL_ACTIVITY_TYPES.map((t) => ({ value: t, label: ACTIVITY_TYPE_LABELS[t] })),
     []
@@ -157,7 +220,7 @@ export default function BackfillEventCard({
   const showConfidence = confidence !== "none" && confidence !== undefined;
 
   const handleSave = () => {
-    if (isSaving) return;
+    if (isSaving || decisionStatus === "confirmed") return;
     onConfirm(values);
   };
 
@@ -185,6 +248,23 @@ export default function BackfillEventCard({
       )}
 
       <div className="p-6 space-y-5">
+        {decisionStatus && (
+          <div
+            data-testid="backfill-decision-status"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+              decisionStatus === "confirmed"
+                ? "bg-[#EDFFE3] text-[#5C8A3F]"
+                : "bg-[#EFEDF5] text-[#6E6390]"
+            }`}
+          >
+            {decisionStatus === "confirmed"
+              ? "✓ Already saved"
+              : decisionStatus === "skipped"
+              ? "Skipped — you can still save"
+              : "Dismissed — you can still save"}
+          </div>
+        )}
+
         {/* Inline error banner — shown when a save or dismiss attempt fails */}
         {errorMessage && (
           <div
@@ -260,21 +340,30 @@ export default function BackfillEventCard({
             <label className="block text-xs font-medium text-[#544A78] uppercase tracking-wider mb-1">
               District
             </label>
-            {districtOptions.length === 0 ? (
-              <div className="text-xs italic text-[#A69DC0] py-2">
-                No district match found — log this and edit from Activities if needed.
+            {districtLeaids.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {districtLeaids.map((leaid) => (
+                  <span
+                    key={leaid}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#EFEDF5] text-[#403770] whitespace-nowrap"
+                  >
+                    {labelForLeaid(leaid)}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDistrict(leaid)}
+                      aria-label={`Remove ${labelForLeaid(leaid)}`}
+                      className="text-[#8A80A8] hover:text-[#403770] leading-none"
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
               </div>
-            ) : (
-              <MultiSelect
-                id="backfill-district"
-                label="District"
-                options={districtOptions}
-                selected={districtLeaids}
-                onChange={(next) => setField("districtLeaids", next)}
-                placeholder="Select district..."
-                countLabel="districts"
-              />
             )}
+            <DistrictSearchInput
+              excludeLeaids={districtLeaids}
+              onSelect={handleSelectDistrict}
+            />
           </div>
         </div>
 
@@ -291,21 +380,54 @@ export default function BackfillEventCard({
                 );
                 const displayName = matched?.name ?? attendee.name ?? attendee.email;
                 const subtitle = matched?.title ?? attendee.email;
+                const emailKey = attendee.email.toLowerCase();
+                const addable = !matched && isExternalEmail(attendee.email);
+                const staged = stagedEmails.has(emailKey);
                 return (
-                  <li
-                    key={attendee.email}
-                    className="flex items-center gap-2 text-sm text-[#403770]"
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        matched ? "bg-[#F37167]" : "bg-[#C2BBD4]"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span className="font-medium">{displayName}</span>
-                    {subtitle && subtitle !== displayName && (
-                      <span className="text-xs text-[#8A80A8]">· {subtitle}</span>
-                    )}
+                  <li key={attendee.email} className="text-sm text-[#403770]">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          matched ? "bg-[#F37167]" : "bg-[#C2BBD4]"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span className="font-medium whitespace-nowrap">{displayName}</span>
+                      {subtitle && subtitle !== displayName && (
+                        <span className="text-xs text-[#8A80A8] whitespace-nowrap truncate">
+                          · {subtitle}
+                        </span>
+                      )}
+                      {addable && (
+                        <span className="ml-auto flex-shrink-0">
+                          {staged ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStage(attendee)}
+                              aria-label="Will add — click to undo"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#5C8A3F] hover:text-[#403770] whitespace-nowrap"
+                            >
+                              <Check className="w-3 h-3" aria-hidden="true" />
+                              Will add · undo
+                            </button>
+                          ) : primaryLeaid ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStage(attendee)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#F37167] hover:text-[#e0564c] whitespace-nowrap"
+                            >
+                              <Plus className="w-3 h-3" aria-hidden="true" />
+                              Add to contacts
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[#A69DC0] whitespace-nowrap">
+                              <Info className="w-3 h-3" aria-hidden="true" />
+                              pick a district to add
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 );
               })}
@@ -353,7 +475,7 @@ export default function BackfillEventCard({
           <button
             type="button"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || decisionStatus === "confirmed"}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#F37167] rounded-lg hover:bg-[#e0564c] transition-colors disabled:opacity-50"
           >
             {isSaving ? (

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
+import { createTask } from "@/features/tasks/lib/service";
+import { isServiceError } from "@/features/shared/lib/service-error";
 
 export const dynamic = "force-dynamic";
 
@@ -185,144 +186,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      title,
-      description,
-      status = "todo",
-      priority = "medium",
-      dueDate,
-      position = 0,
-      assignedToUserId,
-      planIds = [],
-      activityIds = [],
-      leaids = [],
-      contactIds = [],
-    } = body;
-
-    // Validate required fields
-    if (!title || !title.trim()) {
-      return NextResponse.json(
-        { error: "title is required" },
-        { status: 400 }
-      );
-    }
-
-    // Validate status
-    if (!TASK_STATUSES.includes(status)) {
-      return NextResponse.json(
-        { error: `status must be one of: ${TASK_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate priority
-    if (!TASK_PRIORITIES.includes(priority)) {
-      return NextResponse.json(
-        { error: `priority must be one of: ${TASK_PRIORITIES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate assignedToUserId if provided
-    if (assignedToUserId) {
-      const assignee = await prisma.userProfile.findUnique({
-        where: { id: assignedToUserId },
-        select: { id: true },
-      });
-      if (!assignee) {
-        return NextResponse.json(
-          { error: "Assigned user not found" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Create task with all junction records in a single transaction
-    const task = await prisma.task.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim() || null,
-        status,
-        priority,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        position,
-        createdByUserId: user.id,
-        ...(assignedToUserId && { assignedToUserId }),
-        plans: {
-          create: planIds.map((planId: string) => ({ planId })),
-        },
-        activities: {
-          create: activityIds.map((activityId: string) => ({ activityId })),
-        },
-        districts: {
-          create: leaids.map((leaid: string) => ({ districtLeaid: leaid })),
-        },
-        contacts: {
-          create: contactIds.map((contactId: number) => ({ contactId })),
-        },
-      },
-      include: {
-        plans: {
-          include: { plan: { select: { id: true, name: true, color: true } } },
-        },
-        districts: {
-          include: {
-            district: { select: { leaid: true, name: true, stateAbbrev: true } },
-          },
-        },
-        activities: {
-          include: {
-            activity: { select: { id: true, title: true, type: true } },
-          },
-        },
-        contacts: {
-          include: { contact: { select: { id: true, name: true, title: true } } },
-        },
-        assignedTo: {
-          select: { id: true, fullName: true, avatarUrl: true },
-        },
-      },
-    });
-
-    return NextResponse.json({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      status: task.status,
-      priority: task.priority,
-      dueDate: task.dueDate?.toISOString() ?? null,
-      position: task.position,
-      assignedTo: task.assignedTo
-        ? {
-            id: task.assignedTo.id,
-            fullName: task.assignedTo.fullName,
-            avatarUrl: task.assignedTo.avatarUrl,
-          }
-        : null,
-      createdAt: task.createdAt.toISOString(),
-      updatedAt: task.updatedAt.toISOString(),
-      plans: task.plans.map((p) => ({
-        planId: p.plan.id,
-        planName: p.plan.name,
-        planColor: p.plan.color,
-      })),
-      districts: task.districts.map((d) => ({
-        leaid: d.district.leaid,
-        name: d.district.name,
-        stateAbbrev: d.district.stateAbbrev,
-      })),
-      activities: task.activities.map((a) => ({
-        activityId: a.activity.id,
-        title: a.activity.title,
-        type: a.activity.type,
-      })),
-      contacts: task.contacts.map((c) => ({
-        contactId: c.contact.id,
-        name: c.contact.name,
-        title: c.contact.title,
-      })),
-    });
+    const task = await createTask(body, user.id);
+    return NextResponse.json(task);
   } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error creating task:", error);
     return NextResponse.json(
       { error: "Failed to create task" },

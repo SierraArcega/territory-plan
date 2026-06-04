@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityCategory, type ActivityType } from "@/features/activities/types";
+import { getCategoryForType, ACTIVITY_CATEGORIES, type ActivityCategory, type ActivityType } from "@/features/activities/types";
 import { pushActivityToCalendar } from "@/features/calendar/lib/push";
+import { createActivity } from "@/features/activities/lib/service";
+import { isServiceError } from "@/features/shared/lib/service-error";
+import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
 
 export const dynamic = "force-dynamic";
 
@@ -459,180 +462,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      type,
-      title,
-      notes,
-      startDate,
-      endDate,
-      status = "planned",
-      planIds = [],
-      districtLeaids = [],
-      contactIds = [],
-      stateFips = [], // explicit states
-      metadata = null,
-      address = null,
-      addressLat = null,
-      addressLng = null,
-      inPerson = null,
-      attendeeUserIds = [],
-      expenses = [],
-      districts: districtDetails = [],
-      relatedActivityIds = [], // [{activityId, relationType}] // [{leaid, visitDate?, visitEndDate?}]
-      outcome = null,
-      outcomeType = null,
-      rating = null,
-    } = body;
+    // Fields still needed by this route's road-trip orchestration below; the
+    // create itself (validation + nested relations) is delegated to the service.
+    const { type, planIds = [], districts: districtDetails = [] } = body;
+    // Opt-in: email linked contacts a Google Calendar invite on push (default off).
+    const sendCalendarInvite = body.sendCalendarInvite ?? false;
 
-    // Validate required fields
-    if (!type || !title) {
-      return NextResponse.json(
-        { error: "type and title are required" },
-        { status: 400 }
-      );
-    }
-
-    // Validate type is valid
-    if (!ALL_ACTIVITY_TYPES.includes(type)) {
-      return NextResponse.json(
-        { error: `Invalid activity type: ${type}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate status if provided
-    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
-      return NextResponse.json(
-        { error: `status must be one of: ${VALID_ACTIVITY_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Get states derived from districts
-    const derivedStates = new Set<string>();
-    if (districtLeaids.length > 0) {
-      const districts = await prisma.district.findMany({
-        where: { leaid: { in: districtLeaids } },
-        select: { stateFips: true },
-      });
-      districts.forEach((d) => derivedStates.add(d.stateFips));
-    }
-
-    // Build district create entries — merge districtLeaids with districtDetails (which may have visit dates)
-    const districtDetailsMap = new Map(
-      districtDetails.map((d: { leaid: string; visitDate?: string; visitEndDate?: string; position?: number; notes?: string; name?: string }) => [d.leaid, d])
-    );
-    const allDistrictLeaids = [...new Set([...districtLeaids, ...districtDetails.map((d: { leaid: string }) => d.leaid)])];
-
-    // Create activity with all relations
-    const activity = await prisma.activity.create({
-      data: {
-        type,
-        title: title.trim(),
-        notes: notes?.trim() || null,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        status,
-        outcome: outcome?.trim() || null,
-        outcomeType: outcomeType || null,
-        rating: rating != null ? Number(rating) : null,
-        address: typeof address === "string" ? address.trim() || null : null,
-        addressLat: addressLat == null ? null : Number(addressLat),
-        addressLng: addressLng == null ? null : Number(addressLng),
-        inPerson: inPerson == null ? null : Boolean(inPerson),
-        metadata: metadata || undefined,
-        createdByUserId: user.id,
-        plans: {
-          create: planIds.map((planId: string) => ({ planId })),
-        },
-        districts: {
-          create: allDistrictLeaids.map((leaid: string) => {
-            const detail = districtDetailsMap.get(leaid) as { visitDate?: string; visitEndDate?: string; position?: number; notes?: string } | undefined;
-            return {
-              districtLeaid: leaid,
-              warningDismissed: false,
-              visitDate: detail?.visitDate ? new Date(detail.visitDate) : null,
-              visitEndDate: detail?.visitEndDate ? new Date(detail.visitEndDate) : null,
-              position: detail?.position ?? 0,
-              notes: detail?.notes?.trim() || null,
-            };
-          }),
-        },
-        contacts: {
-          create: contactIds.map((contactId: number) => ({ contactId })),
-        },
-        states: {
-          create: [
-            // Derived states (from districts)
-            ...[...derivedStates].map((fips) => ({
-              stateFips: fips,
-              isExplicit: false,
-            })),
-            // Explicit states (user-added)
-            ...stateFips
-              .filter((fips: string) => !derivedStates.has(fips))
-              .map((fips: string) => ({
-                stateFips: fips,
-                isExplicit: true,
-              })),
-          ],
-        },
-        expenses: {
-          // Legacy callers send `{description, amount}` only; the new schema
-          // requires `incurredOn` (defaulted to "now") and a `category`
-          // (defaults to "other" via column DEFAULT).
-          create: (expenses as Array<{
-            description: string;
-            amount: number;
-            category?: string;
-            incurredOn?: string;
-            receiptStoragePath?: string | null;
-          }>).map((e) => ({
-            description: e.description,
-            amount: e.amount,
-            category: e.category ?? "other",
-            incurredOn: e.incurredOn ? new Date(e.incurredOn) : new Date(),
-            receiptStoragePath: e.receiptStoragePath ?? null,
-            createdById: user.id,
-          })),
-        },
-        attendees: {
-          create: attendeeUserIds.map((userId: string) => ({ userId })),
-        },
-        relations: {
-          create: relatedActivityIds.map((r: { activityId: string; relationType?: string }) => ({
-            relatedActivityId: r.activityId,
-            relationType: r.relationType || "related",
-          })),
-        },
-      },
-      include: {
-        plans: {
-          include: { plan: { select: { id: true, name: true, color: true } } },
-        },
-        districts: {
-          include: {
-            district: { select: { leaid: true, name: true, stateAbbrev: true } },
-          },
-        },
-        contacts: {
-          include: { contact: { select: { id: true, name: true, title: true } } },
-        },
-        states: {
-          include: { state: { select: { fips: true, abbrev: true, name: true } } },
-        },
-        expenses: true,
-        attendees: {
-          include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
-        },
-        relations: {
-          include: { relatedActivity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
-        },
-        relatedTo: {
-          include: { activity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
-        },
-      },
-    });
+    const activity = await createActivity(body, user.id);
 
     // Auto-create Visit activities for road trip stops that have visit dates
     if (type === "road_trip") {
@@ -653,6 +489,11 @@ export async function POST(request: NextRequest) {
           const districtInfo = stopDistrictMap.get(stop.leaid);
           const districtName = stop.name || districtInfo?.name || stop.leaid;
 
+          // Auto-link the visit to every plan containing its stop's district,
+          // merged with the parent road trip's plans.
+          const stopAutoPlanIds = await findPlanIdsForDistricts([stop.leaid]);
+          const stopPlanIds = [...new Set([...planIds, ...stopAutoPlanIds])];
+
           await prisma.activity.create({
             data: {
               type: "school_site_visit",
@@ -661,7 +502,7 @@ export async function POST(request: NextRequest) {
               status: "planned",
               createdByUserId: user.id,
               plans: {
-                create: planIds.map((planId: string) => ({ planId })),
+                create: stopPlanIds.map((planId: string) => ({ planId })),
               },
               districts: {
                 create: [{ districtLeaid: stop.leaid }],
@@ -685,7 +526,7 @@ export async function POST(request: NextRequest) {
 
     // Push to Google Calendar if user has a connected calendar
     // This is best-effort — if it fails, the activity is still created
-    pushActivityToCalendar(user.id, activity.id);
+    pushActivityToCalendar(user.id, activity.id, { sendInvite: !!sendCalendarInvite });
 
     // Transform the activity response inline (type-safe via Prisma inference)
     return NextResponse.json({
@@ -769,6 +610,9 @@ export async function POST(request: NextRequest) {
       ],
     });
   } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error creating activity:", error);
     const detail = error instanceof Error ? error.message : String(error);
     return NextResponse.json(

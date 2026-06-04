@@ -45,6 +45,7 @@ export interface PlanWithStats {
   fiscalYear: number;
   districtCount: number;
   districtLeaids: string[];
+  states?: { abbrev: string; name: string }[];
   owner: { id: string; fullName: string | null; avatarUrl: string | null } | null;
   collaborators: { id: string; fullName: string | null; avatarUrl: string | null }[];
   hidden: boolean;

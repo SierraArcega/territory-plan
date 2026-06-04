@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
+import { updateTask } from "@/features/tasks/lib/service";
+import { isServiceError } from "@/features/shared/lib/service-error";
 
 export const dynamic = "force-dynamic";
 
@@ -101,59 +102,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify task exists and user owns it
-    const existing = await prisma.task.findUnique({ where: { id } });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    if (existing.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to edit this task" }, { status: 403 });
-    }
-
     const body = await request.json();
-    const { title, description, status, priority, dueDate, position } = body;
-
-    // Validate status if provided
-    if (status && !TASK_STATUSES.includes(status)) {
-      return NextResponse.json(
-        { error: `status must be one of: ${TASK_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    // Validate priority if provided
-    if (priority && !TASK_PRIORITIES.includes(priority)) {
-      return NextResponse.json(
-        { error: `priority must be one of: ${TASK_PRIORITIES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    const task = await prisma.task.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title: title.trim() }),
-        ...(description !== undefined && { description: description?.trim() || null }),
-        ...(status && { status }),
-        ...(priority && { priority }),
-        ...(dueDate !== undefined && {
-          dueDate: dueDate ? new Date(dueDate) : null,
-        }),
-        ...(position !== undefined && { position }),
-      },
-    });
-
-    return NextResponse.json({
-      id: task.id,
-      title: task.title,
-      status: task.status,
-      priority: task.priority,
-      position: task.position,
-      updatedAt: task.updatedAt.toISOString(),
-    });
+    const task = await updateTask(id, body, user.id);
+    return NextResponse.json(task);
   } catch (error) {
+    if (isServiceError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error updating task:", error);
     return NextResponse.json(
       { error: "Failed to update task" },

@@ -90,7 +90,8 @@ function buildReminders(access: {
 // Only pushes if the activity has a startDate (can't create a calendar event without a time)
 export async function pushActivityToCalendar(
   userId: string,
-  activityId: string
+  activityId: string,
+  options?: { sendInvite?: boolean }
 ): Promise<void> {
   try {
     const access = await getCalendarAccess(userId);
@@ -135,11 +136,12 @@ export async function pushActivityToCalendar(
 
     // Guard against duplicates: if a CalendarEvent row already exists for this
     // user + time slot + title, the meeting is already on Google Calendar.
-    // Link the activity to that event's googleEventId instead of creating a new one.
+    // Only link when exactly one match has a googleEventId — two matches with the
+    // same title in the window are ambiguous and we fall through to create a new event.
     const MATCH_WINDOW_MS = 15 * 60 * 1000;
     const startMin = new Date(activity.startDate.getTime() - MATCH_WINDOW_MS);
     const startMax = new Date(activity.startDate.getTime() + MATCH_WINDOW_MS);
-    const existingCalEvent = await prisma.calendarEvent.findFirst({
+    const matches = await prisma.calendarEvent.findMany({
       where: {
         userId,
         startTime: { gte: startMin, lte: startMax },
@@ -147,13 +149,15 @@ export async function pushActivityToCalendar(
       },
       select: { googleEventId: true },
     });
-    if (existingCalEvent?.googleEventId) {
+    const linkable = matches.filter((m) => m.googleEventId);
+    if (linkable.length === 1) {
       await prisma.activity.update({
         where: { id: activityId },
-        data: { googleEventId: existingCalEvent.googleEventId },
+        data: { googleEventId: linkable[0].googleEventId },
       });
       return;
     }
+    // 0 matches, or 2+ ambiguous matches → fall through and create a fresh event
 
     // Collect attendee emails from linked contacts
     const attendeeEmails = activity.contacts
@@ -169,6 +173,7 @@ export async function pushActivityToCalendar(
       endTime: activity.endDate || activity.startDate, // Same time if no end date
       attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
       reminders,
+      sendUpdates: options?.sendInvite ? "all" : "none",
     });
 
     // Store the Google event ID on the activity for future syncs
@@ -185,7 +190,8 @@ export async function pushActivityToCalendar(
 // Update an existing Google Calendar event when an activity is modified
 export async function updateActivityOnCalendar(
   userId: string,
-  activityId: string
+  activityId: string,
+  options?: { sendInvite?: boolean }
 ): Promise<void> {
   try {
     const access = await getCalendarAccess(userId);
@@ -228,8 +234,9 @@ export async function updateActivityOnCalendar(
       description: activity.notes || undefined,
       startTime: activity.startDate || undefined,
       endTime: activity.endDate || activity.startDate || undefined,
-      attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
+      attendeeEmails,
       reminders,
+      sendUpdates: options?.sendInvite ? "all" : "none",
     });
   } catch (error) {
     console.error(`[Calendar Push] Failed to update activity ${activityId}:`, error);

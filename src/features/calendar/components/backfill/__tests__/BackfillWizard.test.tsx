@@ -27,6 +27,26 @@ vi.mock("@/features/plans/lib/queries", () => ({
   }),
 }));
 
+vi.mock("@/features/activities/components/event-fields/DistrictSearchInput", () => ({
+  default: ({
+    excludeLeaids,
+    onSelect,
+  }: {
+    excludeLeaids: string[];
+    onSelect: (d: { leaid: string; name: string; stateAbbrev: string | null }) => void;
+  }) => (
+    <input
+      placeholder="Search districts..."
+      data-excluded={excludeLeaids.join(",")}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          onSelect({ leaid: "9999999", name: "Boise ISD", stateAbbrev: "ID" });
+        }
+      }}
+    />
+  ),
+}));
+
 import BackfillWizard from "../BackfillWizard";
 
 function makeEvent(id: string, overrides: Partial<CalendarEvent> = {}): CalendarEvent {
@@ -135,6 +155,23 @@ describe("BackfillWizard", () => {
     expect(mockConfirm.mock.calls[0][0]).toMatchObject({
       eventId: "a",
       activityType: "program_check_in",
+    });
+  });
+
+  it("threads the event's matched contacts into the confirm payload as contactIds", async () => {
+    const user = userEvent.setup();
+    render(
+      <BackfillWizard
+        events={[makeEvent("a", { suggestedContactIds: [42] })]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: /save & next/i }));
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({
+      eventId: "a",
+      contactIds: [42],
     });
   });
 
@@ -339,6 +376,81 @@ describe("BackfillWizard", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("edits made on an event persist after navigating away and back", async () => {
+    const user = userEvent.setup();
+    render(
+      <BackfillWizard
+        events={[makeEvent("a"), makeEvent("b")]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Edit the title on event "a"
+    const titleInput = screen.getByLabelText<HTMLInputElement>(/meeting title/i);
+    await user.clear(titleInput);
+    await user.type(titleInput, "My edited title");
+    expect(titleInput.value).toBe("My edited title");
+
+    // Navigate forward to event "b"
+    await user.click(screen.getByRole("button", { name: /^skip$/i }));
+    expect(screen.getByText("Event 2 of 2")).toBeInTheDocument();
+
+    // Event "b" shows its own default title — not contaminated by A's edit
+    expect(screen.getByDisplayValue("Meeting b")).toBeInTheDocument();
+
+    // Navigate back to event "a"
+    await user.click(screen.getByRole("button", { name: /prev/i }));
+    expect(screen.getByText("Event 1 of 2")).toBeInTheDocument();
+
+    // The edited title should still be there (not reset to "Meeting a")
+    expect(
+      screen.getByLabelText<HTMLInputElement>(/meeting title/i).value
+    ).toBe("My edited title");
+  });
+
+  it("confirming an event with stagedContacts forwards them in the mutation payload", async () => {
+    const user = userEvent.setup();
+
+    // Use an event with an external unmatched attendee so the "Add to contacts"
+    // button appears. We need a district so the button is enabled.
+    render(
+      <BackfillWizard
+        events={[
+          makeEvent("a", {
+            suggestedDistrictId: "1600001",
+            suggestedDistrictName: "Ada County SD",
+            suggestedDistrictState: "ID",
+            suggestedContacts: [],
+            suggestedContactIds: [],
+            attendees: [
+              {
+                email: "casey@marion.k12.in.us",
+                name: "Casey Rivera",
+                responseStatus: "accepted",
+              },
+            ],
+          }),
+        ]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Stage casey
+    await user.click(screen.getByRole("button", { name: /add to contacts/i }));
+    expect(screen.getByText(/will add/i)).toBeInTheDocument();
+
+    // Confirm
+    await user.click(screen.getByRole("button", { name: /save & next/i }));
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({
+      eventId: "a",
+      stagedContacts: [{ email: "casey@marion.k12.in.us", name: "Casey Rivera" }],
+    });
+  });
+
   it("keyboard shortcuts are ignored when focus is inside the notes textarea", async () => {
     const user = userEvent.setup();
     render(
@@ -361,5 +473,66 @@ describe("BackfillWizard", () => {
     expect(mockDismiss).not.toHaveBeenCalled();
     // The "s" should end up in the textarea value
     expect(notes.value).toMatch(/s$/);
+  });
+
+  it("navigating back to a confirmed event shows the Already saved badge and disables Save", async () => {
+    const user = userEvent.setup();
+    render(
+      <BackfillWizard
+        events={[makeEvent("a"), makeEvent("b")]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Confirm event "a" via the Save & Next button
+    await user.click(screen.getByRole("button", { name: /save & next/i }));
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+
+    // Wizard should have advanced to event "b"
+    expect(screen.getByText("Event 2 of 2")).toBeInTheDocument();
+
+    // Navigate back to event "a" via Prev
+    await user.click(screen.getByRole("button", { name: /prev/i }));
+    expect(screen.getByText("Event 1 of 2")).toBeInTheDocument();
+
+    // The "Already saved" badge must be visible
+    const badge = screen.getByTestId("backfill-decision-status");
+    expect(badge).toHaveTextContent(/already saved/i);
+
+    // The Save & Next button must be disabled (no re-confirm)
+    expect(screen.getByRole("button", { name: /save & next/i })).toBeDisabled();
+  });
+
+  it("keyboard Y does not re-confirm an already confirmed event", async () => {
+    render(
+      <BackfillWizard
+        events={[makeEvent("a"), makeEvent("b")]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Confirm event "a" via Y key
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "y", bubbles: true }));
+    });
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
+
+    // Wizard advances to event "b"
+    expect(screen.getByText("Event 2 of 2")).toBeInTheDocument();
+
+    // Navigate back to event "a"
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    });
+    await waitFor(() => expect(screen.getByText("Event 1 of 2")).toBeInTheDocument());
+
+    // Press Y again — confirm should NOT be called a second time
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "y", bubbles: true }));
+    });
+    // Give a tick for any async state
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
   });
 });

@@ -34,7 +34,7 @@ interface ParsedSseEvent {
  * unknown fields are ignored — the route never emits them, but a tolerant
  * parser is defensive in case a proxy injects keep-alive comments.
  */
-function drainEvents(buffer: string): { events: ParsedSseEvent[]; remainder: string } {
+export function drainEvents(buffer: string): { events: ParsedSseEvent[]; remainder: string } {
   const events: ParsedSseEvent[] = [];
   let cursor = 0;
   while (true) {

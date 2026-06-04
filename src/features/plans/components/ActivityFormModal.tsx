@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { type ActivityListItem, type Contact } from "@/lib/api";
+import SendInviteToggle from "@/features/activities/components/event-fields/SendInviteToggle";
 import {
   type ActivityType,
   type ActivityStatus,
@@ -22,6 +23,7 @@ export interface ActivityFormData {
   districtLeaid: string | null;
   contactIds: number[];
   notes: string;
+  sendCalendarInvite: boolean;
 }
 
 // District option for the dropdown
@@ -86,6 +88,7 @@ export default function ActivityFormModal({
     districtLeaid: null,
     contactIds: [],
     notes: "",
+    sendCalendarInvite: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,6 +111,7 @@ export default function ActivityFormModal({
           districtLeaid: null, // ActivityListItem doesn't have district details
           contactIds: [], // ActivityListItem doesn't have contact details
           notes: "",
+          sendCalendarInvite: false,
         });
         setShowEndDate(!!hasEndDate);
       } else {
@@ -120,6 +124,7 @@ export default function ActivityFormModal({
           districtLeaid: initialDistrictLeaid,
           contactIds: [],
           notes: "",
+          sendCalendarInvite: false,
         });
         setShowEndDate(false);
       }
@@ -132,7 +137,7 @@ export default function ActivityFormModal({
   // Clear contacts when district changes
   useEffect(() => {
     if (!formData.districtLeaid) {
-      setFormData((prev) => ({ ...prev, contactIds: [] }));
+      setFormData((prev) => ({ ...prev, contactIds: [], sendCalendarInvite: false }));
     }
   }, [formData.districtLeaid]);
 
@@ -165,12 +170,12 @@ export default function ActivityFormModal({
   };
 
   const handleContactToggle = (contactId: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      contactIds: prev.contactIds.includes(contactId)
+    setFormData((prev) => {
+      const nextIds = prev.contactIds.includes(contactId)
         ? prev.contactIds.filter((id) => id !== contactId)
-        : [...prev.contactIds, contactId],
-    }));
+        : [...prev.contactIds, contactId];
+      return { ...prev, contactIds: nextIds, sendCalendarInvite: nextIds.length === 0 ? false : prev.sendCalendarInvite };
+    });
   };
 
   if (!isOpen) return null;
@@ -409,6 +414,14 @@ export default function ActivityFormModal({
                   </label>
                 ))}
               </div>
+            </div>
+          )}
+          {formData.contactIds.length > 0 && (
+            <div className="mt-3">
+              <SendInviteToggle
+                checked={formData.sendCalendarInvite}
+                onChange={(next) => setFormData((d) => ({ ...d, sendCalendarInvite: next }))}
+              />
             </div>
           )}
 

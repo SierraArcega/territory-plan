@@ -81,15 +81,18 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
 
   const planOptions = useMemo(() => (plans ?? []).map((p) => ({ value: p.id, label: p.name })), [plans]);
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
-  const isEventCategory = getCategoryForType(type) === "events";
+  const typeCategory = getCategoryForType(type);
+  const isEventCategory = typeCategory === "events";
+  // Categories whose types surface a "Details" metadata form here; also gates
+  // whether metadata is persisted on save (see handleSave).
+  const showTypeDetails = typeCategory === "events" || typeCategory === "outreach";
 
   // Mark changes
   const markChanged = () => setHasChanges(true);
 
   const handleSave = async () => {
     if (!title.trim()) return;
-    const isEvent = getCategoryForType(type) === "events";
-    const hasMetadata = isEvent && Object.keys(metadata).length > 0;
+    const hasMetadata = showTypeDetails && Object.keys(metadata).length > 0;
 
     await updateActivity.mutateAsync({
       activityId,
@@ -154,7 +157,7 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
             />
           </div>
 
-          {isEventCategory && (
+          {showTypeDetails && (
             <div className="space-y-4">
               <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
               <EventTypeFields

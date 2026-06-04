@@ -769,6 +769,7 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
       districtLeaids: data.districtLeaid ? [data.districtLeaid] : undefined,
       contactIds: data.contactIds.length > 0 ? data.contactIds : undefined,
       notes: data.notes || undefined,
+      sendCalendarInvite: data.sendCalendarInvite,
     });
     handleActivityModalClose();
   };
@@ -783,6 +784,7 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
       endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
       status: data.status,
       notes: data.notes || undefined,
+      sendCalendarInvite: data.sendCalendarInvite,
     });
     handleActivityModalClose();
   };
