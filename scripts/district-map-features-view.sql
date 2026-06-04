@@ -425,8 +425,6 @@ SELECT
   d.leaid,
   d.name,
   d.state_abbrev,
-  d.sales_executive_id,
-  up.full_name AS sales_executive_name,
   d.owner_id,
   owo.full_name AS owner_name,
   pm.plan_ids,
@@ -489,7 +487,6 @@ SELECT
   d.point_location,
   COALESCE(d.geometry, d.point_location) AS render_geometry
 FROM districts d
-LEFT JOIN user_profiles up ON d.sales_executive_id = up.id
 LEFT JOIN user_profiles owo ON d.owner_id = owo.id
 LEFT JOIN plan_memberships pm ON d.leaid = pm.leaid
 LEFT JOIN fullmind_fy27 f27 ON d.leaid = f27.leaid
@@ -501,7 +498,7 @@ LEFT JOIN vendor_fy26 v26 ON d.leaid = v26.leaid
 LEFT JOIN vendor_fy25 v25 ON d.leaid = v25.leaid
 LEFT JOIN vendor_fy24 v24 ON d.leaid = v24.leaid
 WHERE d.geometry IS NOT NULL OR d.point_location IS NOT NULL
-GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive_id, up.full_name,
+GROUP BY d.leaid, d.name, d.state_abbrev,
          d.owner_id, owo.full_name,
          pm.plan_ids, f27.fy27_fullmind_category, f26.fy26_fullmind_category,
          f25.fy25_fullmind_category, f24.fy24_fullmind_category,
@@ -510,7 +507,6 @@ GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive_id, up.full_name,
 -- Indexes
 CREATE INDEX idx_dmf_leaid ON district_map_features(leaid);
 CREATE INDEX idx_dmf_state ON district_map_features(state_abbrev);
-CREATE INDEX idx_dmf_sales_exec ON district_map_features(sales_executive_id);
 CREATE INDEX idx_dmf_owner ON district_map_features(owner_id);
 CREATE INDEX idx_dmf_geometry ON district_map_features USING GIST(geometry);
 CREATE INDEX IF NOT EXISTS idx_dmf_render_geometry ON district_map_features USING GIST (render_geometry);

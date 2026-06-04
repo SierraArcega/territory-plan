@@ -140,9 +140,7 @@ model District {
 
   // Normalized person references (Phase 1: populated from string names)
   ownerId            String?      @map("owner_id") @db.Uuid
-  salesExecutiveId   String?      @map("sales_executive_id") @db.Uuid
   ownerUser          UserProfile? @relation("DistrictOwner", fields: [ownerId], references: [id])
-  salesExecutiveUser UserProfile? @relation("DistrictSalesExec", fields: [salesExecutiveId], references: [id])
 
   // ===== Collaborators & Watchers =====
   collaborators DistrictCollaborator[]
@@ -286,7 +284,6 @@ model District {
   @@index([studentTeacherRatio])
   @@index([vacancyPressureSignal])
   @@index([ownerId])
-  @@index([salesExecutiveId])
   @@index([icpTier])
   @@index([accountType])
   @@index([name])
@@ -1053,7 +1050,6 @@ model UserProfile {
   integrations        UserIntegration[]
   // Inverse relations for normalized person FKs
   ownedDistricts      District[]                  @relation("DistrictOwner")
-  assignedDistricts   District[]                  @relation("DistrictSalesExec")
   collaboratingDistricts DistrictCollaborator[]   @relation("DistrictCollaborator")
   watchingDistricts      DistrictWatcher[]        @relation("DistrictWatcher")
   ownedStates         State[]                     @relation("StateOwner")
