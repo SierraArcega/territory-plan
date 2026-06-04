@@ -3,19 +3,19 @@
 // On success the log prints a Google Doc URL — open it to inspect the output.
 
 function testContractFull() {
-  var result = generateContract(PAYLOAD_FULL);
+  var result = generateFullContract(PAYLOAD_FULL);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
 
 function testContractNoQuote() {
-  var result = generateContract(PAYLOAD_NO_QUOTE);
+  var result = generateFullContract(PAYLOAD_NO_QUOTE);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
 
 function testContractBOCES() {
-  var result = generateContract(PAYLOAD_BOCES_ONLY);
+  var result = generateFullContract(PAYLOAD_BOCES_ONLY);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
@@ -33,7 +33,7 @@ function testAutoSend() {
   var payload = JSON.parse(JSON.stringify(PAYLOAD_FULL));
   payload.auto_send = true;
   payload.deal.client_email = 'aston.arcega@fullmindlearning.com';
-  var result = generateContract(payload);
+  var result = generateFullContract(payload);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) {
     Logger.log('✅ Open doc: ' + result.url);

@@ -5,7 +5,7 @@
 function doPost(e) {
   try {
     var payload = JSON.parse(e.postData.contents);
-    var result  = generateContract(payload);
+    var result  = generateDocument(payload);
     return ContentService
       .createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
@@ -17,12 +17,26 @@ function doPost(e) {
 }
 
 /**
+ * Routes a payload to the correct document orchestrator by doc_type.
+ * Defaults to 'contract' when doc_type is absent (back-compat).
+ * @param {Object} payload
+ * @returns {Object} orchestrator result
+ */
+function generateDocument(payload) {
+  var docType = payload.doc_type || 'contract';
+  if (docType === 'boces_quote') {
+    return generateBocesQuote(payload);
+  }
+  return generateFullContract(payload);
+}
+
+/**
  * Main contract generation orchestrator.
  * Call directly from the editor: generateContract(PAYLOAD_FULL)
  * @param {Object} payload
  * @returns {{ success: boolean, url: string, docId: string, sent?: boolean, sendError?: string }}
  */
-function generateContract(payload) {
+function generateFullContract(payload) {
   var props  = PropertiesService.getScriptProperties().getProperties();
   var folder = DriveApp.getFolderById(props[PROP.OUTPUT_FOLDER_ID]);
 
