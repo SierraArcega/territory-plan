@@ -249,6 +249,9 @@ const SUB_COL_WIDTH = 110;
 // authoritative, so over-long content truncates instead of stretching.
 function defaultColWidth(col: ColumnDef): number {
   if (col.id === "name") return 240;
+  // Notes get a wider default so the latest note reads inline without opening
+  // the popover. Still resizable; an explicit saved width overrides this.
+  if (col.id === "plan_notes") return 300;
   if (col.id === "state") return 90;
   switch (col.format) {
     case "pill":
