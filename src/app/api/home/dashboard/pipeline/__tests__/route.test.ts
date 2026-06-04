@@ -86,8 +86,12 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(body.atRisk.map((o: { tier: string }) => o.tier)).toEqual(["stale"]); // 40d Negotiation, no benchmark → fallback healthyMax 28
     expect(body.thisWeek).toEqual({ won: 1, lost: 0, created: 2 });
     expect(body.inRoster).toBe(true);
-    // fetchPipelineData is called with an array of emails, not a plain string
-    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), 2026, ["me@x"]);
+    // fetchPipelineData is called with the resolved rep scope (single-email filter set)
+    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), 2026, {
+      mode: "rep",
+      rep: { id: "me", email: "me@x" },
+      emails: ["me@x"],
+    });
   });
 
   it("team mode: returns mode=team, rank=null funnel, and passes all roster emails", async () => {
@@ -116,8 +120,8 @@ describe("GET /api/home/dashboard/pipeline", () => {
     expect(body.mode).toBe("team");
     expect(body.funnel.rank).toBeNull();
     expect(body.inRoster).toBe(true);
-    // fetchPipelineData is called with all roster emails
-    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), 2026, ["me@x", "u2@x"]);
+    // fetchPipelineData is called with the whole-book team scope (no email filter)
+    expect(mockFetch).toHaveBeenCalledWith(expect.any(String), 2026, { mode: "team" });
   });
 
   it("derives at-risk from the full book, not just the top-50 displayed opps", async () => {
