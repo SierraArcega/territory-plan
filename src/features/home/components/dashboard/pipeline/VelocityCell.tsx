@@ -48,7 +48,10 @@ export default function VelocityCell({ cell }: { cell: Cell }) {
       </div>
 
       <span className="text-[11px] text-[#8A80A8] whitespace-nowrap">
-        {cell.inRoster ? (
+        {cell.rank == null ? (
+          // Team mode (whole book): no peer ranking or median.
+          "Whole team"
+        ) : cell.inRoster ? (
           <>team median {fmt(cell, cell.teamMedian)} · <span className="font-semibold text-[#5C5378]">#{cell.rank}/{cell.totalReps}</span></>
         ) : (
           "Not ranked"

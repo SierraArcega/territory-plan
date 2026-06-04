@@ -101,7 +101,13 @@ export function buildToplineCards(
     }));
     const ranking = rankReps(values);
     const standing = rankForRep(ranking, subjectId);
-    const headlineValue = mode === "team" ? values.reduce((s, v) => s + v.value, 0) : standing.value;
+    // Team headline = the whole book: sum every fetched email (not just the
+    // role='rep' roster). Ranking above still uses the roster, by design.
+    const teamTotal =
+      mode === "team"
+        ? Array.from(actualsByEmail.values()).reduce((s, m) => s + value(m.get(schoolYr) ?? ZERO), 0)
+        : 0;
+    const headlineValue = mode === "team" ? teamTotal : standing.value;
     return {
       metricKey: key,
       label,

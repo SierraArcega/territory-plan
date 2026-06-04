@@ -8,6 +8,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { stagePrefixSql, categoryJoin } from "./trajectory-source";
+import { emailFilterSql, type DashboardScope } from "./scope";
 import type { PipelineOpp, TargetRepAgg, WonRepAgg, BenchmarkMap, ThisWeek, ThisWeekDealRow } from "./pipeline";
 import { buildThisWeek } from "./pipeline";
 
@@ -21,7 +22,7 @@ export interface PipelineData {
   benchmarks: BenchmarkMap; // per-stage win/loss duration benchmarks (all-time)
 }
 
-export async function fetchPipelineData(sy: string, fy: number, scopeEmails: string[]): Promise<PipelineData> {
+export async function fetchPipelineData(sy: string, fy: number, scope: DashboardScope): Promise<PipelineData> {
   const [openOpps, won, target, weekRows, targetsByRep, wonByRep, benchmarkRows] = await Promise.all([
     // Open opps (stage prefix 0-5) for every rep. days_in_stage = time since the
     // opp entered its current stage (the most recent stage_history entry's
@@ -61,7 +62,7 @@ export async function fetchPipelineData(sy: string, fy: number, scopeEmails: str
     prisma.$queryRaw<{ won: number }[]>`
       SELECT COALESCE(SUM(o.net_booking_amount), 0)::float AS won
       FROM opportunities o
-      WHERE o.school_yr = ${sy} AND o.sales_rep_email = ANY(${scopeEmails})
+      WHERE o.school_yr = ${sy} ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
         AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6`,
 
     prisma.$queryRaw<{ target: number }[]>`
@@ -72,7 +73,7 @@ export async function fetchPipelineData(sy: string, fy: number, scopeEmails: str
       FROM territory_plan_districts tpd
       JOIN territory_plans p ON p.id = tpd.plan_id
       JOIN user_profiles u ON u.id = COALESCE(p.owner_id, p.user_id)
-      WHERE p.fiscal_year = ${fy} AND u.email = ANY(${scopeEmails})`,
+      WHERE p.fiscal_year = ${fy} ${emailFilterSql(scope, Prisma.sql`u.email`)}`,
 
     // Caller's last-14-days movement, as deal rows (won/lost by close_date, created
     // by created_at). buildThisWeek splits this into the current 7 days and the prior
@@ -92,7 +93,7 @@ export async function fetchPipelineData(sy: string, fy: number, scopeEmails: str
       FROM opportunities o
       ${categoryJoin(sy)}
       WHERE o.school_yr = ${sy}
-        AND o.sales_rep_email = ANY(${scopeEmails})
+        ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
         AND o.net_booking_amount IS NOT NULL
         AND (o.created_at >= now() - interval '14 days'
              OR (o.close_date >= now() - interval '14 days' AND o.close_date <= now()))`,

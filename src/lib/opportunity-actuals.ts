@@ -2,6 +2,7 @@
 // TODO: Consider consolidating district_opportunity_actuals with refresh_fullmind_financials().
 // Both aggregate from the same opportunities source — the mat view aggregates by rep+category
 // while the DB function aggregates by district+vendor+FY. Potential to unify into one pipeline.
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
 /**
@@ -274,13 +275,22 @@ const EMPTY_REP_ACTUALS: RepActuals = {
  *
  * Returns Map<email, Map<schoolYr, RepActuals>>. Missing combinations are
  * absent from the inner map; callers should treat absence as zeros.
+ *
+ * `emails === null` means the WHOLE book — every non-null sales_rep_email (used
+ * by the team dashboard). An empty array means "no reps" → empty result.
  */
 export async function getRepActualsBatch(
-  emails: string[],
+  emails: string[] | null,
   schoolYrs: string[],
 ): Promise<Map<string, Map<string, RepActuals>>> {
   const result = new Map<string, Map<string, RepActuals>>();
-  if (emails.length === 0 || schoolYrs.length === 0) return result;
+  if ((emails !== null && emails.length === 0) || schoolYrs.length === 0) return result;
+
+  // null → whole book (every non-null email); otherwise restrict to the list.
+  const emailFilter =
+    emails === null
+      ? Prisma.sql`AND sales_rep_email IS NOT NULL`
+      : Prisma.sql`AND sales_rep_email = ANY(${emails})`;
 
   const [sessionRows, doaRows] = await Promise.all([
     safeQueryRaw(
@@ -290,8 +300,8 @@ export async function getRepActualsBatch(
         SELECT sales_rep_email, school_yr,
                COALESCE(SUM(session_revenue), 0) AS session_revenue
         FROM rep_session_actuals
-        WHERE sales_rep_email = ANY(${emails})
-          AND school_yr = ANY(${schoolYrs})
+        WHERE school_yr = ANY(${schoolYrs})
+          ${emailFilter}
         GROUP BY sales_rep_email, school_yr
       `,
       [],
@@ -323,8 +333,8 @@ export async function getRepActualsBatch(
                COALESCE(SUM(min_purchase_bookings), 0) AS min_purchase_bookings,
                COALESCE(SUM(invoiced), 0) AS invoiced
         FROM district_opportunity_actuals
-        WHERE sales_rep_email = ANY(${emails})
-          AND school_yr = ANY(${schoolYrs})
+        WHERE school_yr = ANY(${schoolYrs})
+          ${emailFilter}
         GROUP BY sales_rep_email, school_yr
       `,
       [],
