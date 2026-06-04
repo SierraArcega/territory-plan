@@ -137,6 +137,11 @@ rather than duplicating the append + page-break logic. The contract's
       { "sku": "BOC27-SWD",  "product": "Students with Disabilities", "rate": 21.23, "qty": 100 }
     ]
   },
+  "payment": {
+    "pay_terms", "contract_end", "unused_funds",
+    "billing_name", "billing_add", "billing_email", "billing_phone",
+    "po_yn", "pay_prepost", "boces_name", "po_number"
+  },
   "sections": {
     "staffing_include": true,
     "pricing_boces": true,
@@ -144,6 +149,12 @@ rather than duplicating the append + page-break logic. The contract's
   }
 }
 ```
+
+The BOCES payment terms are a single fixed block (no A/B/C choice), but the
+block's deal-specific values — terms, billing contact, PO — are filled per deal
+from this `payment` object. `replaceBocesMergeFields` maps these with the same
+field semantics as the contract's `replaceMergeFields`; `payment` is optional
+and any missing value resolves to an empty string.
 
 Notes:
 - The full-contract payload schema is unchanged; `doc_type` is additive and

@@ -33,20 +33,36 @@ function round2(n) {
 }
 
 /**
- * Replaces the BOCES Quote's <<FIELD>> tokens. Intentionally a separate, smaller
- * map than the contract's replaceMergeFields — the BOCES payload has no
- * payment block and adds <<quote_number>>.
+ * Replaces the BOCES Quote's <<FIELD>> tokens. Separate from the contract's
+ * replaceMergeFields — adds <<quote_number>> and omits contract-only fields.
+ * Fills the deal fields plus the BOCES payment-terms block (the single fixed
+ * BOCES terms, populated per deal). payload.payment is optional; missing values
+ * resolve to '' so the doc never ships literal <<tokens>>.
  * @param {GoogleAppsScript.Document.Body} body
- * @param {Object} payload  BOCES quote payload (deal only)
+ * @param {Object} payload  BOCES quote payload (deal + optional payment)
  */
 function replaceBocesMergeFields(body, payload) {
   var d = payload.deal;
+  var p = payload.payment || {};
   var fields = {
     '<<quote_number>>':   d.quote_number,
     '<<Client_Company>>': d.client_company,
     '<<start_date>>':     d.start_date,
     '<<end_date>>':       d.end_date,
     '<<today>>':          d.today,
+    // BOCES payment-terms block (baked-in terms, filled per deal). Field
+    // semantics mirror the contract's replaceMergeFields.
+    '<<pay_terms>>':      p.pay_terms,
+    '<<contract_end>>':   p.contract_end,
+    '<<unused_funds>>':   p.unused_funds,
+    '<<billing_name>>':   p.billing_name,
+    '<<billing_add>>':    p.billing_add,
+    '<<billing_email>>':  p.billing_email,
+    '<<billing_phone>>':  p.billing_phone,
+    '<<po_yn>>':          p.po_yn ? '☑' : '☐',
+    '<<pay_prepost>>':    p.pay_prepost || '',
+    '<<boces_name>>':     p.boces_name  || '',
+    '<<po_number>>':      p.po_number   || '',
   };
   for (var field in fields) {
     body.replaceText(escapeRegex(field), fields[field] != null ? String(fields[field]) : '');
