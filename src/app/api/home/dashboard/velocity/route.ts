@@ -31,18 +31,18 @@ export async function GET(request: Request) {
   const scope = resolveScope(searchParams.get("rep"), reps, { id: user.id, email: user.email ?? "" });
   if (!scope) return NextResponse.json({ error: "unknown rep" }, { status: 400 });
 
-  const { current, priorCaller, priorRows } = await fetchVelocity(schoolYr, priorSchoolYr, scope.emails);
+  // Rep mode: the caller's own prior aggregate. Team mode: the whole book's prior.
+  const priorEmails = scope.mode === "rep" ? scope.emails : null;
+  const { current, priorCaller, priorRows } = await fetchVelocity(schoolYr, priorSchoolYr, priorEmails);
   const currentByEmail = new Map<string, RepVelocityAgg>(
     current.map((r) => [r.email, { wonCount: r.wonCount, closedCount: r.closedCount, wonBookingSum: r.wonBookingSum, takeSum: r.takeSum, revSum: r.revSum }]),
   );
 
   let cells;
   if (scope.mode === "team") {
-    // `current` is fetched unfiltered (every email in the data, incl. former reps);
-    // pool only the active roster so team rates match the topline/roster basis.
-    const rosterEmails = new Set(scope.emails);
-    const teamRows = current.filter((r) => rosterEmails.has(r.email));
-    const sum = (pick: (a: RepVelocityAgg) => number) => teamRows.reduce((s, r) => s + pick(r), 0);
+    // Team = the whole book: pool every email in the data (incl. former reps),
+    // then recompute rates over the pool — never average per-rep rates.
+    const sum = (pick: (a: RepVelocityAgg) => number) => current.reduce((s, r) => s + pick(r), 0);
     const pooled: RepVelocityAgg = {
       wonCount: sum((a) => a.wonCount),
       closedCount: sum((a) => a.closedCount),

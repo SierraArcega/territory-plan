@@ -16,7 +16,11 @@ type SecondaryTab = "pipeline";
 export default function DashboardTab() {
   const [fy, setFy] = useState<number>(getCurrentFY());
   const [tab, setTab] = useState<SecondaryTab>("pipeline");
-  const [repScope, setRepScope] = useState<string>("team");
+  // "" = scope not resolved yet. Start empty (not "team") so the cards don't fire
+  // a whole-book team fetch on cold mount and then immediately refetch for the
+  // current user — the cards gate their queries on a non-empty scope and show
+  // skeletons until the profile resolves below.
+  const [repScope, setRepScope] = useState<string>("");
 
   // Default repScope to the current user once their profile loads (ref-guarded
   // so a user-chosen value is never overwritten by a delayed profile response).
@@ -70,8 +74,9 @@ export default function DashboardTab() {
         {/* Topline cards (Targets card + segment bars / sparklines / deltas land in Phase 2) */}
         <ToplineStatStrip fy={fy} repScope={repScope} />
 
-        {/* Rank trajectory — monthly standing vs the team, per metric (hidden in team mode) */}
-        {repScope !== "team" && <RankTrajectoryCard fy={fy} repScope={repScope} />}
+        {/* Rank trajectory — monthly standing vs the team, per metric (hidden in
+            team mode, and until the scope resolves). */}
+        {repScope !== "" && repScope !== "team" && <RankTrajectoryCard fy={fy} repScope={repScope} />}
       </section>
 
       {/* ── Secondary tab strip (Pipeline only this milestone) ── */}

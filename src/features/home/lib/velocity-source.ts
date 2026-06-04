@@ -54,15 +54,22 @@ export interface VelocityData {
   priorRows: RepVelocityRow[];
 }
 
+// `priorEmails` scopes the prior-FY rows: an email list (rep mode → the caller's
+// own prior aggregate) or null (team mode → every email's prior, the whole-book
+// pool). `current` is always fetched unfiltered (rep mode ranks the caller vs the
+// roster; team mode pools the whole book), with the caller scoping done downstream.
 export async function fetchVelocity(
   sy: string,
   priorSy: string,
-  priorEmails: string[],
+  priorEmails: string[] | null,
 ): Promise<VelocityData> {
   const current = await prisma.$queryRaw<RepVelocityRow[]>(aggSql(sy, Prisma.empty));
-  const priorRows =
-    priorEmails.length > 0
-      ? await prisma.$queryRaw<RepVelocityRow[]>(aggSql(priorSy, Prisma.sql`AND sales_rep_email = ANY(${priorEmails})`))
-      : [];
+  const priorFilter =
+    priorEmails === null
+      ? Prisma.sql`AND sales_rep_email IS NOT NULL`
+      : priorEmails.length > 0
+        ? Prisma.sql`AND sales_rep_email = ANY(${priorEmails})`
+        : null;
+  const priorRows = priorFilter ? await prisma.$queryRaw<RepVelocityRow[]>(aggSql(priorSy, priorFilter)) : [];
   return { current, priorCaller: priorRows[0] ?? null, priorRows };
 }

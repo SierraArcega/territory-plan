@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
-import { fetchTrajectoryRows, fetchWowSnapshots } from "@/features/home/lib/trajectory-source";
+import { fetchTrajectoryRows, fetchWowSnapshots, fetchWowSnapshotsTeam } from "@/features/home/lib/trajectory-source";
 import { buildSparklines } from "@/features/home/lib/sparkline";
-import { buildWowDeltas, type WowDeltas, type WowSnapshotRow } from "@/features/home/lib/wow";
+import { buildWowDeltas, type WowDeltas } from "@/features/home/lib/wow";
 import { getActiveReps } from "@/lib/reps";
 import { resolveScope } from "@/features/home/lib/scope";
 
@@ -45,31 +45,15 @@ export async function GET(request: Request) {
   });
 
   // "Last 7d" WoW delta is only meaningful for the in-progress FY (snapshots are
-  // ~6 weeks deep) and only for the two snapshot-backed metrics.
-  //
-  // buildWowDeltas picks the two most-recent rows by date and diffs them. It does
-  // NOT sum multiple reps. For team mode we pre-aggregate: group all reps' snapshot
-  // rows by date, sum openPipeline + bookings per date, then call buildWowDeltas on
-  // the aggregated rows (2 rows → latest and ~7-days-prior, each summed across the team).
+  // ~6 weeks deep) and only for the two snapshot-backed metrics. Team = the whole
+  // book (one aggregate query across every rep); rep = the subject's own snapshots.
   let wow: WowDeltas = { openPipeline: null, bookings: null };
   if (fy === getCurrentFY()) {
-    if (scope.mode === "team") {
-      const allSnaps = (await Promise.all(reps.map((r) => fetchWowSnapshots(r.id, schoolYr)))).flat();
-      // Sum per date across all reps.
-      const byDate = new Map<string, WowSnapshotRow>();
-      for (const snap of allSnaps) {
-        const existing = byDate.get(snap.date);
-        if (existing) {
-          existing.openPipeline += snap.openPipeline;
-          existing.bookings += snap.bookings;
-        } else {
-          byDate.set(snap.date, { date: snap.date, openPipeline: snap.openPipeline, bookings: snap.bookings });
-        }
-      }
-      wow = buildWowDeltas([...byDate.values()]);
-    } else {
-      wow = buildWowDeltas(await fetchWowSnapshots(scope.rep.id, schoolYr));
-    }
+    const snaps =
+      scope.mode === "team"
+        ? await fetchWowSnapshotsTeam(schoolYr)
+        : await fetchWowSnapshots(scope.rep.id, schoolYr);
+    wow = buildWowDeltas(snaps);
   }
 
   return NextResponse.json({ fy, schoolYr, mode: scope.mode, sparklines, wow });

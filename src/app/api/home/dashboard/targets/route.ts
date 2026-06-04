@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
@@ -9,7 +10,7 @@ import {
   workedLeaidsForRep,
   type PlanDistrictTargets,
 } from "@/features/home/lib/targets";
-import { resolveScope } from "@/features/home/lib/scope";
+import { resolveScope, emailFilterSql } from "@/features/home/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -44,13 +45,18 @@ export async function GET(request: Request) {
   const repIds = reps.map((r) => r.id);
   const ownerIds = Array.from(new Set([...repIds, user.id]));
 
+  // Team = the whole book: every plan owner this FY. Rep = the subject's plans
+  // (plus the caller's own when an admin views themselves).
+  const planWhere =
+    scope.mode === "team"
+      ? { fiscalYear: fy }
+      : {
+          OR: [{ ownerId: { in: ownerIds } }, { userId: { in: ownerIds }, ownerId: null }],
+          fiscalYear: fy,
+        };
+
   const planDistrictRows = await prisma.territoryPlanDistrict.findMany({
-    where: {
-      plan: {
-        OR: [{ ownerId: { in: ownerIds } }, { userId: { in: ownerIds }, ownerId: null }],
-        fiscalYear: fy,
-      },
-    },
+    where: { plan: planWhere },
     select: {
       districtLeaid: true,
       renewalTarget: true,
@@ -92,11 +98,9 @@ export async function GET(request: Request) {
   let inRoster: boolean;
 
   if (scope.mode === "team") {
-    // The team is the rep roster only — exclude the caller's own rollup/plans when
-    // an admin (not in the roster) is viewing, so their districts don't inflate the
-    // team count while their pipeline is absent from the roster-scoped sub-counts.
-    const repIds = new Set(reps.map((r) => r.id));
-    const all = reps.map((r) => rollups.get(r.id)).filter((r): r is NonNullable<typeof r> => r != null);
+    // Team = the whole book: every plan owner's rollup (not just the role='rep'
+    // roster). The "N reps" rank basis stays the roster, but the totals cover all.
+    const all = Array.from(rollups.values());
     workedCount = all.reduce((s, r) => s + r.workedCount, 0);
     untargeted = all.reduce((s, r) => s + r.untargetedCount, 0);
     targetTotal = all.reduce((s, r) => s + r.targetDollarsAll, 0);
@@ -105,7 +109,7 @@ export async function GET(request: Request) {
       winback: all.reduce((s, r) => s + r.segments.winback, 0),
       expansion: all.reduce((s, r) => s + r.segments.expansion, 0),
     };
-    workedLeaids = rows.filter((r) => repIds.has(r.repId)).map((r) => r.leaid); // rep-owned worked districts
+    workedLeaids = rows.map((r) => r.leaid); // every owner's worked districts
     rank = null;
     inRoster = true;
   } else {
@@ -133,30 +137,29 @@ export async function GET(request: Request) {
   let pipelineOnAccounts = 0;
   let active90 = 0;
   if (workedLeaids.length > 0) {
-    const scopeEmails = scope.emails;
-    if (scopeEmails.length > 0) {
-      const pipeRows = await prisma.$queryRaw<{ convertedCount: number; pipelineOnAccounts: number }[]>`
-        SELECT
-          COUNT(*) FILTER (WHERE open_pipe > 0)::int AS "convertedCount",
-          COALESCE(SUM(open_pipe + won), 0)::float AS "pipelineOnAccounts"
-        FROM (
-          SELECT district_lea_id,
-                 SUM(open_pipeline) AS open_pipe,
-                 SUM(bookings) AS won
-          FROM district_opportunity_actuals
-          WHERE sales_rep_email = ANY(${scopeEmails})
-            AND school_yr = ${schoolYr}
-            AND district_lea_id = ANY(${workedLeaids})
-          GROUP BY district_lea_id
-        ) t
-      `;
-      convertedToPipeline = pipeRows[0]?.convertedCount ?? 0;
-      pipelineOnAccounts = pipeRows[0]?.pipelineOnAccounts ?? 0;
-    }
+    const pipeRows = await prisma.$queryRaw<{ convertedCount: number; pipelineOnAccounts: number }[]>`
+      SELECT
+        COUNT(*) FILTER (WHERE open_pipe > 0)::int AS "convertedCount",
+        COALESCE(SUM(open_pipe + won), 0)::float AS "pipelineOnAccounts"
+      FROM (
+        SELECT district_lea_id,
+               SUM(open_pipeline) AS open_pipe,
+               SUM(bookings) AS won
+        FROM district_opportunity_actuals
+        WHERE school_yr = ${schoolYr}
+          ${emailFilterSql(scope, Prisma.sql`sales_rep_email`)}
+          AND district_lea_id = ANY(${workedLeaids})
+        GROUP BY district_lea_id
+      ) t
+    `;
+    convertedToPipeline = pipeRows[0]?.convertedCount ?? 0;
+    pipelineOnAccounts = pipeRows[0]?.pipelineOnAccounts ?? 0;
 
+    // Team = the whole book: a logged activity by ANY plan owner counts. Rep =
+    // the subject only.
     const activityUserIds =
       scope.mode === "team"
-        ? Array.from(new Set([...reps.map((r) => r.id), user.id]))
+        ? Array.from(new Set([...rows.map((r) => r.repId), user.id]))
         : [subjectId];
     const activeRows = await prisma.activityDistrict.findMany({
       where: {

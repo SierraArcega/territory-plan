@@ -215,3 +215,30 @@ export async function fetchWowSnapshots(salesRepId: string, sy: string): Promise
     )
     GROUP BY snapshot_date`;
 }
+
+// Whole-book WoW: the team's Open-Pipeline and Bookings totals on the two
+// team-wide snapshot dates (the latest, and the latest ≥7 days before it),
+// summed across every rep in one query. Daily snapshots run for the whole team
+// on the same dates, so a single global anchor is correct here and avoids the
+// per-rep fan-out (and the per-rep-anchor date-mismatch that could drop a rep
+// whose latest snapshot fell on an off-day).
+export async function fetchWowSnapshotsTeam(sy: string): Promise<WowSnapshotRow[]> {
+  return prisma.$queryRaw<WowSnapshotRow[]>`
+    WITH snaps AS (
+      SELECT snapshot_date, net_booking_amount, ${stagePrefixSql(Prisma.sql`stage`)} AS sp
+      FROM opportunity_snapshots
+      WHERE sales_rep_id IS NOT NULL AND school_yr = ${sy}
+    ),
+    anchors AS (
+      SELECT MAX(snapshot_date) AS latest FROM snaps
+    )
+    SELECT snapshot_date::text AS date,
+           COALESCE(SUM(CASE WHEN sp BETWEEN 0 AND 5 THEN net_booking_amount END), 0)::float AS "openPipeline",
+           COALESCE(SUM(CASE WHEN sp >= 6 THEN net_booking_amount END), 0)::float AS "bookings"
+    FROM snaps, anchors
+    WHERE snapshot_date IN (
+      anchors.latest,
+      (SELECT MAX(snapshot_date) FROM snaps WHERE snapshot_date <= anchors.latest - 7)
+    )
+    GROUP BY snapshot_date`;
+}

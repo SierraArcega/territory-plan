@@ -159,6 +159,25 @@ describe("getRepActualsBatch", () => {
     expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
   });
 
+  it("treats null emails as the whole book — queries every email (no early return)", async () => {
+    // null = team dashboard's whole-book fetch: the email filter is dropped, so
+    // it must still run the 2 queries (an empty array would early-return instead).
+    mockPrisma.$queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        sales_rep_email: "former-rep@x.com", school_yr: "2025-26",
+        sub_revenue: 0, total_take: 0, completed_take: 0, scheduled_take: 0,
+        weighted_pipeline: 0, open_pipeline: 5000, bookings: 0,
+        min_purchase_bookings: 0, invoiced: 0,
+      },
+    ]);
+
+    const result = await getRepActualsBatch(null, ["2025-26"]);
+
+    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(2);
+    // A non-roster email present in the data is included.
+    expect(result.get("former-rep@x.com")!.get("2025-26")!.openPipeline).toBe(5000);
+  });
+
   it("makes exactly 2 round-trips for any number of (email, year) pairs", async () => {
     // The whole point of this function — replaces N×Y×2 round-trips from the
     // old per-rep getRepActuals fan-out with a constant 2 (one per matview).

@@ -7,7 +7,7 @@ import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
 import { buildToplineCards, type CategoryActuals, type OpenPipelineDetail } from "@/features/home/lib/topline";
 import { stagePrefixSql } from "@/features/home/lib/trajectory-source";
-import { resolveScope } from "@/features/home/lib/scope";
+import { resolveScope, emailFilterSql } from "@/features/home/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +33,16 @@ export async function GET(request: Request) {
   if (!scope) return NextResponse.json({ error: "unknown rep" }, { status: 400 });
   const subjectId = scope.mode === "rep" ? scope.rep.id : user.id;
 
-  const actualsByEmail = await getRepActualsBatch(reps.map((r) => r.email), [schoolYr]);
+  // Rep mode ranks the subject vs the roster (roster actuals). Team mode is the
+  // whole book — fetch every email's actuals (null) so the headline sums all of
+  // them; ranking still uses the roster subset.
+  const actualsByEmail = await getRepActualsBatch(
+    scope.mode === "team" ? null : reps.map((r) => r.email),
+    [schoolYr],
+  );
 
-  // Subject's per-category breakdown for the segment bars (scoped to selected rep or team).
+  // Subject's per-category breakdown for the segment bars (selected rep, or the
+  // whole book in team mode).
   const subjectCategories: CategoryActuals[] = await prisma.$queryRaw<CategoryActuals[]>`
       SELECT category,
         COALESCE(SUM(open_pipeline), 0)::float AS "openPipeline",
@@ -43,7 +50,7 @@ export async function GET(request: Request) {
         COALESCE(SUM(completed_take + scheduled_take), 0)::float AS "take",
         COALESCE(SUM(completed_revenue + scheduled_revenue), 0)::float AS "revenue"
       FROM district_opportunity_actuals
-      WHERE sales_rep_email = ANY(${scope.emails}) AND school_yr = ${schoolYr}
+      WHERE school_yr = ${schoolYr} ${emailFilterSql(scope, Prisma.sql`sales_rep_email`)}
       GROUP BY category
     `;
 
@@ -57,8 +64,8 @@ export async function GET(request: Request) {
         COUNT(*)::int AS "oppCount",
         COUNT(DISTINCT o.district_name)::int AS "accountCount"
       FROM opportunities o
-      WHERE o.sales_rep_email = ANY(${scope.emails})
-        AND o.school_yr = ${schoolYr}
+      WHERE o.school_yr = ${schoolYr}
+        ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
         AND o.net_booking_amount IS NOT NULL
         AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
     `;

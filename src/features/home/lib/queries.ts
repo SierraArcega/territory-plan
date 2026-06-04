@@ -70,6 +70,7 @@ export function useTopline(fy: number, repScope: string) {
     queryKey: ["dashboard", "topline", fy, repScope],
     queryFn: () => fetchJson<ToplineResponse>(`${API_BASE}/home/dashboard/topline?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
+    enabled: repScope !== "",
   });
 }
 
@@ -101,6 +102,7 @@ export function useTargets(fy: number, repScope: string) {
     queryKey: ["dashboard", "targets", fy, repScope],
     queryFn: () => fetchJson<TargetsResponse>(`${API_BASE}/home/dashboard/targets?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
+    enabled: repScope !== "",
   });
 }
 
@@ -110,7 +112,7 @@ export function useRankTrajectory(fy: number, repScope: string) {
     queryFn: () =>
       fetchJson<RankTrajectoryPayload>(`${API_BASE}/home/dashboard/rank-trajectory?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
-    enabled: repScope !== "team",
+    enabled: repScope !== "team" && repScope !== "",
   });
 }
 
@@ -127,6 +129,7 @@ export function useSparklines(fy: number, repScope: string) {
     queryKey: ["dashboard", "sparklines", fy, repScope],
     queryFn: () => fetchJson<SparklinesResponse>(`${API_BASE}/home/dashboard/sparklines?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
+    enabled: repScope !== "",
   });
 }
 
@@ -146,6 +149,7 @@ export function usePipeline(fy: number, repScope: string) {
     queryKey: ["dashboard", "pipeline", fy, repScope],
     queryFn: () => fetchJson<PipelineResponse>(`${API_BASE}/home/dashboard/pipeline?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
+    enabled: repScope !== "",
   });
 }
 
@@ -161,5 +165,6 @@ export function useVelocity(fy: number, repScope: string) {
     queryKey: ["dashboard", "velocity", fy, repScope],
     queryFn: () => fetchJson<VelocityResponse>(`${API_BASE}/home/dashboard/velocity?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
+    enabled: repScope !== "",
   });
 }

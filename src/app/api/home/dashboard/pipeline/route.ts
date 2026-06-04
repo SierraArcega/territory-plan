@@ -14,7 +14,7 @@ import {
   buildOppViews,
   TIER_RANK,
 } from "@/features/home/lib/pipeline";
-import { resolveScope } from "@/features/home/lib/scope";
+import { resolveScope, emailInScope } from "@/features/home/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +42,11 @@ export async function GET(request: Request) {
   const { openOpps, wonBookings, fyTarget, thisWeek, targetsByRep, wonByRep, benchmarks } = await fetchPipelineData(
     schoolYr,
     fy,
-    scope.emails,
+    scope,
   );
 
-  const subjectOpps = openOpps.filter((o) => scope.emails.includes(o.email));
+  // Team = the whole book (every open opp); rep = the subject's open opps.
+  const subjectOpps = openOpps.filter((o) => emailInScope(scope, o.email));
   const funnel =
     scope.mode === "team"
       ? {
@@ -63,9 +64,11 @@ export async function GET(request: Request) {
   const views = buildOppViews(subjectOpps, benchmarks);
   const opps = views.slice(0, 50); // paginate the displayed table per CLAUDE.md
   // At risk = any non-on-track tier OR an overdue close date, worst tier first, then by weighted $.
+  // Capped at 50 (most-urgent first) — the team-mode book can be large (CLAUDE.md: never render >50).
   const atRisk = views
     .filter((o) => o.tier !== "on" || o.overdue)
-    .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || b.weighted - a.weighted);
+    .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || b.weighted - a.weighted)
+    .slice(0, 50);
   const inRoster = scope.mode === "team" ? true : reps.some((r) => r.id === scope.rep.id);
 
   return NextResponse.json({
