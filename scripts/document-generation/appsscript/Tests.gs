@@ -86,6 +86,8 @@ function testComputeBocesQuoteTotals() {
   ];
   var r = computeBocesQuoteTotals(lineItems, 10.6);
 
+  if (r.rows.length !== 2)         throw new Error('rows length: expected 2, got ' + r.rows.length);
+  if (r.feePct !== 10.6)           throw new Error('feePct: expected 10.6, got ' + r.feePct);
   if (r.rows[0].total !== 13265)   throw new Error('row0 total: expected 13265, got ' + r.rows[0].total);
   if (r.rows[1].total !== 2123)    throw new Error('row1 total: expected 2123, got ' + r.rows[1].total);
   if (r.subtotal !== 15388)        throw new Error('subtotal: expected 15388, got ' + r.subtotal);

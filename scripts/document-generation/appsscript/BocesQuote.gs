@@ -25,7 +25,9 @@ function computeBocesQuoteTotals(lineItems, feePct) {
   return { rows: rows, subtotal: subtotal, feePct: pct, fee: fee, total: total };
 }
 
-/** Rounds to 2 decimal places, avoiding binary float drift. */
+/** Rounds a positive dollar amount to 2 decimal places, avoiding binary float
+ *  drift. Assumes non-negative input (BOCES quotes have no negative line items);
+ *  the +EPSILON nudge biases toward zero for negatives. */
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
