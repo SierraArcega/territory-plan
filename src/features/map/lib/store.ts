@@ -142,7 +142,7 @@ export interface V2TooltipData {
   customerCategoryB?: string;
   transitionBucket?: TransitionBucket;
   dominantVendor?: string;
-  salesExecutive?: string | null;
+  owner?: string | null;
   // School-specific
   schoolLevel?: number;
   lograde?: string;

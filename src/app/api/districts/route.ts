@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const rawState = searchParams.get("state");
     const state = rawState ? normalizeState(rawState) : null;
     const status = (searchParams.get("status") || "all") as StatusFilter;
-    const salesExec = searchParams.get("salesExec");
+    const owner = searchParams.get("owner");
     const search = searchParams.get("search");
     const metric = (searchParams.get("metric") || "net_invoicing") as MetricType;
     const year = (searchParams.get("year") || "fy26") as FiscalYear;
@@ -92,9 +92,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sales executive filter - now uses FK column
-    if (salesExec) {
-      where.salesExecutiveId = salesExec;
+    // Owner filter — app owner FK column
+    if (owner) {
+      where.ownerId = owner;
     }
 
     // Get total count

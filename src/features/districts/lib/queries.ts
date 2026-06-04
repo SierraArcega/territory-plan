@@ -24,7 +24,7 @@ import type {
 export function useDistricts(params: {
   state?: string | null;
   status?: StatusFilter;
-  salesExecutive?: string | null;
+  owner?: string | null;
   search?: string;
   metric?: MetricType;
   year?: FiscalYear;
@@ -35,7 +35,7 @@ export function useDistricts(params: {
   if (params.state) searchParams.set("state", params.state);
   if (params.status && params.status !== "all")
     searchParams.set("status", params.status);
-  if (params.salesExecutive) searchParams.set("salesExec", params.salesExecutive);
+  if (params.owner) searchParams.set("owner", params.owner);
   if (params.search) searchParams.set("search", params.search);
   if (params.metric) searchParams.set("metric", params.metric);
   if (params.year) searchParams.set("year", params.year);
