@@ -1,0 +1,109 @@
+/**
+ * Web app entry point. Receives JSON payload from Territory Planner.
+ * @param {GoogleAppsScript.Events.DoPost} e
+ */
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var result  = generateContract(payload);
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Main contract generation orchestrator.
+ * Call directly from the editor: generateContract(PAYLOAD_FULL)
+ * @param {Object} payload
+ * @returns {{ success: boolean, url: string, docId: string, sent?: boolean, sendError?: string }}
+ */
+function generateContract(payload) {
+  var props  = PropertiesService.getScriptProperties().getProperties();
+  var folder = DriveApp.getFolderById(props[PROP.OUTPUT_FOLDER_ID]);
+
+  var docName = payload.deal.client_company + ' — Contract ' + payload.deal.today;
+  var copy    = DriveApp.getFileById(props[PROP.TEMPLATE_BASE_ID]).makeCopy(docName, folder);
+  var doc     = DocumentApp.openById(copy.getId());
+  var body    = doc.getBody();
+
+  try {
+    replaceMergeFields(body, payload);
+    handleQuoteSection(body, payload.quote);
+    handlePaymentTerms(body, payload.payment);
+    handleAppendedSections(doc, payload.sections, props);
+
+    // Second pass: catch any <<FIELD>> tokens in appended content (signature page, MSA, etc.)
+    replaceMergeFields(body, payload);
+    validateMergeFields(body);
+
+    doc.saveAndClose();
+
+    var docUrl = 'https://docs.google.com/document/d/' + copy.getId() + '/edit';
+    var result = { success: true, url: docUrl, docId: copy.getId() };
+
+    // Optional: send via Dropbox Sign immediately after generation
+    if (payload.auto_send && props[PROP.DROPBOX_SIGN_API_KEY]) {
+      try {
+        var pdfBlob    = DriveApp.getFileById(copy.getId())
+                           .getAs('application/pdf')
+                           .setName(docName + '.pdf');
+        var signerName = payload.deal.signer_salut + ' ' + payload.deal.signer_first + ' ' + payload.deal.signer_last;
+        var dsResponse = UrlFetchApp.fetch('https://api.hellosign.com/v3/signature_request/send', {
+          method:  'post',
+          headers: { 'Authorization': 'Basic ' + Utilities.base64Encode(props[PROP.DROPBOX_SIGN_API_KEY] + ':') },
+          payload: {
+            'test_mode':                 props[PROP.DROPBOX_SIGN_TEST_MODE] || '1',
+            'title':                     docName,
+            'subject':                   'Please sign your Fullmind contract',
+            'message':                   'Please review and sign your Fullmind agreement for the ' + payload.deal.school_year + ' school year.',
+            'signers[0][email_address]': payload.deal.client_email,
+            'signers[0][name]':          signerName,
+            'use_text_tags':             '1',
+            'hide_text_tags':            '1',
+            'files[0]':                  pdfBlob,
+          },
+          muteHttpExceptions: true,
+        });
+        var dsResult = JSON.parse(dsResponse.getContentText());
+        if (dsResponse.getResponseCode() === 200) {
+          result.sent               = true;
+          result.signatureRequestId = dsResult.signature_request.signature_request_id;
+        } else {
+          result.sent      = false;
+          result.sendError = dsResult.error ? dsResult.error.error_msg : dsResponse.getContentText();
+          Logger.log('Dropbox Sign error: ' + dsResponse.getContentText());
+        }
+      } catch (sendErr) {
+        Logger.log('auto_send trigger failed: ' + sendErr.message);
+        result.sent      = false;
+        result.sendError = sendErr.message;
+      }
+    }
+
+    return result;
+
+  } catch (err) {
+    try { copy.setTrashed(true); } catch (e2) {}
+    try {
+      GmailApp.sendEmail(
+        payload.deal.sender_email,
+        '⚠️ Contract generation FAILED — ' + payload.deal.client_company,
+        [
+          'Contract generation failed for: ' + payload.deal.client_company,
+          'Error: ' + err.message,
+          '',
+          'Stack trace:',
+          err.stack || '(no stack available)',
+        ].join('\n')
+      );
+    } catch (emailErr) {
+      Logger.log('Could not send failure email: ' + emailErr.message);
+    }
+    throw err;
+  }
+}

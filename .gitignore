@@ -86,11 +86,19 @@ tessl.json
 logs/
 __pycache__/
 
+# Document generation Playwright auth + deps
+scripts/document-generation/.auth/
+scripts/document-generation/node_modules/
+scripts/document-generation/recordings/
+
 # Playwright E2E
 e2e/test-results/
 e2e/.auth/
 playwright-report/
 .worktrees/
+
+# Apps Script CLASP project link (contains personal script ID)
+scripts/document-generation/appsscript/.clasp.json
 
 # Data change-logs written by territory-owner tooling scripts
 scripts/exports/
