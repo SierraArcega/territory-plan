@@ -104,3 +104,67 @@ function buildBocesQuoteTable(body, quote) {
   // Remove the marker paragraph now that the table sits after it.
   body.getChild(markerIdx).removeFromParent();
 }
+
+/**
+ * BOCES Quote orchestrator. Quote-only — no signature page, no Dropbox Sign.
+ * Call directly from the editor: generateBocesQuote(PAYLOAD_BOCES_QUOTE)
+ * @param {Object} payload
+ * @returns {{ success:boolean, url:string, docId:string, agreementUrl?:string }}
+ */
+function generateBocesQuote(payload) {
+  var props  = PropertiesService.getScriptProperties().getProperties();
+  var folder = DriveApp.getFolderById(props[PROP.OUTPUT_FOLDER_ID]);
+
+  var docName = payload.deal.client_company + ' — BOCES Quote ' + payload.deal.today;
+  var copy    = DriveApp.getFileById(props[PROP.TEMPLATE_BOCES_QUOTE_ID]).makeCopy(docName, folder);
+  var doc     = DocumentApp.openById(copy.getId());
+  var body    = doc.getBody();
+
+  try {
+    replaceBocesMergeFields(body, payload);
+    buildBocesQuoteTable(body, payload.quote);
+
+    var sections = payload.sections || {};
+
+    // Optional: staffing type descriptions (same Drive doc as the All Services contract)
+    appendOptionalSection(doc, {
+      include:     !!sections.staffing_include,
+      sourceId:    props[PROP.STAFFING_ID],
+      startMarker: '{{STAFFING_SECTION_START}}',
+      endMarker:   '{{STAFFING_SECTION_END}}',
+      placeholder: '[Staffing descriptions will be appended here]',
+    });
+
+    // Optional: BOCES pricing table
+    appendOptionalSection(doc, {
+      include:     !!sections.pricing_boces,
+      sourceId:    props[PROP.PRICING_BOCES_ID],
+      startMarker: '{{PRICING_BOCES_START}}',
+      endMarker:   '{{PRICING_BOCES_END}}',
+      placeholder: '[BOCES pricing sheet]',
+    });
+
+    validateMergeFields(body);
+    doc.saveAndClose();
+
+    var docUrl = 'https://docs.google.com/document/d/' + copy.getId() + '/edit';
+    var result = { success: true, url: docUrl, docId: copy.getId() };
+
+    // Optional: reference the standing BOCES Master License & Service Agreement PDF.
+    // Delivered as a separate attachment URL — physical merge is deferred.
+    if (sections.boces_agreement) {
+      if (props[PROP.BOCES_AGREEMENT_PDF_ID]) {
+        result.agreementUrl = 'https://drive.google.com/file/d/' + props[PROP.BOCES_AGREEMENT_PDF_ID] + '/view';
+      } else {
+        Logger.log('Warning: BOCES_AGREEMENT_PDF_ID not set — agreementUrl omitted');
+      }
+    }
+
+    return result;
+
+  } catch (err) {
+    try { copy.setTrashed(true); } catch (e2) {}
+    Logger.log('BOCES quote generation failed: ' + err.message + '\n' + (err.stack || ''));
+    throw err;
+  }
+}
