@@ -27,6 +27,8 @@ function generateDocument(payload) {
   if (docType === 'boces_quote') {
     return generateBocesQuote(payload);
   }
+  // Unknown doc_type falls through to the full contract — intentional back-compat.
+  // When adding a third document type, add its branch above.
   return generateFullContract(payload);
 }
 
