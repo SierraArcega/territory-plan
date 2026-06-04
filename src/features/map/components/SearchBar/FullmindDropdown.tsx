@@ -23,7 +23,7 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
-    fetch("/api/sales-executives")
+    fetch("/api/users")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setOwners((data || []).map((d: { id: string; fullName: string | null; email: string }) => ({ id: d.id, name: d.fullName || d.email }))))
       .catch(() => {});
@@ -83,8 +83,8 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
 
         {owners.length > 0 && (
           <FilterMultiSelect
-            label="Sales Executive"
-            column="salesExecutive"
+            label="Owner"
+            column="owner"
             options={owners.map((o) => ({ value: o.id, label: o.name }))}
             onApply={(col, vals) => {
               const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);

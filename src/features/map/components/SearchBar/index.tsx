@@ -19,7 +19,7 @@ function useDropdownData() {
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
-    fetch("/api/sales-executives")
+    fetch("/api/users")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setOwners((data || []).map((d: { id: string; fullName: string | null; email: string }) => ({ id: d.id, name: d.fullName || d.email }))))
       .catch(() => {});

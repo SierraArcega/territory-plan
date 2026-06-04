@@ -319,8 +319,8 @@ function FullmindContent({
       />
 
       <FilterMultiSelect
-        label="Sales Executive"
-        column="salesExecutive"
+        label="Owner"
+        column="owner"
         options={owners.map((o) => ({ value: o.id, label: o.name }))}
         onApply={(col, vals) => {
           const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);
