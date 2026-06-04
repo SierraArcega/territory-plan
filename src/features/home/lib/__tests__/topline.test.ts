@@ -88,3 +88,30 @@ describe("buildToplineCards", () => {
     expect(cards.every((c) => c.pipelineDetail === undefined)).toBe(true);
   });
 });
+
+const twoReps = [
+  { id: "me", email: "me@x" },
+  { id: "u2", email: "u2@x" },
+];
+const twoRepActuals = batch({
+  "me@x": { openPipeline: 100 },
+  "u2@x": { openPipeline: 300 },
+});
+
+describe("buildToplineCards team mode", () => {
+  it("sums all reps and reports null rank", () => {
+    const cards = buildToplineCards(twoReps, twoRepActuals, SY, "me", [], null, "team");
+    const openPipe = cards.find((c) => c.metricKey === "openPipeline")!;
+    expect(openPipe.value).toBe(400);
+    expect(openPipe.rank).toBeNull();
+    expect(openPipe.inRoster).toBe(true);
+    expect(openPipe.totalReps).toBe(2);
+  });
+
+  it("rep mode is unchanged (caller value + rank)", () => {
+    const cards = buildToplineCards(twoReps, twoRepActuals, SY, "me", [], null, "rep");
+    const openPipe = cards.find((c) => c.metricKey === "openPipeline")!;
+    expect(openPipe.value).toBe(100);
+    expect(openPipe.rank).toBe(2);
+  });
+});

@@ -28,7 +28,7 @@ export interface ToplineCard {
   metricKey: ToplineMetricKey;
   label: string;
   value: number;
-  rank: number;
+  rank: number | null;
   totalReps: number;
   inRoster: boolean;
   // The caller's value split by source (non-zero segments only, in display order).
@@ -88,9 +88,10 @@ export function buildToplineCards(
   reps: { id: string; email: string }[],
   actualsByEmail: Map<string, Map<string, RepActuals>>,
   schoolYr: string,
-  callerId: string,
-  callerCategories: CategoryActuals[],
+  subjectId: string,
+  subjectCategories: CategoryActuals[],
   openPipelineDetail: OpenPipelineDetail | null = null,
+  mode: "rep" | "team" = "rep",
 ): ToplineCard[] {
   return METRICS.map(({ key, label, value, categoryValue }) => {
     const values = reps.map((r) => ({
@@ -99,15 +100,16 @@ export function buildToplineCards(
       value: value(actualsByEmail.get(r.email)?.get(schoolYr) ?? ZERO),
     }));
     const ranking = rankReps(values);
-    const standing = rankForRep(ranking, callerId);
+    const standing = rankForRep(ranking, subjectId);
+    const headlineValue = mode === "team" ? values.reduce((s, v) => s + v.value, 0) : standing.value;
     return {
       metricKey: key,
       label,
-      value: standing.value,
-      rank: standing.rank,
+      value: headlineValue,
+      rank: mode === "team" ? null : standing.rank,
       totalReps: ranking.totalReps,
-      inRoster: standing.inRoster,
-      segments: segmentsFor(callerCategories, categoryValue),
+      inRoster: mode === "team" ? true : standing.inRoster,
+      segments: segmentsFor(subjectCategories, categoryValue),
       ...(key === "openPipeline" && openPipelineDetail ? { pipelineDetail: openPipelineDetail } : {}),
     };
   });

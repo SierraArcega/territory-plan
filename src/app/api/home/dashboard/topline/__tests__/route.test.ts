@@ -44,7 +44,7 @@ describe("GET /api/home/dashboard/topline", () => {
   });
 
   it("returns the four financial cards with the caller's rank for the requested FY", async () => {
-    mockGetUser.mockResolvedValue({ id: "me" } as never);
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
     mockGetActiveReps.mockResolvedValue([
       { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
       { id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null },
@@ -55,11 +55,13 @@ describe("GET /api/home/dashboard/topline", () => {
         "u2@x": { [yrs[0]]: { openPipeline: 300 } },
       }),
     );
-    // Caller's per-category breakdown for the segment bars.
-    mockQueryRaw.mockResolvedValue([
-      { category: "renewal", openPipeline: 120, bookings: 0, take: 0, revenue: 0 },
-      { category: "new_business", openPipeline: 80, bookings: 0, take: 0, revenue: 0 },
-    ] as never);
+    // First $queryRaw call: per-category breakdown; second: pipeline detail.
+    mockQueryRaw
+      .mockResolvedValueOnce([
+        { category: "renewal", openPipeline: 120, bookings: 0, take: 0, revenue: 0 },
+        { category: "new_business", openPipeline: 80, bookings: 0, take: 0, revenue: 0 },
+      ] as never)
+      .mockResolvedValueOnce([] as never);
 
     const res = await GET(req("2026"));
     const body = await res.json();
@@ -67,6 +69,7 @@ describe("GET /api/home/dashboard/topline", () => {
     expect(res.status).toBe(200);
     expect(body.fy).toBe(2026);
     expect(body.schoolYr).toBe("2025-26");
+    expect(body.mode).toBe("rep");
     expect(body.cards).toHaveLength(4);
     const op = body.cards.find((c: { metricKey: string }) => c.metricKey === "openPipeline");
     expect(op).toMatchObject({ value: 200, rank: 2, totalReps: 2 });
@@ -74,6 +77,41 @@ describe("GET /api/home/dashboard/topline", () => {
       { key: "return", label: "Return", value: 120 },
       { key: "new", label: "New biz", value: 80 },
     ]);
+  });
+
+  it("rep=team returns mode 'team' with null ranks", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockGetActiveReps.mockResolvedValue([
+      { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
+      { id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null },
+    ]);
+    mockBatch.mockImplementation(async (_emails, yrs) =>
+      batchOf({
+        "me@x": { [yrs[0]]: { openPipeline: 200 } },
+        "u2@x": { [yrs[0]]: { openPipeline: 300 } },
+      }),
+    );
+    mockQueryRaw
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([] as never);
+
+    const res = await GET(new Request("http://localhost/api/home/dashboard/topline?fy=2026&rep=team"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.mode).toBe("team");
+    expect(body.cards.every((c: { rank: number | null }) => c.rank === null)).toBe(true);
+  });
+
+  it("rejects an unknown rep id", async () => {
+    mockGetUser.mockResolvedValue({ id: "me", email: "me@x" } as never);
+    mockGetActiveReps.mockResolvedValue([
+      { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
+      { id: "u2", email: "u2@x", fullName: "U2", avatarUrl: null },
+    ]);
+
+    const res = await GET(new Request("http://localhost/api/home/dashboard/topline?fy=2026&rep=ghost"));
+    expect(res.status).toBe(400);
   });
 
   it("rejects a non-numeric fy param", async () => {
