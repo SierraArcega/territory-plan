@@ -12,7 +12,9 @@ var PROP = {
   PRICING_EK12_ID:        'PRICING_EK12_ID',
   PRICING_LIVESTAFF_ID:   'PRICING_LIVESTAFF_ID',
   PRICING_HOURLY_ID:      'PRICING_HOURLY_ID',
-  PRICING_BOCES_ID:       'PRICING_BOCES_ID',
+  PRICING_BOCES_ID:        'PRICING_BOCES_ID',
+  TEMPLATE_BOCES_QUOTE_ID: 'TEMPLATE_BOCES_QUOTE_ID',
+  BOCES_AGREEMENT_PDF_ID:  'BOCES_AGREEMENT_PDF_ID',
   MSA_ID:                    'MSA_ID',
   OUTPUT_FOLDER_ID:          'OUTPUT_FOLDER_ID',
   DROPBOX_SIGN_API_KEY:      'DROPBOX_SIGN_API_KEY',
@@ -34,7 +36,9 @@ function initScriptProperties() {
     [PROP.PRICING_EK12_ID]:        '1giikhnhV5hHJ7Kueq8dFPtnjbAtCFVg4GX3if09Ko6E',
     [PROP.PRICING_LIVESTAFF_ID]:   '1E0MEsTqgPrtGMKv4VwKmGrFRwrUIcCncROR3wc5L6vI',
     [PROP.PRICING_HOURLY_ID]:      '1CXbUzPkrF8XpflxrcXjoUUTq8w9LePnhOZ2edtcciy4',
-    [PROP.PRICING_BOCES_ID]:       '1puCVVI12bmwZO8uV3Rom6XU21Onn4fzfUwYChUBZfWY',
+    [PROP.PRICING_BOCES_ID]:        '1puCVVI12bmwZO8uV3Rom6XU21Onn4fzfUwYChUBZfWY',
+    [PROP.TEMPLATE_BOCES_QUOTE_ID]: '',  // set in Task 8 after creating the BOCES Quote base template
+    [PROP.BOCES_AGREEMENT_PDF_ID]:  '',  // set in Task 8 after uploading the Erie 1 MLSA PDF
     [PROP.MSA_ID]:                 '1E-9q0ZvaHJIMxW-YDj4ZVU4tR0qNN5B_lM5zCNCKtqI',
     [PROP.OUTPUT_FOLDER_ID]:       '1mz-10pG_G2l0h-z8iv0jMwCsjwwsN4yd',
     [PROP.DROPBOX_SIGN_API_KEY]:   '',  // set via console: PropertiesService.getScriptProperties().setProperty('DROPBOX_SIGN_API_KEY', 'key')
