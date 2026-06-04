@@ -908,7 +908,7 @@ describe("buildFilterExpression", () => {
       const arr = asArr(expr);
 
       expect(arr[0]).toBe("==");
-      expect(arr[1]).toEqual(["get", "sales_executive_id"]);
+      expect(arr[1]).toEqual(["get", "owner_id"]);
       expect(arr[2]).toBe("John Doe");
     });
 

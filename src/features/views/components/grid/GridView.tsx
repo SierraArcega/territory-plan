@@ -31,6 +31,7 @@ import { AddDistrictsModal } from "./actions/AddDistrictsModal";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
 import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
+import { DistrictOwnerCell } from "./cells/DistrictOwnerCell";
 import { TargetSubCell, type TargetField } from "./cells/TargetSubCell";
 import { noteTypeMeta } from "../../lib/note-types";
 import {
@@ -253,6 +254,7 @@ function defaultColWidth(col: ColumnDef): number {
   // the popover. Still resizable; an explicit saved width overrides this.
   if (col.id === "plan_notes") return 300;
   if (col.id === "state") return 90;
+  if (col.id === "owner") return 170;
   switch (col.format) {
     case "pill":
       return 130;
@@ -497,6 +499,12 @@ export default function GridView(props: GridViewProps) {
                 latestType={typeof row.notesLatestType === "string" ? row.notesLatestType : null}
               />
             );
+          }
+          if (c.id === "owner") {
+            const o = v && typeof v === "object"
+              ? (v as { id: string; fullName: string | null; avatarUrl: string | null })
+              : null;
+            return <DistrictOwnerCell owner={o} />;
           }
           if (c.id === "note_type") {
             const t = typeof row.notesLatestType === "string" ? row.notesLatestType : null;

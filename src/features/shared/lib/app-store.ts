@@ -27,7 +27,7 @@ export interface TooltipData {
   name?: string;
   stateAbbrev?: string;
   enrollment?: number;
-  salesExecutive?: string | null;
+  owner?: string | null;
   tags?: Array<{ name: string; color: string }>;
   charterSchoolCount?: number;
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import type { District, FullmindData, Tag, DistrictTrends } from "@/lib/api";
+import type { District, Tag, DistrictTrends } from "@/lib/api";
 import SignalBadge from "./signals/SignalBadge";
 import { getAccountTypeLabel } from "@/features/shared/types/account-types";
 
 interface DistrictHeaderProps {
   district: District;
-  fullmindData: FullmindData | null;
   tags: Tag[];
   trends: DistrictTrends | null;
 }
@@ -18,7 +17,6 @@ function formatGrades(lo: string, hi: string): string {
 
 export default function DistrictHeader({
   district,
-  fullmindData,
   tags,
   trends,
 }: DistrictHeaderProps) {
@@ -134,13 +132,6 @@ export default function DistrictHeader({
           <span> · {district.numberOfSchools} schools</span>
         )}
       </div>
-
-      {/* Sales Executive */}
-      {fullmindData?.salesExecutive?.fullName && (
-        <div className="mt-1.5 text-xs text-gray-500">
-          SE: <span className="font-medium text-[#403770]">{fullmindData.salesExecutive.fullName}</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -12,7 +12,6 @@ const COLUMN_LABELS: Record<string, string> = {
   // Fullmind
   isCustomer: "Customer",
   hasOpenPipeline: "Has Pipeline",
-  salesExecutive: "Sales Exec",
   owner: "Owner",
   open_pipeline: "Pipeline",
   closed_won_bookings: "Bookings",

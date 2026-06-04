@@ -68,7 +68,6 @@ export interface DistrictFinancial {
 export interface FullmindData {
   leaid: string;
   accountName: string | null;
-  salesExecutive: PersonRef | null;
   lmsid: string | null;
   districtFinancials: DistrictFinancial[];
   isCustomer: boolean;
@@ -428,6 +427,27 @@ export interface UserSummary {
   avatarUrl: string | null;
   email: string;
   jobTitle: string | null;
+}
+
+/** A person on a district's account team (collaborator or watcher). */
+interface DistrictMemberUser {
+  id: string;
+  fullName: string | null;
+  email: string;
+  avatarUrl: string | null;
+}
+
+export interface DistrictCollaborator {
+  userId: string;
+  source: "auto" | "manual";
+  addedAt: string;
+  user: DistrictMemberUser;
+}
+
+export interface DistrictWatcher {
+  userId: string;
+  addedAt: string;
+  user: DistrictMemberUser;
 }
 
 export interface UserProfile {
@@ -842,7 +862,6 @@ export interface StateDistrictListItem {
   enrollment: number | null;
   isCustomer: boolean;
   hasOpenPipeline: boolean;
-  salesExecutive: PersonRef | null;
   districtFinancials: DistrictFinancial[];
   tags: Array<{ id: number; name: string; color: string }>;
 }

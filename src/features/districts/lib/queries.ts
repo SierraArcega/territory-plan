@@ -7,6 +7,8 @@ import type {
   DistrictListItem,
   DistrictDetail,
   DistrictEdits,
+  DistrictCollaborator,
+  DistrictWatcher,
   UnmatchedAccount,
   StateSummary,
   SimilarMetricKey,
@@ -22,7 +24,7 @@ import type {
 export function useDistricts(params: {
   state?: string | null;
   status?: StatusFilter;
-  salesExecutive?: string | null;
+  owner?: string | null;
   search?: string;
   metric?: MetricType;
   year?: FiscalYear;
@@ -33,7 +35,7 @@ export function useDistricts(params: {
   if (params.state) searchParams.set("state", params.state);
   if (params.status && params.status !== "all")
     searchParams.set("status", params.status);
-  if (params.salesExecutive) searchParams.set("salesExec", params.salesExecutive);
+  if (params.owner) searchParams.set("owner", params.owner);
   if (params.search) searchParams.set("search", params.search);
   if (params.metric) searchParams.set("metric", params.metric);
   if (params.year) searchParams.set("year", params.year);
@@ -80,6 +82,90 @@ export function useUpdateDistrictEdits() {
       }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+    },
+  });
+}
+
+// ===== Account team: collaborators & watchers =====
+// Stable array query keys scoped under the district key so the district detail
+// invalidation (["district", leaid]) also refreshes them via prefix matching.
+
+export function useCollaborators(leaid: string | null) {
+  return useQuery({
+    queryKey: ["district", leaid, "collaborators"],
+    queryFn: () =>
+      fetchJson<{ collaborators: DistrictCollaborator[] }>(
+        `${API_BASE}/districts/${leaid}/collaborators`
+      ).then((r) => r.collaborators),
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddCollaborator() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId?: string }) =>
+      fetchJson<{ collaborator: DistrictCollaborator | null }>(
+        `${API_BASE}/districts/${leaid}/collaborators`,
+        { method: "POST", body: JSON.stringify({ userId }) }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "collaborators"] });
+    },
+  });
+}
+
+export function useRemoveCollaborator() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId: string }) =>
+      fetchJson<{ removed: number }>(
+        `${API_BASE}/districts/${leaid}/collaborators/${userId}`,
+        { method: "DELETE" }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "collaborators"] });
+    },
+  });
+}
+
+export function useWatchers(leaid: string | null) {
+  return useQuery({
+    queryKey: ["district", leaid, "watchers"],
+    queryFn: () =>
+      fetchJson<{ watchers: DistrictWatcher[] }>(
+        `${API_BASE}/districts/${leaid}/watchers`
+      ).then((r) => r.watchers),
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddWatcher() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId?: string }) =>
+      fetchJson<{ watcher: DistrictWatcher | null }>(
+        `${API_BASE}/districts/${leaid}/watchers`,
+        { method: "POST", body: JSON.stringify({ userId }) }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "watchers"] });
+    },
+  });
+}
+
+export function useRemoveWatcher() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId: string }) =>
+      fetchJson<{ removed: number }>(
+        `${API_BASE}/districts/${leaid}/watchers/${userId}`,
+        { method: "DELETE" }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "watchers"] });
     },
   });
 }
@@ -237,7 +323,7 @@ export function useCreateAccount() {
       city?: string;
       state?: string;
       zip?: string;
-      salesExecutiveId?: string;
+      ownerId?: string;
       phone?: string;
       websiteUrl?: string;
     }) => {

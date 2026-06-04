@@ -12,7 +12,7 @@ const SECTION_COLUMNS: Record<string, Set<string>> = {
     "urbanicity", "charterSchoolCount", "titleISchoolCount",
   ]),
   fullmind: new Set([
-    "isCustomer", "hasOpenPipeline", "salesExecutive", "owner",
+    "isCustomer", "hasOpenPipeline", "owner",
     "open_pipeline", "closed_won_bookings", "invoicing",
     "tags",
   ]),
@@ -319,8 +319,8 @@ function FullmindContent({
       />
 
       <FilterMultiSelect
-        label="Sales Executive"
-        column="salesExecutive"
+        label="Owner"
+        column="owner"
         options={owners.map((o) => ({ value: o.id, label: o.name }))}
         onApply={(col, vals) => {
           const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);

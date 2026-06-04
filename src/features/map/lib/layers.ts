@@ -612,7 +612,7 @@ export function buildFilterExpression(
   }
 
   if (filterOwner) {
-    conditions.push(["==", ["get", "sales_executive_id"], filterOwner]);
+    conditions.push(["==", ["get", "owner_id"], filterOwner]);
   }
 
   if (filterPlanId) {

@@ -63,7 +63,6 @@ export async function GET(
         enrollment: true,
         isCustomer: true,
         hasOpenPipeline: true,
-        salesExecutiveUser: { select: { id: true, fullName: true, avatarUrl: true } },
         districtFinancials: {
           where: { vendor: "fullmind" },
           select: FULLMIND_FINANCIALS_SELECT,
@@ -91,9 +90,6 @@ export async function GET(
         enrollment: d.enrollment,
         isCustomer: d.isCustomer ?? false,
         hasOpenPipeline: d.hasOpenPipeline ?? false,
-        salesExecutive: d.salesExecutiveUser
-          ? { id: d.salesExecutiveUser.id, fullName: d.salesExecutiveUser.fullName, avatarUrl: d.salesExecutiveUser.avatarUrl }
-          : null,
         districtFinancials: serializeFinancials(d.districtFinancials),
         tags: d.districtTags.map((dt) => ({
           id: dt.tag.id,

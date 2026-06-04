@@ -12,6 +12,7 @@ import PurchasingHistoryCard from "./PurchasingHistoryCard";
 import CompetitorCard from "./CompetitorCard";
 import FullmindCard from "./FullmindCard";
 import DistrictDetailsCard from "./DistrictDetailsCard";
+import AccountTeamCard from "@/features/districts/components/ownership/AccountTeamCard";
 import VacanciesCard from "@/features/vacancies/components/VacanciesCard";
 import ContactsList from "@/features/districts/components/ContactsList";
 import SignalCard from "./signals/SignalCard";
@@ -77,7 +78,6 @@ export default function DistrictDetailPanel() {
             {/* Header with signal strip */}
             <DistrictHeader
               district={data.district}
-              fullmindData={data.fullmindData}
               tags={data.tags}
               trends={data.trends}
             />
@@ -121,6 +121,7 @@ export default function DistrictDetailPanel() {
 
               <DistrictDetailsCard data={data} leaid={selectedLeaid!} />
 
+              <AccountTeamCard leaid={selectedLeaid!} owner={data.edits?.owner ?? null} />
 
               <SignalCard
                 icon={

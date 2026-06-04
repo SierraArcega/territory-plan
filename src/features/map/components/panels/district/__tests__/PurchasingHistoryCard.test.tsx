@@ -11,7 +11,6 @@ import type { FullmindData } from "@/lib/api";
 const mockFullmindData: FullmindData = {
   leaid: "123456",
   accountName: "Test District",
-  salesExecutive: null,
   lmsid: null,
   districtFinancials: [
     {

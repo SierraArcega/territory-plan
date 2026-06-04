@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { useCreateAccount, useDuplicateCheck, useUsers } from "@/lib/api";
+import { useCreateAccount, useDuplicateCheck, useUsers, useProfile } from "@/lib/api";
 import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 import { getAccountTypeLabel } from "@/features/shared/types/account-types";
 import { US_STATES } from "@/lib/states";
@@ -22,13 +22,19 @@ export default function AccountForm() {
   const [city, setCity] = useState("");
   const [mailingState, setMailingState] = useState("");
   const [zip, setZip] = useState("");
-  const [salesExecutiveId, setSalesExecutiveId] = useState("");
+  const [ownerId, setOwnerId] = useState("");
   const [phone, setPhone] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [showOptional, setShowOptional] = useState(false);
 
   const createMutation = useCreateAccount();
   const { data: users } = useUsers();
+  const { data: profile } = useProfile();
+
+  // Default the owner to the current user once their profile loads (UX default).
+  useEffect(() => {
+    if (profile?.id) setOwnerId((prev) => prev || profile.id);
+  }, [profile?.id]);
 
   // Debounced duplicate check — uses the name when 3+ chars
   const trimmedName = useMemo(() => name.trim(), [name]);
@@ -52,7 +58,7 @@ export default function AccountForm() {
         city: city || undefined,
         state: mailingState || undefined,
         zip: zip || undefined,
-        salesExecutiveId: salesExecutiveId || undefined,
+        ownerId: ownerId || undefined,
         phone: phone || undefined,
         websiteUrl: websiteUrl || undefined,
       });
@@ -246,17 +252,17 @@ export default function AccountForm() {
               </div>
             </div>
 
-            {/* Sales Executive */}
+            {/* Owner */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                Sales Executive
+                Owner
               </label>
               <select
-                value={salesExecutiveId}
-                onChange={(e) => setSalesExecutiveId(e.target.value)}
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 text-gray-700"
               >
-                <option value="">Select sales executive...</option>
+                <option value="">Select owner...</option>
                 {(users || []).map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.fullName || u.email}

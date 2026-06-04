@@ -39,7 +39,6 @@ export async function GET(
           select: FULLMIND_FINANCIALS_SELECT,
         },
         ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
-        salesExecutiveUser: { select: { id: true, fullName: true, avatarUrl: true } },
       },
     });
 
@@ -101,9 +100,6 @@ export async function GET(
       fullmindData: district.isCustomer != null ? {
         leaid: district.leaid,
         accountName: district.accountName,
-        salesExecutive: district.salesExecutiveUser
-          ? { id: district.salesExecutiveUser.id, fullName: district.salesExecutiveUser.fullName, avatarUrl: district.salesExecutiveUser.avatarUrl }
-          : null,
         lmsid: district.lmsid,
         districtFinancials: serializeFinancials(district.districtFinancials),
         isCustomer: district.isCustomer ?? false,

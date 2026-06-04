@@ -41,7 +41,6 @@ vi.mock("@/lib/prisma", () => ({
         saipeDataYear: null,
         graduationDataYear: null,
         demographicsDataYear: null,
-        salesExecutiveUser: null,
         ownerUser: null,
         districtTags: [],
         contacts: [],

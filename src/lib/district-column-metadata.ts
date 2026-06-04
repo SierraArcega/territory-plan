@@ -264,16 +264,6 @@ export const DISTRICT_COLUMNS: ColumnMetadata[] = [
     queryable: true,
   },
   {
-    field: "salesExecutiveId",
-    column: "sales_executive_id",
-    label: "Sales Executive",
-    description: "Assigned sales rep (FK to user_profiles.id) — join to UserProfile for name/email",
-    domain: "crm",
-    format: "text",
-    source: "fullmind_crm",
-    queryable: true,
-  },
-  {
     field: "isCustomer",
     column: "is_customer",
     label: "Is Customer",

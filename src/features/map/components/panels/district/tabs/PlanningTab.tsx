@@ -14,6 +14,7 @@ import {
 import PurchasingHistoryCard from "../PurchasingHistoryCard";
 import CompetitorCard from "../CompetitorCard";
 import AddToPlanButton from "../AddToPlanButton";
+import AccountTeamCard from "@/features/districts/components/ownership/AccountTeamCard";
 import DistrictPerformanceSection from "@/features/plans/components/DistrictPerformanceSection";
 
 interface PlanningTabProps {
@@ -48,6 +49,8 @@ export default function PlanningTab({ data, leaid, planId: planIdProp }: Plannin
 
   return (
     <div className="p-3 space-y-3">
+      <AccountTeamCard leaid={leaid} owner={data.edits?.owner ?? null} />
+
       {plansForDistrict.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center space-y-3">
           <p className="text-sm text-gray-500">

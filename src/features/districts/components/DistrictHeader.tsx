@@ -152,16 +152,6 @@ export default function DistrictHeader({
         </div>
       </div>
 
-      {/* Sales Executive */}
-      {fullmindData?.salesExecutive?.fullName && (
-        <div className="mt-3 text-sm">
-          <span className="text-gray-500">Sales Executive</span>
-          <p className="font-medium text-[#403770]">
-            {fullmindData.salesExecutive.fullName}
-          </p>
-        </div>
-      )}
-
       {/* Account Name (if different from district name) */}
       {fullmindData?.accountName &&
         fullmindData.accountName !== district.name && (

@@ -62,7 +62,6 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
       {/* District header */}
       <DistrictHeader
         district={data.district}
-        fullmindData={data.fullmindData}
         tags={data.tags}
         trends={data.trends}
       />
