@@ -88,8 +88,10 @@ function deleteBetweenMarkers(body, startMarker, endMarker) {
  * Both orchestrators (contract + BOCES quote) reuse this — marker names differ
  * per template, so they are passed in.
  * @param {GoogleAppsScript.Document.Document} doc
- * @param {{include:boolean, sourceId:string, startMarker:string,
+ * @param {{include:boolean, sourceId:(string|undefined), startMarker:string,
  *          endMarker:string, placeholder:string}} opts
+ *   sourceId may be falsy (e.g. a section whose Drive ID was never configured);
+ *   the include branch logs a warning and skips the append in that case.
  */
 function appendOptionalSection(doc, opts) {
   var body = doc.getBody();
