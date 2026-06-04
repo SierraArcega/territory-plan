@@ -35,6 +35,7 @@ import type { FilterNode, SavedListSource } from "@/lib/saved-views/filter-tree"
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { getGlobalCustomerLabels, rankLabelString } from "./global-customer-labels";
 import { fetchDistrictNotesSummary } from "./district-notes-summary";
+import { fetchDistrictOwners } from "./district-owner-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -337,9 +338,10 @@ export async function GET(req: NextRequest) {
             : Promise.resolve(null),
         ]);
 
-        const notesSummary = leaids.length > 0
-          ? await fetchDistrictNotesSummary(leaids)
-          : new Map();
+        const [notesSummary, owners] = await Promise.all([
+          fetchDistrictNotesSummary(leaids),
+          fetchDistrictOwners(leaids),
+        ]);
 
         rows = rows.map((r) => {
           const leaid = typeof r.leaid === "string" ? r.leaid : null;
@@ -370,6 +372,8 @@ export async function GET(req: NextRequest) {
             notes_latest: notesSummary.get(leaid)?.latest ?? null,
             notes_count: notesSummary.get(leaid)?.count ?? 0,
             notes_latest_type: notesSummary.get(leaid)?.latestType ?? null,
+            // District app owner (districts.owner_id), null when unassigned.
+            owner: owners.get(leaid) ?? null,
             // Single string the grid can dispatch on: "#1"/"#2"/… | "Win Back" | "New".
             customer_rank: rankLabelString(g),
           };

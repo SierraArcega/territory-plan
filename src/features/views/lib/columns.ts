@@ -138,6 +138,11 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
       sortable: false, filterFieldId: "note_type",
       filterWidget: { kind: "multiselect", values: NOTE_TYPE_VALUES, labels: NOTE_TYPE_LABELS },
       align: "left",  format: "pill",  defaultVisible: false, defaultOrder: 23 },
+    // District app owner (districts.owner_id) — avatar + name. Server enriches
+    // the row with an `owner` object; cell renderer dispatches on column id.
+    { id: "owner", header: "Owner", kind: "derived", accessor: "owner",
+      sortable: false, filterFieldId: null,            filterWidget: null,
+      align: "left",  format: "avatar", defaultVisible: true, defaultOrder: 24 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",
