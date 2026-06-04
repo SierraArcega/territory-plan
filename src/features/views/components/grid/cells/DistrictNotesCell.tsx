@@ -30,11 +30,11 @@ export function DistrictNotesCell({ leaid, districtName, latest, count, latestTy
         type="button"
         aria-label={`Notes${count ? ` (${count})` : ""}`}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 max-w-[260px] text-left rounded focus:outline-none focus:ring-2 focus:ring-[#6B4D9C]"
+        className="flex w-full items-center gap-1.5 text-left rounded focus:outline-none focus:ring-2 focus:ring-[#6B4D9C]"
       >
         {latest ? (
           <>
-            <span className="text-sm text-[#544A78] truncate whitespace-nowrap">{latest}</span>
+            <span className="min-w-0 text-sm text-[#544A78] truncate whitespace-nowrap">{latest}</span>
             <span className={`flex-shrink-0 text-[11px] font-bold px-[7px] rounded-full ${latestType ? noteTypeMeta(latestType).pill : "bg-[#EFEBF7] text-[#6F4C8C]"}`}>{count}</span>
           </>
         ) : (
