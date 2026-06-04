@@ -51,16 +51,18 @@ function aggSql(sy: string, emailFilter: Prisma.Sql) {
 export interface VelocityData {
   current: RepVelocityRow[];
   priorCaller: RepVelocityRow | null;
+  priorRows: RepVelocityRow[];
 }
 
 export async function fetchVelocity(
   sy: string,
   priorSy: string,
-  callerEmail: string | null,
+  priorEmails: string[],
 ): Promise<VelocityData> {
   const current = await prisma.$queryRaw<RepVelocityRow[]>(aggSql(sy, Prisma.empty));
-  const priorRows = callerEmail
-    ? await prisma.$queryRaw<RepVelocityRow[]>(aggSql(priorSy, Prisma.sql`AND sales_rep_email = ${callerEmail}`))
-    : [];
-  return { current, priorCaller: priorRows[0] ?? null };
+  const priorRows =
+    priorEmails.length > 0
+      ? await prisma.$queryRaw<RepVelocityRow[]>(aggSql(priorSy, Prisma.sql`AND sales_rep_email = ANY(${priorEmails})`))
+      : [];
+  return { current, priorCaller: priorRows[0] ?? null, priorRows };
 }

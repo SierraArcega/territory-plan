@@ -24,7 +24,7 @@ export interface VelocityCell {
   delta: number | null; // in deltaUnit; null when not in roster or no prior value
   deltaUnit: DeltaUnit;
   teamMedian: number;   // same scale as value
-  rank: number;
+  rank: number | null;
   totalReps: number;
   inRoster: boolean;
 }
@@ -58,6 +58,27 @@ function computeDelta(unit: DeltaUnit, current: number, prior: number): number |
   if (unit === "pts") return Math.round((current - prior) * 100);
   if (unit === "count") return Math.round(current - prior);
   return prior > 0 ? Math.round(((current - prior) / prior) * 100) : null;
+}
+
+// Team-aggregate velocity: pool the roster's raw aggregates (summed by the route)
+// and recompute each metric over the pool — never average per-rep rates. No
+// rank/median (team has no peers). `priorTeamAgg` is the same pool for fy-1.
+export function buildVelocityTeam(
+  pooled: RepVelocityAgg,
+  priorTeamAgg: RepVelocityAgg | null,
+): VelocityCell[] {
+  return METRICS.map(({ key, label, format, deltaUnit, value }) => ({
+    metricKey: key,
+    label,
+    format,
+    value: value(pooled),
+    delta: priorTeamAgg ? computeDelta(deltaUnit, value(pooled), value(priorTeamAgg)) : null,
+    deltaUnit,
+    teamMedian: 0,
+    rank: null,
+    totalReps: 0,
+    inRoster: true,
+  }));
 }
 
 // Build the four velocity cells: per-rep metric value → rank (higher is better) +

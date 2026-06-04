@@ -13,7 +13,7 @@ describe("median", () => {
   });
 });
 
-import { buildVelocity, type RepVelocityAgg } from "../velocity";
+import { buildVelocity, buildVelocityTeam, type RepVelocityAgg } from "../velocity";
 
 const reps = [
   { id: "me", email: "me@x" },
@@ -73,5 +73,17 @@ describe("buildVelocity", () => {
     const current = new Map<string, RepVelocityAgg>([["me@x", agg({ wonCount: 2, wonBookingSum: 100000 })]]);
     const byKey = Object.fromEntries(buildVelocity(reps, current, agg({}), "me").map((c) => [c.metricKey, c]));
     expect(byKey.avgDealSize.delta).toBeNull(); // prior avg deal = 0 → no % change
+  });
+});
+
+describe("buildVelocityTeam", () => {
+  it("pools raw aggregates and recomputes rates with null rank", () => {
+    const pooled = { wonCount: 15, closedCount: 20, wonBookingSum: 1_050_000, takeSum: 80_000, revSum: 200_000 };
+    const cells = buildVelocityTeam(pooled, null);
+    const closeRate = cells.find((c) => c.metricKey === "closeRate")!;
+    expect(closeRate.value).toBe(0.75); // 15/20 over the pool, NOT an average of rates
+    expect(closeRate.rank).toBeNull();
+    const avg = cells.find((c) => c.metricKey === "avgDealSize")!;
+    expect(avg.value).toBe(70_000); // 1,050,000 / 15
   });
 });
