@@ -2273,6 +2273,7 @@ export const CONTACT_COLUMNS: ColumnMetadata[] = [
 export const UNMATCHED_ACCOUNT_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "PK (autoincrement). Referenced by district_financials.unmatched_account_id.", domain: "unmatched", format: "integer", source: "fullmind_crm", queryable: true },
   { field: "accountName", column: "account_name", label: "Account Name", description: "Fullmind LMS account name as it arrived from import.", domain: "unmatched", format: "text", source: "fullmind_crm", queryable: true },
+  { field: "salesExecutiveId", column: "sales_executive_id", label: "Sales Exec ID", description: "FK to user_profiles.id for the attributed rep.", domain: "crm", format: "text", source: "fullmind_crm", queryable: true },
   { field: "stateAbbrev", column: "state_abbrev", label: "State Abbrev", description: "State 2-letter abbreviation.", domain: "core", format: "text", source: "fullmind_crm", queryable: true },
   { field: "stateFips", column: "state_fips", label: "State FIPS", description: "State 2-digit FIPS code.", domain: "core", format: "text", source: "fullmind_crm", queryable: true },
   { field: "lmsid", column: "lmsid", label: "LMS ID", description: "LMS identifier if known.", domain: "unmatched", format: "text", source: "fullmind_crm", queryable: true },

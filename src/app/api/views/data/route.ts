@@ -331,14 +331,12 @@ export async function GET(req: NextRequest) {
       if (leaids.length > 0) {
         // Global rank/label — always runs, cached 5 min in-process.
         // Plan-scoped enrichment — only when a planId is in scope.
-        const [labels, enrichment] = await Promise.all([
+        // All four enrichment lookups are independent — run them together.
+        const [labels, enrichment, notesSummary, owners] = await Promise.all([
           getGlobalCustomerLabels(),
           planId
             ? fetchDistrictPlanEnrichment(planId, leaids)
             : Promise.resolve(null),
-        ]);
-
-        const [notesSummary, owners] = await Promise.all([
           fetchDistrictNotesSummary(leaids),
           fetchDistrictOwners(leaids),
         ]);

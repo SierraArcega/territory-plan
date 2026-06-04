@@ -91,8 +91,6 @@ export async function GET(
           d.leaid,
           d.name,
           d.state_abbrev,
-          d.sales_executive_id,
-          d.sales_executive_name,
           d.owner_id,
           d.owner_name,
           d.plan_ids,
