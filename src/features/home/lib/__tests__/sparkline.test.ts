@@ -51,4 +51,33 @@ describe("buildSparklines", () => {
     const out = buildSparklines({ currentRows: empty(), priorRows: empty(), email: "me@x", fy: 2026, now });
     expect(Object.keys(out).sort()).toEqual(["bookings", "openPipeline", "revenue", "take"]);
   });
+
+  it("team scope sums element-wise across all reps' cumulative columns", () => {
+    // Rep A has 100 in Aug (col 2); rep B has 200 in Aug (col 2).
+    // Cumulative for each: [0,0,100,100,...] and [0,0,200,200,...].
+    // Team sum: [0,0,300,300,...].
+    const current = empty();
+    current.openPipeline = [
+      { email: "rep-a@x", date: d("2025-08-01"), value: 100 },
+      { email: "rep-b@x", date: d("2025-08-01"), value: 200 },
+    ];
+    const priorA: DatedValueRow = { email: "rep-a@x", date: d("2024-08-01"), value: 40 };
+    const priorB: DatedValueRow = { email: "rep-b@x", date: d("2024-08-01"), value: 60 };
+    const prior = empty();
+    prior.openPipeline = [priorA, priorB];
+
+    const out = buildSparklines({ currentRows: current, priorRows: prior, email: "", fy: 2026, now, scope: "team" });
+
+    // current: rep-a cols=[0,0,100,...100] + rep-b cols=[0,0,200,...200] → team=[0,0,300,...300]
+    expect(out.openPipeline.current[0]).toBe(0);
+    expect(out.openPipeline.current[1]).toBe(0);
+    expect(out.openPipeline.current[2]).toBe(300);
+    expect(out.openPipeline.current[12]).toBe(300);
+    // prior: rep-a=[0,0,40,...40] + rep-b=[0,0,60,...60] → team=[0,0,100,...100]
+    expect(out.openPipeline.prior[2]).toBe(100);
+    expect(out.openPipeline.prior[12]).toBe(100);
+    // yoy at todayIndex=7: current[7]=300, prior[7]=100 → (300-100)/100 = 2
+    expect(out.openPipeline.yoy).toBeCloseTo(2, 5);
+    expect(out.openPipeline.todayIndex).toBe(7);
+  });
 });
