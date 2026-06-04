@@ -70,6 +70,35 @@ function testFormatCurrency() {
   Logger.log('  ✅ testFormatCurrency passed');
 }
 
+function runBocesTests() {
+  testComputeBocesQuoteTotals();
+  Logger.log('✅ All BOCES unit tests passed.');
+}
+
+function testComputeBocesQuoteTotals() {
+  // Numbers mirror the approved BOCES Quote screenshot:
+  // Homebound 1:1 @ $53.06 × 250 = $13,265.00
+  // Students with Disabilities @ $21.23 × 100 = $2,123.00
+  // subtotal $15,388.00; fee 10.6% = $1,631.13; total $17,019.13
+  var lineItems = [
+    { product: 'Homebound 1:1', rate: 53.06, qty: 250 },
+    { product: 'Students with Disabilities', rate: 21.23, qty: 100 },
+  ];
+  var r = computeBocesQuoteTotals(lineItems, 10.6);
+
+  if (r.rows[0].total !== 13265)   throw new Error('row0 total: expected 13265, got ' + r.rows[0].total);
+  if (r.rows[1].total !== 2123)    throw new Error('row1 total: expected 2123, got ' + r.rows[1].total);
+  if (r.subtotal !== 15388)        throw new Error('subtotal: expected 15388, got ' + r.subtotal);
+  if (r.fee !== 1631.13)           throw new Error('fee: expected 1631.13, got ' + r.fee);
+  if (r.total !== 17019.13)        throw new Error('total: expected 17019.13, got ' + r.total);
+
+  // Default fee_pct when omitted is 10.6
+  var r2 = computeBocesQuoteTotals([{ product: 'X', rate: 100, qty: 1 }], undefined);
+  if (r2.fee !== 10.6)             throw new Error('default fee: expected 10.6, got ' + r2.fee);
+
+  Logger.log('  ✅ testComputeBocesQuoteTotals passed');
+}
+
 // ─── Source doc structure debugging ───────────────────────────────────────────
 // Run debugAllSources() to log the first N children of each appended source doc.
 // Useful for diagnosing "extra blank page" issues — embedded PageBreak elements,
