@@ -17,57 +17,41 @@ function handleAppendedSections(doc, sections, props) {
   }
 
   // SOW
-  if (sections.sow_type) {
-    deleteMarkerParagraph(body, '{{SOW_SECTION_START}}');
-    deleteMarkerParagraph(body, '{{SOW_SECTION_END}}');
-    var sowId = sections.sow_type === 'live_streaming'
-      ? props[PROP.SOW_LIVESTREAM_ID]
-      : props[PROP.SOW_INSTRUCTION_ID];
-    if (sowId) {
-      appendDocContent(doc, sowId, '[SOW content will be appended here]');
-    } else {
-      Logger.log('Warning: SOW doc ID not set for type: ' + sections.sow_type);
-    }
-  } else {
-    deleteBetweenMarkers(body, '{{SOW_SECTION_START}}', '{{SOW_SECTION_END}}');
-  }
+  appendOptionalSection(doc, {
+    include:     !!sections.sow_type,
+    sourceId:    sections.sow_type === 'live_streaming'
+                   ? props[PROP.SOW_LIVESTREAM_ID]
+                   : props[PROP.SOW_INSTRUCTION_ID],
+    startMarker: '{{SOW_SECTION_START}}',
+    endMarker:   '{{SOW_SECTION_END}}',
+    placeholder: '[SOW content will be appended here]',
+  });
 
-  // Staffing type descriptions
-  if (sections.staffing_include) {
-    deleteMarkerParagraph(body, '{{STAFFING_SECTION_START}}');
-    deleteMarkerParagraph(body, '{{STAFFING_SECTION_END}}');
-    if (props[PROP.STAFFING_ID]) {
-      appendDocContent(doc, props[PROP.STAFFING_ID], '[Staffing descriptions will be appended here]');
-    } else {
-      Logger.log('Warning: STAFFING_ID not set');
-    }
-  } else {
-    deleteBetweenMarkers(body, '{{STAFFING_SECTION_START}}', '{{STAFFING_SECTION_END}}');
-  }
+  // Staffing type descriptions (shared with the BOCES quote)
+  appendStaffingSection(doc, sections.staffing_include, props);
 
-  // Pricing sheets — each independently toggled
+  // Pricing sheets — each independently toggled. BOCES is handled separately
+  // below via the shared appendBocesPricingSection helper so the BOCES quote can
+  // reuse it; the remaining sheets stay in this data-driven loop.
   var pricingSheets = [
     { flag: 'pricing_ek12',      propKey: PROP.PRICING_EK12_ID,      marker: 'EK12',      placeholder: '[EK12 pricing sheet]'          },
     { flag: 'pricing_livestaff', propKey: PROP.PRICING_LIVESTAFF_ID, marker: 'LIVESTAFF', placeholder: '[Live Staffing pricing sheet]'  },
     { flag: 'pricing_hourly',    propKey: PROP.PRICING_HOURLY_ID,    marker: 'HOURLY',    placeholder: '[Hourly pricing sheet]'         },
-    { flag: 'pricing_boces',     propKey: PROP.PRICING_BOCES_ID,     marker: 'BOCES',     placeholder: '[BOCES pricing sheet]'          },
   ];
 
   pricingSheets.forEach(function(sheet) {
-    var startMarker = '{{PRICING_' + sheet.marker + '_START}}';
-    var endMarker   = '{{PRICING_' + sheet.marker + '_END}}';
-    if (sections[sheet.flag]) {
-      deleteMarkerParagraph(body, startMarker);
-      deleteMarkerParagraph(body, endMarker);
-      if (props[sheet.propKey]) {
-        appendDocContent(doc, props[sheet.propKey], sheet.placeholder);
-      } else {
-        Logger.log('Warning: ' + sheet.propKey + ' not set');
-      }
-    } else {
-      deleteBetweenMarkers(body, startMarker, endMarker);
-    }
+    appendOptionalSection(doc, {
+      include:     !!sections[sheet.flag],
+      sourceId:    props[sheet.propKey],
+      startMarker: '{{PRICING_' + sheet.marker + '_START}}',
+      endMarker:   '{{PRICING_' + sheet.marker + '_END}}',
+      placeholder: sheet.placeholder,
+    });
   });
+
+  // BOCES pricing sheet — appended last among the pricing sheets (unchanged
+  // order), via the shared helper.
+  appendBocesPricingSection(doc, sections.pricing_boces, props);
 
   // Remove outer pricing section wrapper markers
   deleteMarkerParagraph(body, '{{PRICING_SECTION_START}}');
@@ -81,4 +65,39 @@ function handleAppendedSections(doc, sections, props) {
   } else {
     Logger.log('Warning: MSA_ID not set — MSA section skipped');
   }
+}
+
+/**
+ * Appends the Staffing Type Descriptions section. Shared by the full contract
+ * and the BOCES quote — both reference the same Drive doc and markers, so the
+ * source ID, markers, and placeholder live in one place here.
+ * @param {GoogleAppsScript.Document.Document} doc
+ * @param {boolean} include  whether to append (else the section is deleted)
+ * @param {Object} props     All script properties from PropertiesService
+ */
+function appendStaffingSection(doc, include, props) {
+  appendOptionalSection(doc, {
+    include:     !!include,
+    sourceId:    props[PROP.STAFFING_ID],
+    startMarker: '{{STAFFING_SECTION_START}}',
+    endMarker:   '{{STAFFING_SECTION_END}}',
+    placeholder: '[Staffing descriptions will be appended here]',
+  });
+}
+
+/**
+ * Appends the BOCES pricing sheet section. Shared by the full contract and the
+ * BOCES quote.
+ * @param {GoogleAppsScript.Document.Document} doc
+ * @param {boolean} include  whether to append (else the section is deleted)
+ * @param {Object} props     All script properties from PropertiesService
+ */
+function appendBocesPricingSection(doc, include, props) {
+  appendOptionalSection(doc, {
+    include:     !!include,
+    sourceId:    props[PROP.PRICING_BOCES_ID],
+    startMarker: '{{PRICING_BOCES_START}}',
+    endMarker:   '{{PRICING_BOCES_END}}',
+    placeholder: '[BOCES pricing sheet]',
+  });
 }

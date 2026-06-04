@@ -12,7 +12,9 @@ var PROP = {
   PRICING_EK12_ID:        'PRICING_EK12_ID',
   PRICING_LIVESTAFF_ID:   'PRICING_LIVESTAFF_ID',
   PRICING_HOURLY_ID:      'PRICING_HOURLY_ID',
-  PRICING_BOCES_ID:       'PRICING_BOCES_ID',
+  PRICING_BOCES_ID:        'PRICING_BOCES_ID',
+  TEMPLATE_BOCES_QUOTE_ID: 'TEMPLATE_BOCES_QUOTE_ID',
+  BOCES_AGREEMENT_PDF_ID:  'BOCES_AGREEMENT_PDF_ID',
   MSA_ID:                    'MSA_ID',
   OUTPUT_FOLDER_ID:          'OUTPUT_FOLDER_ID',
   DROPBOX_SIGN_API_KEY:      'DROPBOX_SIGN_API_KEY',
@@ -34,13 +36,30 @@ function initScriptProperties() {
     [PROP.PRICING_EK12_ID]:        '1giikhnhV5hHJ7Kueq8dFPtnjbAtCFVg4GX3if09Ko6E',
     [PROP.PRICING_LIVESTAFF_ID]:   '1E0MEsTqgPrtGMKv4VwKmGrFRwrUIcCncROR3wc5L6vI',
     [PROP.PRICING_HOURLY_ID]:      '1CXbUzPkrF8XpflxrcXjoUUTq8w9LePnhOZ2edtcciy4',
-    [PROP.PRICING_BOCES_ID]:       '1puCVVI12bmwZO8uV3Rom6XU21Onn4fzfUwYChUBZfWY',
+    [PROP.PRICING_BOCES_ID]:        '1puCVVI12bmwZO8uV3Rom6XU21Onn4fzfUwYChUBZfWY',
+    [PROP.TEMPLATE_BOCES_QUOTE_ID]: '1vxe5fwoG2nbqTCNotnmxmUOPbwcykNfRTLFZ8nJQQMM',
+    [PROP.BOCES_AGREEMENT_PDF_ID]:  '1oy3mRyBr44RiDbiQIMzQyvDOWsbQwDl7',
     [PROP.MSA_ID]:                 '1E-9q0ZvaHJIMxW-YDj4ZVU4tR0qNN5B_lM5zCNCKtqI',
     [PROP.OUTPUT_FOLDER_ID]:       '1mz-10pG_G2l0h-z8iv0jMwCsjwwsN4yd',
     [PROP.DROPBOX_SIGN_API_KEY]:   '',  // set via console: PropertiesService.getScriptProperties().setProperty('DROPBOX_SIGN_API_KEY', 'key')
     [PROP.DROPBOX_SIGN_TEST_MODE]: '1', // flip to '0' for production sends
   });
   Logger.log('Script properties initialised. Run logScriptProperties() to verify.');
+}
+
+/**
+ * Sets ONLY the two BOCES Quote properties (template + agreement PDF) without
+ * touching any other property. Use this instead of initScriptProperties() so
+ * the manually-set DROPBOX_SIGN_API_KEY is preserved. The `false` 2nd arg to
+ * setProperties means MERGE (do not delete existing keys).
+ * Run once in the editor.
+ */
+function setBocesProps() {
+  PropertiesService.getScriptProperties().setProperties({
+    [PROP.TEMPLATE_BOCES_QUOTE_ID]: '1vxe5fwoG2nbqTCNotnmxmUOPbwcykNfRTLFZ8nJQQMM',
+    [PROP.BOCES_AGREEMENT_PDF_ID]:  '1oy3mRyBr44RiDbiQIMzQyvDOWsbQwDl7',
+  }, false);
+  Logger.log('BOCES props set. Run logScriptProperties() to verify.');
 }
 
 /**

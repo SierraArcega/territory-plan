@@ -82,6 +82,33 @@ function deleteBetweenMarkers(body, startMarker, endMarker) {
 }
 
 /**
+ * Toggles one optional appended section. When opts.include is true, removes the
+ * section's start/end marker paragraphs and appends the source doc's content at
+ * opts.placeholder; otherwise deletes everything between the two markers.
+ * Both orchestrators (contract + BOCES quote) reuse this — marker names differ
+ * per template, so they are passed in.
+ * @param {GoogleAppsScript.Document.Document} doc
+ * @param {{include:boolean, sourceId:(string|undefined), startMarker:string,
+ *          endMarker:string, placeholder:string}} opts
+ *   sourceId may be falsy (e.g. a section whose Drive ID was never configured);
+ *   the include branch logs a warning and skips the append in that case.
+ */
+function appendOptionalSection(doc, opts) {
+  var body = doc.getBody();
+  if (opts.include) {
+    deleteMarkerParagraph(body, opts.startMarker);
+    deleteMarkerParagraph(body, opts.endMarker);
+    if (opts.sourceId) {
+      appendDocContent(doc, opts.sourceId, opts.placeholder);
+    } else {
+      Logger.log('Warning: source ID not set for section ' + opts.startMarker);
+    }
+  } else {
+    deleteBetweenMarkers(body, opts.startMarker, opts.endMarker);
+  }
+}
+
+/**
  * Appends the full content of sourceDocId into targetDoc,
  * replacing the paragraph that contains placeholderText.
  * Adds a page break before the appended content.

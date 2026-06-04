@@ -3,26 +3,40 @@
 // On success the log prints a Google Doc URL — open it to inspect the output.
 
 function testContractFull() {
-  var result = generateContract(PAYLOAD_FULL);
+  var result = generateFullContract(PAYLOAD_FULL);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
 
 function testContractNoQuote() {
-  var result = generateContract(PAYLOAD_NO_QUOTE);
+  var result = generateFullContract(PAYLOAD_NO_QUOTE);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
 
 function testContractBOCES() {
-  var result = generateContract(PAYLOAD_BOCES_ONLY);
+  var result = generateFullContract(PAYLOAD_BOCES_ONLY);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) Logger.log('✅ Open doc: ' + result.url);
 }
 
+function testBocesQuote() {
+  var result = generateBocesQuote(PAYLOAD_BOCES_QUOTE);
+  Logger.log('Result: ' + JSON.stringify(result));
+  if (result.success) {
+    Logger.log('✅ Open doc: ' + result.url);
+    if (result.agreementUrl) Logger.log('📎 Agreement: ' + result.agreementUrl);
+  }
+}
+
+function testDocTypeRouting() {
+  var r = generateDocument(PAYLOAD_BOCES_QUOTE);            // doc_type: 'boces_quote'
+  Logger.log('boces_quote → ' + (r.success ? 'OK ' + r.url : 'FAIL'));
+}
+
 /**
  * Exercises the full pipeline including the Dropbox Sign auto_send branch.
- * Clones PAYLOAD_FULL, flips auto_send to true, runs generateContract.
+ * Clones PAYLOAD_FULL, flips auto_send to true, runs generateFullContract.
  * Same code path as doPost minus the JSON parse — validates eSign integration
  * without needing to authenticate against the web-app URL.
  * DROPBOX_SIGN_TEST_MODE='1' keeps the send sandboxed.
@@ -33,7 +47,7 @@ function testAutoSend() {
   var payload = JSON.parse(JSON.stringify(PAYLOAD_FULL));
   payload.auto_send = true;
   payload.deal.client_email = 'aston.arcega@fullmindlearning.com';
-  var result = generateContract(payload);
+  var result = generateFullContract(payload);
   Logger.log('Result: ' + JSON.stringify(result));
   if (result.success) {
     Logger.log('✅ Open doc: ' + result.url);
@@ -68,6 +82,37 @@ function testFormatCurrency() {
     }
   });
   Logger.log('  ✅ testFormatCurrency passed');
+}
+
+function runBocesTests() {
+  testComputeBocesQuoteTotals();
+  Logger.log('✅ All BOCES unit tests passed.');
+}
+
+function testComputeBocesQuoteTotals() {
+  // Numbers mirror the approved BOCES Quote screenshot:
+  // Homebound 1:1 @ $53.06 × 250 = $13,265.00
+  // Students with Disabilities @ $21.23 × 100 = $2,123.00
+  // subtotal $15,388.00; fee 10.6% = $1,631.13; total $17,019.13
+  var lineItems = [
+    { product: 'Homebound 1:1', rate: 53.06, qty: 250 },
+    { product: 'Students with Disabilities', rate: 21.23, qty: 100 },
+  ];
+  var r = computeBocesQuoteTotals(lineItems, 10.6);
+
+  if (r.rows.length !== 2)         throw new Error('rows length: expected 2, got ' + r.rows.length);
+  if (r.feePct !== 10.6)           throw new Error('feePct: expected 10.6, got ' + r.feePct);
+  if (r.rows[0].total !== 13265)   throw new Error('row0 total: expected 13265, got ' + r.rows[0].total);
+  if (r.rows[1].total !== 2123)    throw new Error('row1 total: expected 2123, got ' + r.rows[1].total);
+  if (r.subtotal !== 15388)        throw new Error('subtotal: expected 15388, got ' + r.subtotal);
+  if (r.fee !== 1631.13)           throw new Error('fee: expected 1631.13, got ' + r.fee);
+  if (r.total !== 17019.13)        throw new Error('total: expected 17019.13, got ' + r.total);
+
+  // Default fee_pct when omitted is 10.6
+  var r2 = computeBocesQuoteTotals([{ product: 'X', rate: 100, qty: 1 }], undefined);
+  if (r2.fee !== 10.6)             throw new Error('default fee: expected 10.6, got ' + r2.fee);
+
+  Logger.log('  ✅ testComputeBocesQuoteTotals passed');
 }
 
 // ─── Source doc structure debugging ───────────────────────────────────────────
