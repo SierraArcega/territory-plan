@@ -7,6 +7,8 @@ import type {
   DistrictListItem,
   DistrictDetail,
   DistrictEdits,
+  DistrictCollaborator,
+  DistrictWatcher,
   UnmatchedAccount,
   StateSummary,
   SimilarMetricKey,
@@ -80,6 +82,90 @@ export function useUpdateDistrictEdits() {
       }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+    },
+  });
+}
+
+// ===== Account team: collaborators & watchers =====
+// Stable array query keys scoped under the district key so the district detail
+// invalidation (["district", leaid]) also refreshes them via prefix matching.
+
+export function useCollaborators(leaid: string | null) {
+  return useQuery({
+    queryKey: ["district", leaid, "collaborators"],
+    queryFn: () =>
+      fetchJson<{ collaborators: DistrictCollaborator[] }>(
+        `${API_BASE}/districts/${leaid}/collaborators`
+      ).then((r) => r.collaborators),
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddCollaborator() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId?: string }) =>
+      fetchJson<{ collaborator: DistrictCollaborator | null }>(
+        `${API_BASE}/districts/${leaid}/collaborators`,
+        { method: "POST", body: JSON.stringify({ userId }) }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "collaborators"] });
+    },
+  });
+}
+
+export function useRemoveCollaborator() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId: string }) =>
+      fetchJson<{ removed: number }>(
+        `${API_BASE}/districts/${leaid}/collaborators/${userId}`,
+        { method: "DELETE" }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "collaborators"] });
+    },
+  });
+}
+
+export function useWatchers(leaid: string | null) {
+  return useQuery({
+    queryKey: ["district", leaid, "watchers"],
+    queryFn: () =>
+      fetchJson<{ watchers: DistrictWatcher[] }>(
+        `${API_BASE}/districts/${leaid}/watchers`
+      ).then((r) => r.watchers),
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddWatcher() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId?: string }) =>
+      fetchJson<{ watcher: DistrictWatcher | null }>(
+        `${API_BASE}/districts/${leaid}/watchers`,
+        { method: "POST", body: JSON.stringify({ userId }) }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "watchers"] });
+    },
+  });
+}
+
+export function useRemoveWatcher() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leaid, userId }: { leaid: string; userId: string }) =>
+      fetchJson<{ removed: number }>(
+        `${API_BASE}/districts/${leaid}/watchers/${userId}`,
+        { method: "DELETE" }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["district", variables.leaid, "watchers"] });
     },
   });
 }

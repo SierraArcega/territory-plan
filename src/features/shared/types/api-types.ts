@@ -430,6 +430,27 @@ export interface UserSummary {
   jobTitle: string | null;
 }
 
+/** A person on a district's account team (collaborator or watcher). */
+interface DistrictMemberUser {
+  id: string;
+  fullName: string | null;
+  email: string;
+  avatarUrl: string | null;
+}
+
+export interface DistrictCollaborator {
+  userId: string;
+  source: "auto" | "manual";
+  addedAt: string;
+  user: DistrictMemberUser;
+}
+
+export interface DistrictWatcher {
+  userId: string;
+  addedAt: string;
+  user: DistrictMemberUser;
+}
+
 export interface UserProfile {
   id: string;
   email: string;

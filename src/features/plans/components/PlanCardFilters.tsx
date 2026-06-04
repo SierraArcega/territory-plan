@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useCallback, useState } from "react";
+import { useMemo } from "react";
 import type { TerritoryPlan, PlanOwner } from "@/features/shared/types/api-types";
+import UserAvatar from "@/features/shared/components/UserAvatar";
 
 export type PlanSortKey = "updated" | "name" | "districts" | "totalTarget";
 
@@ -21,13 +22,6 @@ interface PlanCardFiltersProps {
   variant: "compact" | "full";
 }
 
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  const parts = name.split(" ").filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.substring(0, 2).toUpperCase();
-}
-
 export default function PlanCardFilters({
   plans,
   selectedOwnerId,
@@ -38,15 +32,6 @@ export default function PlanCardFilters({
 }: PlanCardFiltersProps) {
   const isCompact = variant === "compact";
   const avatarSize = isCompact ? 24 : 28;
-  const [brokenAvatars, setBrokenAvatars] = useState<Set<string>>(new Set());
-
-  const handleAvatarError = useCallback((ownerId: string) => {
-    setBrokenAvatars((prev) => {
-      const next = new Set(prev);
-      next.add(ownerId);
-      return next;
-    });
-  }, []);
 
   // Derive unique owners from plans
   const uniqueOwners = useMemo(() => {
@@ -102,21 +87,7 @@ export default function PlanCardFilters({
             style={{ width: avatarSize, height: avatarSize }}
             aria-label={`Filter by ${owner.fullName ?? "Unknown"}`}
           >
-            {owner.avatarUrl && !brokenAvatars.has(owner.id) ? (
-              <img
-                src={owner.avatarUrl}
-                alt=""
-                onError={() => handleAvatarError(owner.id)}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center bg-plum/10 text-plum font-semibold"
-                style={{ fontSize: isCompact ? 9 : 10 }}
-              >
-                {getInitials(owner.fullName)}
-              </div>
-            )}
+            <UserAvatar name={owner.fullName} avatarUrl={owner.avatarUrl} size={avatarSize} />
           </button>
         ))}
       </div>
