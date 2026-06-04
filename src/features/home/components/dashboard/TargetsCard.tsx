@@ -9,6 +9,7 @@ import type { Segment } from "@/features/home/lib/segments";
 
 interface TargetsCardProps {
   fy: number;
+  repScope: string;
 }
 
 const SEGMENT_LABELS: { key: "new" | "winback" | "expansion"; label: string }[] = [
@@ -17,8 +18,8 @@ const SEGMENT_LABELS: { key: "new" | "winback" | "expansion"; label: string }[] 
   { key: "expansion", label: "Expansion" },
 ];
 
-export default function TargetsCard({ fy }: TargetsCardProps) {
-  const { data, isLoading, isError } = useTargets(fy);
+export default function TargetsCard({ fy, repScope }: TargetsCardProps) {
+  const { data, isLoading, isError } = useTargets(fy, repScope);
 
   if (isError) {
     return (

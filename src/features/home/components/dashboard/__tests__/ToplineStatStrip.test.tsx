@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 const mockUseTopline = vi.fn();
 vi.mock("@/features/home/lib/queries", () => ({
-  useTopline: (fy: number) => mockUseTopline(fy),
+  useTopline: (fy: number, repScope: string) => mockUseTopline(fy, repScope),
   useSparklines: () => ({ data: undefined }),
 }));
 
@@ -32,7 +32,7 @@ describe("ToplineStatStrip", () => {
       isError: false,
     });
 
-    render(<ToplineStatStrip fy={2026} />);
+    render(<ToplineStatStrip fy={2026} repScope="me" />);
 
     expect(screen.getByText("Open Pipeline")).toBeInTheDocument();
     expect(screen.getByText("Closed Won Bookings")).toBeInTheDocument();
@@ -41,13 +41,13 @@ describe("ToplineStatStrip", () => {
 
   it("shows an error fallback when the query errors", () => {
     mockUseTopline.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: vi.fn() });
-    render(<ToplineStatStrip fy={2026} />);
+    render(<ToplineStatStrip fy={2026} repScope="me" />);
     expect(screen.getByText(/couldn't load/i)).toBeInTheDocument();
   });
 
   it("shows four skeleton cards while loading", () => {
     mockUseTopline.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    const { container } = render(<ToplineStatStrip fy={2026} />);
+    const { container } = render(<ToplineStatStrip fy={2026} repScope="me" />);
     expect(container.querySelectorAll(".animate-pulse")).toHaveLength(4);
   });
 });

@@ -53,12 +53,12 @@ describe("RankTrajectoryModal", () => {
   });
 
   it("renders nothing when closed", () => {
-    const { container } = render(<RankTrajectoryModal open={false} onClose={vi.fn()} fy={2026} />);
+    const { container } = render(<RankTrajectoryModal open={false} onClose={vi.fn()} fy={2026} repScope="me" />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders the chart, metric pills, and the monthly table when open", () => {
-    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} />);
+    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} repScope="me" />);
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByRole("button", { name: /all metrics/i })).toBeTruthy();
     expect(screen.getAllByText("Bookings").length).toBeGreaterThanOrEqual(1);
@@ -67,26 +67,26 @@ describe("RankTrajectoryModal", () => {
 
   it("closes on Escape", () => {
     const onClose = vi.fn();
-    render(<RankTrajectoryModal open onClose={onClose} fy={2026} />);
+    render(<RankTrajectoryModal open onClose={onClose} fy={2026} repScope="me" />);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
 
   it("isolates a metric when its pill is clicked", () => {
-    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} />);
+    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} repScope="me" />);
     fireEvent.click(screen.getByRole("button", { name: /^Bookings/i }));
     expect(screen.getByText(/Showing/i).textContent).toContain("Bookings");
   });
 
   it("expands a metric row to reveal the team breakdown", () => {
-    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} />);
+    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} repScope="me" />);
     expect(screen.queryByText("Alex Rivera")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /expand Bookings team/i }));
     expect(screen.getByText("Alex Rivera")).toBeTruthy();
   });
 
   it("offers an Export CSV action", () => {
-    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} />);
+    render(<RankTrajectoryModal open onClose={vi.fn()} fy={2026} repScope="me" />);
     expect(screen.getByRole("button", { name: /export csv/i })).toBeTruthy();
   });
 });

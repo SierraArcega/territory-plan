@@ -15,6 +15,16 @@ vi.mock("@/features/home/components/dashboard/pipeline/PipelineSection", () => (
 vi.mock("@/features/home/components/dashboard/pipeline/VelocityCard", () => ({
   default: () => <div data-testid="velocity-card" />,
 }));
+vi.mock("@/features/home/components/dashboard/RepScopeSelect", () => ({
+  default: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <select aria-label="Rep" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="team">Whole team</option>
+    </select>
+  ),
+}));
+vi.mock("@/features/shared/lib/queries", () => ({
+  useProfile: () => ({ data: { id: "user-123" } }),
+}));
 
 import DashboardTab from "../DashboardTab";
 import { getCurrentFY } from "@/lib/fiscal-year";

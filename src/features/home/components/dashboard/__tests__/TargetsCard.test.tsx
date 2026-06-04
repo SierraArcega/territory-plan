@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 const mockUseTargets = vi.fn();
 vi.mock("@/features/home/lib/queries", () => ({
-  useTargets: (fy: number) => mockUseTargets(fy),
+  useTargets: (fy: number, repScope: string) => mockUseTargets(fy, repScope),
 }));
 
 import TargetsCard from "../TargetsCard";
@@ -36,7 +36,7 @@ describe("TargetsCard", () => {
       isError: false,
     });
 
-    render(<TargetsCard fy={2026} />);
+    render(<TargetsCard fy={2026} repScope="me" />);
 
     expect(screen.getByText("districts being worked")).toBeInTheDocument();
     expect(screen.getByText("#3/12")).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("TargetsCard", () => {
       isError: false,
     });
 
-    render(<TargetsCard fy={2026} />);
+    render(<TargetsCard fy={2026} repScope="me" />);
     expect(screen.getByText("Targeted vs pipeline")).toBeInTheDocument();
     expect(screen.getByText("$5M")).toBeInTheDocument(); // targetTotal
     expect(screen.getByText("$1.4M")).toBeInTheDocument(); // pipelineOnAccounts
@@ -91,13 +91,13 @@ describe("TargetsCard", () => {
       isError: false,
     });
 
-    render(<TargetsCard fy={2026} />);
+    render(<TargetsCard fy={2026} repScope="me" />);
     expect(screen.queryByText("Targeted vs pipeline")).not.toBeInTheDocument();
   });
 
   it("shows a loading skeleton", () => {
     mockUseTargets.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    const { container } = render(<TargetsCard fy={2026} />);
+    const { container } = render(<TargetsCard fy={2026} repScope="me" />);
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
   });
 });

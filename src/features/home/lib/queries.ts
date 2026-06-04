@@ -62,12 +62,13 @@ export interface ToplineResponse {
   fy: number;
   schoolYr: string;
   cards: ToplineCard[];
+  mode?: "rep" | "team";
 }
 
-export function useTopline(fy: number) {
+export function useTopline(fy: number, repScope: string) {
   return useQuery({
-    queryKey: ["dashboard", "topline", fy],
-    queryFn: () => fetchJson<ToplineResponse>(`${API_BASE}/home/dashboard/topline?fy=${fy}`),
+    queryKey: ["dashboard", "topline", fy, repScope],
+    queryFn: () => fetchJson<ToplineResponse>(`${API_BASE}/home/dashboard/topline?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -76,7 +77,7 @@ export interface TargetsCardData {
   metricKey: "targets";
   label: string;
   value: number;
-  rank: number;
+  rank: number | null;
   totalReps: number;
   inRoster: boolean;
   segments: { new: number; winback: number; expansion: number };
@@ -92,22 +93,24 @@ export interface TargetsResponse {
   fy: number;
   schoolYr: string;
   card: TargetsCardData;
+  mode?: "rep" | "team";
 }
 
-export function useTargets(fy: number) {
+export function useTargets(fy: number, repScope: string) {
   return useQuery({
-    queryKey: ["dashboard", "targets", fy],
-    queryFn: () => fetchJson<TargetsResponse>(`${API_BASE}/home/dashboard/targets?fy=${fy}`),
+    queryKey: ["dashboard", "targets", fy, repScope],
+    queryFn: () => fetchJson<TargetsResponse>(`${API_BASE}/home/dashboard/targets?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useRankTrajectory(fy: number) {
+export function useRankTrajectory(fy: number, repScope: string) {
   return useQuery({
-    queryKey: ["dashboard", "rankTrajectory", fy],
+    queryKey: ["dashboard", "rankTrajectory", fy, repScope],
     queryFn: () =>
-      fetchJson<RankTrajectoryPayload>(`${API_BASE}/home/dashboard/rank-trajectory?fy=${fy}`),
+      fetchJson<RankTrajectoryPayload>(`${API_BASE}/home/dashboard/rank-trajectory?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
+    enabled: repScope !== "team",
   });
 }
 
@@ -116,12 +119,13 @@ export interface SparklinesResponse {
   schoolYr: string;
   sparklines: Record<SparklineMetricKey, Sparkline>;
   wow: WowDeltas;
+  mode?: "rep" | "team";
 }
 
-export function useSparklines(fy: number) {
+export function useSparklines(fy: number, repScope: string) {
   return useQuery({
-    queryKey: ["dashboard", "sparklines", fy],
-    queryFn: () => fetchJson<SparklinesResponse>(`${API_BASE}/home/dashboard/sparklines?fy=${fy}`),
+    queryKey: ["dashboard", "sparklines", fy, repScope],
+    queryFn: () => fetchJson<SparklinesResponse>(`${API_BASE}/home/dashboard/sparklines?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -134,12 +138,13 @@ export interface PipelineResponse {
   opps: OppView[];
   atRisk: OppView[];
   thisWeek: ThisWeek | null; // null for a non-current FY
+  mode?: "rep" | "team";
 }
 
-export function usePipeline(fy: number) {
+export function usePipeline(fy: number, repScope: string) {
   return useQuery({
-    queryKey: ["dashboard", "pipeline", fy],
-    queryFn: () => fetchJson<PipelineResponse>(`${API_BASE}/home/dashboard/pipeline?fy=${fy}`),
+    queryKey: ["dashboard", "pipeline", fy, repScope],
+    queryFn: () => fetchJson<PipelineResponse>(`${API_BASE}/home/dashboard/pipeline?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -148,12 +153,13 @@ export interface VelocityResponse {
   fy: number;
   schoolYr: string;
   cells: VelocityCell[];
+  mode?: "rep" | "team";
 }
 
-export function useVelocity(fy: number) {
+export function useVelocity(fy: number, repScope: string) {
   return useQuery({
-    queryKey: ["dashboard", "velocity", fy],
-    queryFn: () => fetchJson<VelocityResponse>(`${API_BASE}/home/dashboard/velocity?fy=${fy}`),
+    queryKey: ["dashboard", "velocity", fy, repScope],
+    queryFn: () => fetchJson<VelocityResponse>(`${API_BASE}/home/dashboard/velocity?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
   });
 }

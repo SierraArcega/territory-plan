@@ -14,8 +14,8 @@ function deltaChip(entryRank: number, nowRank: number) {
   return { text: delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "—", color: deltaColor(delta) };
 }
 
-export default function RankTrajectoryCard({ fy }: { fy: number }) {
-  const { data, isLoading, isError, refetch } = useRankTrajectory(fy);
+export default function RankTrajectoryCard({ fy, repScope }: { fy: number; repScope: string }) {
+  const { data, isLoading, isError, refetch } = useRankTrajectory(fy, repScope);
   const [expanded, setExpanded] = useState(false);
 
   if (isError) {
@@ -145,7 +145,7 @@ export default function RankTrajectoryCard({ fy }: { fy: number }) {
         <span className="whitespace-nowrap">Lower is better · #1 = top of {totalReps} reps</span>
       </div>
 
-      <RankTrajectoryModal open={expanded} onClose={() => setExpanded(false)} fy={fy} />
+      <RankTrajectoryModal open={expanded} onClose={() => setExpanded(false)} fy={fy} repScope={repScope} />
     </div>
   );
 }

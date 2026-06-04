@@ -5,13 +5,14 @@ import VelocityCell from "./VelocityCell";
 
 interface VelocityCardProps {
   fy: number;
+  repScope: string;
 }
 
 // Velocity card at the top of the Pipeline tab: four ranked "how fast and how
 // cleanly you're closing" metrics. Owns its own query so it mounts/unmounts with
 // the tab.
-export default function VelocityCard({ fy }: VelocityCardProps) {
-  const { data, isLoading, isError, refetch } = useVelocity(fy);
+export default function VelocityCard({ fy, repScope }: VelocityCardProps) {
+  const { data, isLoading, isError, refetch } = useVelocity(fy, repScope);
 
   return (
     <div className="rounded-lg bg-white border border-[#D4CFE2] shadow-sm p-5 flex flex-col gap-4">

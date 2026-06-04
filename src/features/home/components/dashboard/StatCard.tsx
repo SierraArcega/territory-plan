@@ -13,7 +13,7 @@ interface StatCardProps {
   label: string;
   labelTooltip?: string;
   value: number;
-  rank: number;
+  rank: number | null;
   totalReps: number;
   inRoster: boolean;
   segments: ToplineSegment[];

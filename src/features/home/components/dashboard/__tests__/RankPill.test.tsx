@@ -17,4 +17,8 @@ describe("RankPill", () => {
     render(<RankPill rank={0} totalReps={39} inRoster={false} />);
     expect(screen.getByText("Not ranked")).toBeInTheDocument();
   });
+  it("renders 'Team' chip when rank is null (team mode)", () => {
+    render(<RankPill rank={null} totalReps={12} inRoster />);
+    expect(screen.getByText("Team")).toBeInTheDocument();
+  });
 });

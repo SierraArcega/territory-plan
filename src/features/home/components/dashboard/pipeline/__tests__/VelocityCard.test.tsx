@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 const mockUseVelocity = vi.fn();
-vi.mock("@/features/home/lib/queries", () => ({ useVelocity: (fy: number) => mockUseVelocity(fy) }));
+vi.mock("@/features/home/lib/queries", () => ({ useVelocity: (fy: number, repScope: string) => mockUseVelocity(fy, repScope) }));
 
 import VelocityCard from "../VelocityCard";
 
@@ -24,7 +24,7 @@ describe("VelocityCard", () => {
       ] },
       isLoading: false, isError: false,
     });
-    render(<VelocityCard fy={2026} />);
+    render(<VelocityCard fy={2026} repScope="me" />);
     expect(screen.getByText("Velocity")).toBeInTheDocument();
     expect(screen.getByText("Close rate")).toBeInTheDocument();
     expect(screen.getByText("Avg deal size")).toBeInTheDocument();
@@ -34,14 +34,14 @@ describe("VelocityCard", () => {
 
   it("shows a loading skeleton", () => {
     mockUseVelocity.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    const { container } = render(<VelocityCard fy={2026} />);
+    const { container } = render(<VelocityCard fy={2026} repScope="me" />);
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
   });
 
   it("shows an error state with retry", () => {
     const refetch = vi.fn();
     mockUseVelocity.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch });
-    render(<VelocityCard fy={2026} />);
+    render(<VelocityCard fy={2026} repScope="me" />);
     expect(screen.getByText(/Couldn't load/i)).toBeInTheDocument();
   });
 });

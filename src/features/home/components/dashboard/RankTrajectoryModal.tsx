@@ -34,10 +34,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   fy: number;
+  repScope: string;
 }
 
-export default function RankTrajectoryModal({ open, onClose, fy }: Props) {
-  const { data } = useRankTrajectory(fy);
+export default function RankTrajectoryModal({ open, onClose, fy, repScope }: Props) {
+  const { data } = useRankTrajectory(fy, repScope);
   const [isolated, setIsolated] = useState<string | null>(null);
   const [segment, setSegment] = useState<FilterKey>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());

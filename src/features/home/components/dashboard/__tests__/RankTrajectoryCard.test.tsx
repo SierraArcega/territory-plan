@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-vi.mock("@/features/home/lib/queries", () => ({ useRankTrajectory: vi.fn() }));
+vi.mock("@/features/home/lib/queries", () => ({ useRankTrajectory: vi.fn() })); // accepts (fy, repScope)
 
 import RankTrajectoryCard from "../RankTrajectoryCard";
 import { useRankTrajectory } from "@/features/home/lib/queries";
@@ -29,7 +29,7 @@ describe("RankTrajectoryCard", () => {
 
   it("renders the chart and a legend row per metric, sorted best-rank first", () => {
     mockHook.mockReturnValue(result({ data: payload }));
-    const { container } = render(<RankTrajectoryCard fy={2026} />);
+    const { container } = render(<RankTrajectoryCard fy={2026} repScope="me" />);
 
     expect(container.querySelector("svg")).toBeTruthy();
     expect(screen.getByText("Rank trajectory")).toBeTruthy();
@@ -40,7 +40,7 @@ describe("RankTrajectoryCard", () => {
 
   it("renders an Expand control that opens the full-screen modal", () => {
     mockHook.mockReturnValue(result({ data: payload }));
-    render(<RankTrajectoryCard fy={2026} />);
+    render(<RankTrajectoryCard fy={2026} repScope="me" />);
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /expand/i }));
     expect(screen.getByRole("dialog")).toBeTruthy();
@@ -52,7 +52,7 @@ describe("RankTrajectoryCard", () => {
       metrics: payload.metrics.map((m) => ({ ...m, caller: { ...m.caller, inRoster: false } })),
     };
     mockHook.mockReturnValue(result({ data: notRanked }));
-    const { container } = render(<RankTrajectoryCard fy={2026} />);
+    const { container } = render(<RankTrajectoryCard fy={2026} repScope="me" />);
     expect(screen.getByText(/not ranked/i)).toBeTruthy();
     // no off-chart line: the chart isn't rendered for a non-roster caller
     expect(container.querySelector("svg")).toBeNull();
@@ -68,21 +68,21 @@ describe("RankTrajectoryCard", () => {
       })),
     };
     mockHook.mockReturnValue(result({ data: noData }));
-    const { container } = render(<RankTrajectoryCard fy={2027} />);
+    const { container } = render(<RankTrajectoryCard fy={2027} repScope="me" />);
     expect(screen.getByText(/no activity/i)).toBeTruthy();
     expect(container.querySelector("svg")).toBeNull();
   });
 
   it("shows a loading state while fetching", () => {
     mockHook.mockReturnValue(result({ isLoading: true }));
-    const { container } = render(<RankTrajectoryCard fy={2026} />);
+    const { container } = render(<RankTrajectoryCard fy={2026} repScope="me" />);
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
   });
 
   it("shows an error state with retry", () => {
     const refetch = vi.fn();
     mockHook.mockReturnValue(result({ isError: true, refetch }));
-    render(<RankTrajectoryCard fy={2026} />);
+    render(<RankTrajectoryCard fy={2026} repScope="me" />);
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
   });

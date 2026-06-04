@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-vi.mock("@/features/home/lib/queries", () => ({ usePipeline: vi.fn() }));
+vi.mock("@/features/home/lib/queries", () => ({ usePipeline: vi.fn() })); // accepts (fy, repScope)
 vi.mock("@/features/leaderboard/lib/queries", () => ({
   useLowHangingFruitList: () => ({ data: { districts: [], totalRevenueAtRisk: 0 }, isLoading: false, isError: false }),
 }));
@@ -55,7 +55,7 @@ describe("PipelineSection", () => {
 
   it("renders the coverage and stage-funnel cards from the payload", () => {
     mockHook.mockReturnValue(result({ data }));
-    render(<PipelineSection fy={2026} />);
+    render(<PipelineSection fy={2026} repScope="me" />);
     expect(screen.getByText("Stage funnel")).toBeTruthy();
     expect(screen.getByText("Top open opportunities")).toBeTruthy();
     expect(screen.getByText("Top targets not in pipeline")).toBeTruthy();
@@ -67,28 +67,28 @@ describe("PipelineSection", () => {
 
   it("shows a not-ranked state for a caller outside the rep roster", () => {
     mockHook.mockReturnValue(result({ data: { ...data, inRoster: false } }));
-    render(<PipelineSection fy={2026} />);
+    render(<PipelineSection fy={2026} repScope="me" />);
     expect(screen.getByText(/not a ranked sales rep/i)).toBeTruthy();
     expect(screen.queryByText("Coverage")).toBeNull();
   });
 
   it("hides the This Week card for a non-current fiscal year (thisWeek null)", () => {
     mockHook.mockReturnValue(result({ data: { ...data, thisWeek: null } }));
-    render(<PipelineSection fy={2024} />);
+    render(<PipelineSection fy={2024} repScope="me" />);
     expect(screen.queryByText("This week")).toBeNull();
     expect(screen.getByText("Stage funnel")).toBeTruthy(); // rest still renders
   });
 
   it("shows skeletons while loading", () => {
     mockHook.mockReturnValue(result({ isLoading: true }));
-    const { container } = render(<PipelineSection fy={2026} />);
+    const { container } = render(<PipelineSection fy={2026} repScope="me" />);
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 
   it("shows an error state with retry", () => {
     const refetch = vi.fn();
     mockHook.mockReturnValue(result({ isError: true, refetch }));
-    render(<PipelineSection fy={2026} />);
+    render(<PipelineSection fy={2026} repScope="me" />);
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
   });

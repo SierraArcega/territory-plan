@@ -17,18 +17,19 @@ const METRIC_TOOLTIPS: Record<ToplineMetricKey, string> = {
 
 interface ToplineStatStripProps {
   fy: number;
+  repScope: string;
 }
 
-export default function ToplineStatStrip({ fy }: ToplineStatStripProps) {
-  const { data, isLoading, isError, refetch } = useTopline(fy);
-  const { data: sparkData } = useSparklines(fy);
+export default function ToplineStatStrip({ fy, repScope }: ToplineStatStripProps) {
+  const { data, isLoading, isError, refetch } = useTopline(fy, repScope);
+  const { data: sparkData } = useSparklines(fy, repScope);
   const priorFyLabel = `FY${String(fy - 1).slice(-2)}`;
   const currentFyLabel = `FY${String(fy).slice(-2)}`;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {/* Targets (card 1) owns its own query + loading/error state */}
-      <TargetsCard fy={fy} />
+      <TargetsCard fy={fy} repScope={repScope} />
 
       {/* The four financial cards from the topline endpoint */}
       {isError ? (

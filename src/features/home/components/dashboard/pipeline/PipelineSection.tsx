@@ -8,8 +8,8 @@ import ThisWeekSection from "./ThisWeekSection";
 import TopTargetsCard from "./TopTargetsCard";
 
 // Pipeline tab body — owns the pipeline query and lays out its cards.
-export default function PipelineSection({ fy }: { fy: number }) {
-  const { data, isLoading, isError, refetch } = usePipeline(fy);
+export default function PipelineSection({ fy, repScope }: { fy: number; repScope: string }) {
+  const { data, isLoading, isError, refetch } = usePipeline(fy, repScope);
 
   if (isError) {
     return (
