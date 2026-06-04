@@ -38,7 +38,11 @@ export async function GET(request: Request) {
 
   let cells;
   if (scope.mode === "team") {
-    const sum = (pick: (a: RepVelocityAgg) => number) => current.reduce((s, r) => s + pick(r), 0);
+    // `current` is fetched unfiltered (every email in the data, incl. former reps);
+    // pool only the active roster so team rates match the topline/roster basis.
+    const rosterEmails = new Set(scope.emails);
+    const teamRows = current.filter((r) => rosterEmails.has(r.email));
+    const sum = (pick: (a: RepVelocityAgg) => number) => teamRows.reduce((s, r) => s + pick(r), 0);
     const pooled: RepVelocityAgg = {
       wonCount: sum((a) => a.wonCount),
       closedCount: sum((a) => a.closedCount),

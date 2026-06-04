@@ -92,7 +92,11 @@ export async function GET(request: Request) {
   let inRoster: boolean;
 
   if (scope.mode === "team") {
-    const all = [...rollups.values()];
+    // The team is the rep roster only — exclude the caller's own rollup/plans when
+    // an admin (not in the roster) is viewing, so their districts don't inflate the
+    // team count while their pipeline is absent from the roster-scoped sub-counts.
+    const repIds = new Set(reps.map((r) => r.id));
+    const all = reps.map((r) => rollups.get(r.id)).filter((r): r is NonNullable<typeof r> => r != null);
     workedCount = all.reduce((s, r) => s + r.workedCount, 0);
     untargeted = all.reduce((s, r) => s + r.untargetedCount, 0);
     targetTotal = all.reduce((s, r) => s + r.targetDollarsAll, 0);
@@ -101,7 +105,7 @@ export async function GET(request: Request) {
       winback: all.reduce((s, r) => s + r.segments.winback, 0),
       expansion: all.reduce((s, r) => s + r.segments.expansion, 0),
     };
-    workedLeaids = rows.map((r) => r.leaid); // every worked district across the roster
+    workedLeaids = rows.filter((r) => repIds.has(r.repId)).map((r) => r.leaid); // rep-owned worked districts
     rank = null;
     inRoster = true;
   } else {
