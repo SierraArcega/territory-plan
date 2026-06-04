@@ -90,29 +90,104 @@ function deleteBetweenMarkers(body, startMarker, endMarker) {
  * @param {string} sourceDocId
  * @param {string} placeholderText
  */
-function appendDocContent(targetDoc, sourceDocId, placeholderText) {
+function appendDocContent(targetDoc, sourceDocId, placeholderText, skipWidthNorm) {
   var targetBody = targetDoc.getBody();
   var sourceDoc  = DocumentApp.openById(sourceDocId);
   var sourceBody = sourceDoc.getBody();
 
-  var placeholderIdx = findParagraphIndex(targetBody, placeholderText);
-  if (placeholderIdx >= 0) {
-    targetBody.getChild(placeholderIdx).removeFromParent();
+  if (placeholderText) {
+    var placeholderIdx = findParagraphIndex(targetBody, placeholderText);
+    if (placeholderIdx >= 0) {
+      targetBody.getChild(placeholderIdx).removeFromParent();
+    }
   }
 
-  targetBody.appendPageBreak();
+  // Trim trailing empty paragraphs from target body before appending the section
+  // page break. Apps Script protects "last paragraph of a section" — on failure,
+  // skip it and keep iterating earlier.
+  var bodyLast = targetBody.getNumChildren() - 1;
+  while (bodyLast > 0) {
+    var lc = targetBody.getChild(bodyLast);
+    if (lc.getType() === DocumentApp.ElementType.PARAGRAPH &&
+        lc.asParagraph().getNumChildren() === 0 &&
+        lc.asParagraph().getText() === '') {
+      try {
+        lc.removeFromParent();
+      } catch (sectionErr) {
+        // Section-protected; can't remove. Keep going earlier.
+      }
+      bodyLast--;
+    } else {
+      break;
+    }
+  }
+
+  // Inject the page break into the existing trailing empty paragraph if one
+  // exists — appendTable() auto-leaves an empty paragraph after each table,
+  // and that empty is often section-protected so our trim above can't remove
+  // it. Stacking appendPageBreak() on top adds ~14pt that can cascade into a
+  // blank page on tightly-filled previous pages. Reusing the empty avoids
+  // adding the extra paragraph height.
+  var injectIdx = targetBody.getNumChildren() - 1;
+  var injected = false;
+  if (injectIdx >= 0) {
+    var lastEl = targetBody.getChild(injectIdx);
+    if (lastEl.getType() === DocumentApp.ElementType.PARAGRAPH &&
+        lastEl.asParagraph().getNumChildren() === 0) {
+      lastEl.asParagraph().appendPageBreak();
+      injected = true;
+    }
+  }
+  if (!injected) {
+    targetBody.appendPageBreak();
+  }
 
   var n = sourceBody.getNumChildren();
-  for (var i = 0; i < n; i++) {
+
+  // Find last non-empty child to avoid appending trailing blank paragraphs
+  // that cause spurious blank pages in the output doc.
+  var lastIdx = n - 1;
+  while (lastIdx > 0) {
+    var last = sourceBody.getChild(lastIdx);
+    if (last.getType() === DocumentApp.ElementType.PARAGRAPH &&
+        last.asParagraph().getText().trim() === '') {
+      lastIdx--;
+    } else {
+      break;
+    }
+  }
+
+  for (var i = 0; i <= lastIdx; i++) {
     var child = sourceBody.getChild(i);
     var type  = child.getType();
 
     if (type === DocumentApp.ElementType.PARAGRAPH) {
-      var para    = child.asParagraph();
-      var newPara = targetBody.appendParagraph(para.copy());
-      newPara.setHeading(para.getHeading());
+      targetBody.appendParagraph(child.asParagraph().copy());
+      // para.copy() already preserves heading level + all inline formatting.
+      // Calling setHeading() after would re-apply the target doc's Named Styles,
+      // overriding the source doc's visual appearance — so we don't call it.
     } else if (type === DocumentApp.ElementType.TABLE) {
-      targetBody.appendTable(child.asTable().copy());
+      var srcTable = child.asTable();
+      var numCols  = srcTable.getRow(0).getNumCells();
+      // Read source column widths BEFORE copy — getColumnWidth() is unreliable
+      // on a table after appendTable(), but reliable on the source table.
+      var srcWidths = [], srcTotal = 0;
+      for (var c = 0; c < numCols; c++) {
+        var w   = srcTable.getColumnWidth(c);
+        var use = (w > 0) ? w : 60;
+        srcWidths.push(use);
+        srcTotal += use;
+      }
+      var appended = targetBody.appendTable(srcTable.copy());
+      if (!skipWidthNorm) {
+        // Scale all column widths proportionally to fill page width.
+        // 540pt = 8.5" page − 0.5" margins each side (base template setting).
+        // Tables hold absolute point widths, so without this they sit at their
+        // source-doc width regardless of the target doc's page size.
+        for (var c = 0; c < numCols; c++) {
+          appended.setColumnWidth(c, Math.round(srcWidths[c] / srcTotal * 540));
+        }
+      }
     } else if (type === DocumentApp.ElementType.LIST_ITEM) {
       var item    = child.asListItem();
       var newItem = targetBody.appendListItem(item.copy());
@@ -122,3 +197,4 @@ function appendDocContent(targetDoc, sourceDocId, placeholderText) {
     // PageBreak elements skipped — we insert our own page break before the block
   }
 }
+

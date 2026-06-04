@@ -37,24 +37,47 @@ function generateContract(payload) {
     handlePaymentTerms(body, payload.payment);
     handleAppendedSections(doc, payload.sections, props);
 
+    // Second pass: catch any <<FIELD>> tokens in appended content (signature page, MSA, etc.)
+    replaceMergeFields(body, payload);
+    validateMergeFields(body);
+
     doc.saveAndClose();
 
     var docUrl = 'https://docs.google.com/document/d/' + copy.getId() + '/edit';
     var result = { success: true, url: docUrl, docId: copy.getId() };
 
-    // Optional: trigger Playwright eSign automation immediately
-    if (payload.auto_send && props[PROP.PLAYWRIGHT_TRIGGER_URL]) {
+    // Optional: send via Dropbox Sign immediately after generation
+    if (payload.auto_send && props[PROP.DROPBOX_SIGN_API_KEY]) {
       try {
-        UrlFetchApp.fetch(props[PROP.PLAYWRIGHT_TRIGGER_URL], {
-          method:      'post',
-          contentType: 'application/json',
-          payload:     JSON.stringify({
-            docId:       copy.getId(),
-            signerEmail: payload.deal.client_email,
-            signerName:  payload.deal.signer_salut + ' ' + payload.deal.signer_first + ' ' + payload.deal.signer_last,
-          }),
+        var pdfBlob    = DriveApp.getFileById(copy.getId())
+                           .getAs('application/pdf')
+                           .setName(docName + '.pdf');
+        var signerName = payload.deal.signer_salut + ' ' + payload.deal.signer_first + ' ' + payload.deal.signer_last;
+        var dsResponse = UrlFetchApp.fetch('https://api.hellosign.com/v3/signature_request/send', {
+          method:  'post',
+          headers: { 'Authorization': 'Basic ' + Utilities.base64Encode(props[PROP.DROPBOX_SIGN_API_KEY] + ':') },
+          payload: {
+            'test_mode':                 props[PROP.DROPBOX_SIGN_TEST_MODE] || '1',
+            'title':                     docName,
+            'subject':                   'Please sign your Fullmind contract',
+            'message':                   'Please review and sign your Fullmind agreement for the ' + payload.deal.school_year + ' school year.',
+            'signers[0][email_address]': payload.deal.client_email,
+            'signers[0][name]':          signerName,
+            'use_text_tags':             '1',
+            'hide_text_tags':            '1',
+            'files[0]':                  pdfBlob,
+          },
+          muteHttpExceptions: true,
         });
-        result.sent = true;
+        var dsResult = JSON.parse(dsResponse.getContentText());
+        if (dsResponse.getResponseCode() === 200) {
+          result.sent               = true;
+          result.signatureRequestId = dsResult.signature_request.signature_request_id;
+        } else {
+          result.sent      = false;
+          result.sendError = dsResult.error ? dsResult.error.error_msg : dsResponse.getContentText();
+          Logger.log('Dropbox Sign error: ' + dsResponse.getContentText());
+        }
       } catch (sendErr) {
         Logger.log('auto_send trigger failed: ' + sendErr.message);
         result.sent      = false;

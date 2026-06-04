@@ -19,6 +19,7 @@ function replaceMergeFields(body, payload) {
     '<<Client_Title>>':   d.client_title,
     '<<Client_Company>>': d.client_company,
     '<<Client_Email>>':   d.client_email,
+    '<<School_Year>>':    d.school_year,
     '<<start_date>>':     d.start_date,
     '<<end_date>>':       d.end_date,
     '<<Signer_First>>':   d.signer_first,
@@ -47,5 +48,25 @@ function replaceMergeFields(body, payload) {
 
   for (var field in fields) {
     body.replaceText(escapeRegex(field), fields[field] != null ? String(fields[field]) : '');
+  }
+}
+
+/**
+ * Scans the document body for any remaining <<FIELD>> tokens and logs a warning.
+ * Call after the final replaceMergeFields pass to catch missing payload values.
+ * @param {GoogleAppsScript.Document.Body} body
+ */
+function validateMergeFields(body) {
+  var text      = body.getText();
+  var remaining = [];
+  var re        = /<<[^>]+>>/g;
+  var match;
+  while ((match = re.exec(text)) !== null) {
+    if (remaining.indexOf(match[0]) === -1) remaining.push(match[0]);
+  }
+  if (remaining.length > 0) {
+    Logger.log('⚠️  Unresolved merge fields: ' + remaining.join(', '));
+  } else {
+    Logger.log('✅  All merge fields resolved');
   }
 }

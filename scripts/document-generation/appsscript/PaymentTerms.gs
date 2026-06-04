@@ -6,6 +6,7 @@
  * @param {Object} payment  payload.payment
  */
 function handlePaymentTerms(body, payment) {
+  deleteMarkerParagraph(body, '[PAY_TERM_TABLE_INSERT]');
   var type = payment.type;
 
   var blocks = {

@@ -11,6 +11,7 @@ function handleQuoteSection(body, quote) {
   }
   deleteMarkerParagraph(body, '{{QUOTE_SECTION_START}}');
   deleteMarkerParagraph(body, '{{QUOTE_SECTION_END}}');
+  deleteMarkerParagraph(body, '[QUOTE_TABLE_INSERT]');
   buildQuoteTableFromScratch(body, quote);
 }
 
@@ -37,7 +38,7 @@ function buildQuoteTableFromScratch(body, quote) {
     { key: 'qty',          label: pureUnit === 'days' ? 'Days' : pureUnit === 'hrs' ? 'Hours' : pureUnit === 'sessions' ? 'Sessions' : 'Qty', include: true },
     { key: 'unit',         label: 'Unit',        include: pureUnit === null },
     { key: 'list_rate',    label: pureUnit === 'days' ? 'List $/day' : pureUnit === 'hrs' ? 'List $/hr' : 'List Rate', include: showPrice },
-    { key: 'discount_pct', label: 'Disc %',      include: showPrice },
+    { key: 'discount_pct', label: 'Disc%',       include: showPrice },
     { key: 'net_rate',     label: pureUnit === 'days' ? 'Net $/day' : pureUnit === 'hrs' ? 'Net $/hr' : 'Net Rate',   include: true },
     { key: 'total',        label: 'Total',       include: true },
   ].filter(function(c) { return c.include; });
@@ -79,14 +80,30 @@ function buildQuoteTableFromScratch(body, quote) {
   // Insert table after placeholder, remove placeholder
   var newTable = body.insertTable(tableIdx + 1, [headerRow].concat(dataRows).concat([totalRow]));
 
-  // Style header row
-  var header = newTable.getRow(0);
-  for (var c = 0; c < header.getNumCells(); c++) {
-    header.getCell(c).editAsText().setBold(true);
-    header.getCell(c).setBackgroundColor('#d3d3d3');
+  // Set proportional column widths scaled to page width (540pt = 8.5" - 0.5" margins)
+  var naturalWidths = { service: 110, description: 100, qty: 40, unit: 40,
+                        list_rate: 60, discount_pct: 38, net_rate: 60, total: 92 };
+  var rawWidths  = cols.map(function(c) { return naturalWidths[c.key] || 60; });
+  var rawTotal   = rawWidths.reduce(function(s, w) { return s + w; }, 0);
+  rawWidths.forEach(function(w, i) {
+    newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
+  });
+
+  // Apply standard Fullmind table style (plum header, alternating rows)
+  applyFullmindTableStyle(newTable);
+
+  // Quote tables are multi-column — reduce padding and font size so content fits
+  var numRows = newTable.getNumRows();
+  for (var r = 0; r < numRows; r++) {
+    var row = newTable.getRow(r);
+    for (var c = 0; c < row.getNumCells(); c++) {
+      var cell = row.getCell(c);
+      cell.setPaddingLeft(5).setPaddingRight(5);
+      cell.editAsText().setFontSize(9);
+    }
   }
 
-  // Style total row
+  // Bold the total row (applyFullmindTableStyle doesn't bold data rows)
   var lastRow = newTable.getRow(newTable.getNumRows() - 1);
   for (var c = 0; c < lastRow.getNumCells(); c++) {
     lastRow.getCell(c).editAsText().setBold(true);

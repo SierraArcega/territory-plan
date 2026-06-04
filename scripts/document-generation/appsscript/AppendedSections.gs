@@ -9,6 +9,13 @@
 function handleAppendedSections(doc, sections, props) {
   var body = doc.getBody();
 
+  // Signature page — always appended immediately after payment terms
+  if (props[PROP.SIGNATURE_ID]) {
+    appendDocContent(doc, props[PROP.SIGNATURE_ID], null, true);
+  } else {
+    Logger.log('Warning: SIGNATURE_ID not set — signature page skipped');
+  }
+
   // SOW
   if (sections.sow_type) {
     deleteMarkerParagraph(body, '{{SOW_SECTION_START}}');

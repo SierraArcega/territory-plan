@@ -1,0 +1,89 @@
+{
+  "deal": {
+    "sender_first": "Jane",
+    "sender_last": "Smith",
+    "sender_title": "Account Executive",
+    "sender_email": "jane.smith@fullmindlearning.com",
+    "client_first": "Robert",
+    "client_last": "Johnson",
+    "client_title": "Superintendent",
+    "client_company": "Springfield Unified School District",
+    "client_email": "rjohnson@springfieldusd.org",
+    "school_year": "2026 - 2027",
+    "start_date": "08/26/2026",
+    "end_date": "06/12/2027",
+    "signer_first": "Robert",
+    "signer_last": "Johnson",
+    "signer_salut": "Dr.",
+    "signer_title": "Superintendent",
+    "today": "06/01/2026"
+  },
+  "quote": {
+    "include": true,
+    "show_pricing": true,
+    "line_items": [
+      {
+        "sku": "HS-SS-FT-27",
+        "service": "Standard Educator — Standard Subject, Full Time",
+        "description": "General ed instructor, core subjects, FT",
+        "qty": 190,
+        "unit": "days",
+        "list_rate": 500.23,
+        "discount_pct": 0,
+        "net_rate": 500.23,
+        "total": 95043.70
+      },
+      {
+        "sku": "BOC27-CRSG",
+        "service": "Credit Recovery — Small Group",
+        "description": "BOCES hourly, small group",
+        "qty": 40,
+        "unit": "hrs",
+        "list_rate": 111.42,
+        "discount_pct": 10,
+        "net_rate": 100.28,
+        "total": 4011.20
+      },
+      {
+        "sku": "HS-STAFFING-27",
+        "service": "Staffing Fee",
+        "description": "One-time placement fee",
+        "qty": 1,
+        "unit": "flat",
+        "list_rate": 5627.54,
+        "discount_pct": 0,
+        "net_rate": 5627.54,
+        "total": 5627.54
+      }
+    ],
+    "min_amt": 5627.54,
+    "max_amt": 104682.44,
+    "order_total": 104682.44
+  },
+  "payment": {
+    "type": "A",
+    "pay_terms": "Net 30",
+    "invoice_date": "time of signing",
+    "contract_end": "06/12/2027",
+    "unused_funds": "expire",
+    "billing_name": "Accounts Payable",
+    "billing_add": "123 School Lane, Springfield, IL 62701",
+    "billing_email": "ap@springfieldusd.org",
+    "billing_phone": "(217) 555-0100",
+    "po_yn": false,
+    "add_terms": null,
+    "imp_detail": null,
+    "pay_prepost": null,
+    "boces_name": null,
+    "po_number": null
+  },
+  "sections": {
+    "sow_type": "live_streaming",
+    "staffing_include": true,
+    "pricing_ek12": true,
+    "pricing_livestaff": true,
+    "pricing_hourly": true,
+    "pricing_boces": true
+  },
+  "auto_send": true
+}
