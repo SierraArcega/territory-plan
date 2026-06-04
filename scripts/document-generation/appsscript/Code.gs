@@ -32,7 +32,7 @@ function generateDocument(payload) {
 
 /**
  * Main contract generation orchestrator.
- * Call directly from the editor: generateContract(PAYLOAD_FULL)
+ * Call directly from the editor: generateFullContract(PAYLOAD_FULL)
  * @param {Object} payload
  * @returns {{ success: boolean, url: string, docId: string, sent?: boolean, sendError?: string }}
  */

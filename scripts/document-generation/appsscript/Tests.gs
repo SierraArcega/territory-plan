@@ -22,7 +22,7 @@ function testContractBOCES() {
 
 /**
  * Exercises the full pipeline including the Dropbox Sign auto_send branch.
- * Clones PAYLOAD_FULL, flips auto_send to true, runs generateContract.
+ * Clones PAYLOAD_FULL, flips auto_send to true, runs generateFullContract.
  * Same code path as doPost minus the JSON parse — validates eSign integration
  * without needing to authenticate against the web-app URL.
  * DROPBOX_SIGN_TEST_MODE='1' keeps the send sandboxed.
