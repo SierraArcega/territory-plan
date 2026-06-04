@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 import { getUnmatchedCountsByRep } from "@/lib/unmatched-counts";
+import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
 import type { LeaderboardEntry } from "@/features/leaderboard/lib/types";
 
 export interface LeaderboardTeamTotals {
@@ -46,12 +47,10 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     select: { id: true, fullName: true, avatarUrl: true, email: true, role: true },
   });
 
-  const now = new Date();
-  const currentFY = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
-  const defaultSchoolYr = `${currentFY - 1}-${String(currentFY).slice(-2)}`;
-  const priorFY = currentFY - 1;
-  const priorSchoolYr = `${priorFY - 1}-${String(priorFY).slice(-2)}`;
-  const nextFYSchoolYr = `${currentFY}-${String(currentFY + 1).slice(-2)}`;
+  const currentFY = getCurrentFY();
+  const defaultSchoolYr = schoolYearForFY(currentFY);
+  const priorSchoolYr = schoolYearForFY(currentFY - 1);
+  const nextFYSchoolYr = schoolYearForFY(currentFY + 1);
 
   const uniqueYears = [...new Set([priorSchoolYr, defaultSchoolYr, nextFYSchoolYr])];
 

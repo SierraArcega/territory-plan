@@ -1,0 +1,83 @@
+import { describe, it, expect } from "vitest";
+import { buildSparklines } from "../sparkline";
+import type { DatedValueRow } from "../monthly";
+
+const d = (iso: string) => new Date(iso + "T12:00:00Z");
+const empty = () => ({ targets: [], openPipeline: [], bookings: [], revenue: [], take: [] }) as Record<string, DatedValueRow[]>;
+const now = d("2026-01-15"); // FY26 today column = 7 (Jan)
+
+describe("buildSparklines", () => {
+  it("returns caller cumulative monthly series for the current and prior FY per metric", () => {
+    const current = empty();
+    current.bookings = [
+      { email: "me@x", date: d("2025-08-01"), value: 100 }, // Aug col 2
+      { email: "me@x", date: d("2025-12-01"), value: 50 },  // Dec col 6
+    ];
+    const prior = empty();
+    prior.bookings = [{ email: "me@x", date: d("2024-08-01"), value: 80 }]; // prior FY Aug
+
+    const out = buildSparklines({ currentRows: current, priorRows: prior, email: "me@x", fy: 2026, now });
+
+    expect(out.bookings.current).toEqual([0, 0, 100, 100, 100, 100, 150, 150, 150, 150, 150, 150, 150]);
+    expect(out.bookings.prior).toEqual([0, 0, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80, 80]);
+    // YoY same-point: current cum at today (col 7 = 150) vs prior at col 7 (80) → +0.875
+    expect(out.bookings.yoy).toBeCloseTo((150 - 80) / 80, 5);
+    // The "today" dot sits on the current column (Jan = 7).
+    expect(out.bookings.todayIndex).toBe(7);
+  });
+
+  it("puts the dot at the FY end (col 12) for a future fiscal year", () => {
+    const out = buildSparklines({ currentRows: empty(), priorRows: empty(), email: "me@x", fy: 2028, now });
+    expect(out.bookings.todayIndex).toBe(12);
+  });
+
+  it("reports yoy as null when the prior year has nothing to date", () => {
+    const current = empty();
+    current.revenue = [{ email: "me@x", date: d("2025-09-01"), value: 200 }];
+    const out = buildSparklines({ currentRows: current, priorRows: empty(), email: "me@x", fy: 2026, now });
+    expect(out.revenue.yoy).toBeNull();
+    expect(out.revenue.current[12]).toBe(200);
+  });
+
+  it("suppresses YoY for a future fiscal year (no meaningful comparison yet)", () => {
+    // now = Jan 2026 → current FY26; FY27 is in the future.
+    const prior = empty();
+    prior.bookings = [{ email: "me@x", date: d("2025-05-01"), value: 100 }]; // pre-FY26 carryover → prior[0] > 0
+    const out = buildSparklines({ currentRows: empty(), priorRows: prior, email: "me@x", fy: 2027, now });
+    expect(out.bookings.yoy).toBeNull(); // would be -100% without the guard
+  });
+
+  it("produces an entry for each financial card metric (Targets is count-based, no $ sparkline)", () => {
+    const out = buildSparklines({ currentRows: empty(), priorRows: empty(), email: "me@x", fy: 2026, now });
+    expect(Object.keys(out).sort()).toEqual(["bookings", "openPipeline", "revenue", "take"]);
+  });
+
+  it("team scope sums element-wise across all reps' cumulative columns", () => {
+    // Rep A has 100 in Aug (col 2); rep B has 200 in Aug (col 2).
+    // Cumulative for each: [0,0,100,100,...] and [0,0,200,200,...].
+    // Team sum: [0,0,300,300,...].
+    const current = empty();
+    current.openPipeline = [
+      { email: "rep-a@x", date: d("2025-08-01"), value: 100 },
+      { email: "rep-b@x", date: d("2025-08-01"), value: 200 },
+    ];
+    const priorA: DatedValueRow = { email: "rep-a@x", date: d("2024-08-01"), value: 40 };
+    const priorB: DatedValueRow = { email: "rep-b@x", date: d("2024-08-01"), value: 60 };
+    const prior = empty();
+    prior.openPipeline = [priorA, priorB];
+
+    const out = buildSparklines({ currentRows: current, priorRows: prior, email: "", fy: 2026, now, scope: "team" });
+
+    // current: rep-a cols=[0,0,100,...100] + rep-b cols=[0,0,200,...200] → team=[0,0,300,...300]
+    expect(out.openPipeline.current[0]).toBe(0);
+    expect(out.openPipeline.current[1]).toBe(0);
+    expect(out.openPipeline.current[2]).toBe(300);
+    expect(out.openPipeline.current[12]).toBe(300);
+    // prior: rep-a=[0,0,40,...40] + rep-b=[0,0,60,...60] → team=[0,0,100,...100]
+    expect(out.openPipeline.prior[2]).toBe(100);
+    expect(out.openPipeline.prior[12]).toBe(100);
+    // yoy at todayIndex=7: current[7]=300, prior[7]=100 → (300-100)/100 = 2
+    expect(out.openPipeline.yoy).toBeCloseTo(2, 5);
+    expect(out.openPipeline.todayIndex).toBe(7);
+  });
+});
