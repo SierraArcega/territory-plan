@@ -232,3 +232,27 @@ var PAYLOAD_BOCES_ONLY = {
   },
   auto_send: false,
 };
+
+// ─── BOCES Quote fixture (doc_type: 'boces_quote') ────────────────────────────
+var PAYLOAD_BOCES_QUOTE = {
+  doc_type: 'boces_quote',
+  deal: {
+    client_company: 'Erie 1 BOCES',
+    quote_number:   'Q-2027-0142',
+    start_date:     '2026-09-01',
+    end_date:       '2027-06-30',
+    today:          'June 4, 2026',
+  },
+  quote: {
+    fee_pct: 10.6,
+    line_items: [
+      { sku: 'BOC27-HB11', product: 'Homebound 1:1',              rate: 53.06, qty: 250 },
+      { sku: 'BOC27-SWD',  product: 'Students with Disabilities', rate: 21.23, qty: 100 },
+    ],
+  },
+  sections: {
+    staffing_include: true,
+    pricing_boces:    true,
+    boces_agreement:  true,
+  },
+};
