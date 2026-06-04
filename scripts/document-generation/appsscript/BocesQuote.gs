@@ -127,7 +127,8 @@ function generateBocesQuote(payload) {
     var sections = payload.sections || {};
 
     // Optional inserts — same shared helpers the full contract uses, so the
-    // Drive doc IDs and markers are defined in exactly one place (AppendedSections.gs).
+    // section markers and source-doc wiring live in exactly one place
+    // (appendStaffingSection / appendBocesPricingSection in AppendedSections.gs).
     appendStaffingSection(doc, sections.staffing_include, props);
     appendBocesPricingSection(doc, sections.pricing_boces, props);
 
