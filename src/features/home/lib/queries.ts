@@ -7,6 +7,13 @@ import type { WowDeltas } from "./wow";
 import type { OppView, FunnelData } from "./pipeline";
 import type { ThisWeek } from "./pipeline";
 import type { VelocityCell } from "./velocity";
+import type {
+  DealMetric,
+  DealTotals,
+  PipelineDealRow,
+  BookingDealRow,
+  UtilizationRow,
+} from "./deals";
 
 // Types for the alerts response
 
@@ -166,5 +173,27 @@ export function useVelocity(fy: number, repScope: string) {
     queryFn: () => fetchJson<VelocityResponse>(`${API_BASE}/home/dashboard/velocity?fy=${fy}&rep=${repScope}`),
     staleTime: 5 * 60 * 1000,
     enabled: repScope !== "",
+  });
+}
+
+export interface DealsResponse {
+  fy: number;
+  schoolYr: string;
+  mode?: "rep" | "team";
+  metric: DealMetric;
+  rows: PipelineDealRow[] | BookingDealRow[] | UtilizationRow[];
+  totals: DealTotals;
+}
+
+// Backs the topline cards' drill-in modals. `metric` is null while the modal is
+// closed, which (with the unresolved-scope guard) keeps the query from firing
+// until a card is actually expanded. Key uses serialized primitives only.
+export function useDeals(fy: number, repScope: string, metric: DealMetric | null) {
+  return useQuery({
+    queryKey: ["dashboard", "deals", fy, repScope, metric ?? ""],
+    queryFn: () =>
+      fetchJson<DealsResponse>(`${API_BASE}/home/dashboard/deals?fy=${fy}&metric=${metric}&rep=${repScope}`),
+    staleTime: 5 * 60 * 1000,
+    enabled: metric != null && repScope !== "",
   });
 }
