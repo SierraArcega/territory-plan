@@ -16,12 +16,15 @@ interface StatCardShellProps {
   children?: ReactNode;          // card body (legend, bars, mini-rows)
   footerLeft?: ReactNode;        // sparkline + FY legend
   footerRight?: ReactNode;       // rank pill
+  onExpand?: () => void;         // when set, the card opens its detail modal
 }
 
 // Shared chrome for every topline card (Targets + 4 financial). Card-specific
 // content goes in the slots; the layout, spacing, and tokens live here so the five
-// cards can't drift. The expand affordance is decorative in Phase 1 (wired to the
-// detail modal in Phase 4).
+// cards can't drift. When `onExpand` is set the whole card is the single
+// interactive control (role=button, mouse + keyboard) and the corner glyph is a
+// decorative cue — one accessible control beats a card-button plus a duplicate
+// glyph button with the same name. Without onExpand the glyph is purely decorative.
 export default function StatCardShell({
   label,
   labelTooltip,
@@ -33,15 +36,37 @@ export default function StatCardShell({
   children,
   footerLeft,
   footerRight,
+  onExpand,
 }: StatCardShellProps) {
   const hasYoy = deltaPct != null;
   const hasWow = wowPct != null;
   // Secondary line appears whenever there's any delta. The "vs FY same day" text is
   // shown only when we know the prior-FY label; the last-7d mini stands alone otherwise.
   const showSecondary = hasYoy || hasWow;
+  const expandable = onExpand != null;
+  const expandLabel = `Expand ${label} details`;
   return (
-    <div className="group relative flex min-w-[180px] flex-col gap-3 rounded-lg border border-[#D4CFE2] bg-white p-4 shadow-sm transition-colors hover:border-[#B8B0D0]">
-      <span className="absolute right-3 top-3 text-[#C2BBD4]" aria-hidden="true">
+    <div
+      className={`group relative flex min-w-[180px] flex-col gap-3 rounded-lg border border-[#D4CFE2] bg-white p-4 shadow-sm transition-colors hover:border-[#B8B0D0] ${expandable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#403770]" : ""}`}
+      {...(expandable
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": expandLabel,
+            onClick: onExpand,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onExpand!();
+              }
+            },
+          }
+        : {})}
+    >
+      <span
+        className={`absolute right-3 top-3 text-[#C2BBD4] ${expandable ? "transition-colors group-hover:text-[#403770]" : ""}`}
+        aria-hidden="true"
+      >
         <ArrowUpRight size={15} />
       </span>
 

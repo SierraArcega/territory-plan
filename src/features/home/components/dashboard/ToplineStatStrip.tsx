@@ -1,9 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { useTopline, useSparklines } from "@/features/home/lib/queries";
 import type { ToplineMetricKey } from "@/features/home/lib/topline";
+import type { DealMetric } from "@/features/home/lib/deals";
 import StatCard from "./StatCard";
 import TargetsCard from "./TargetsCard";
+import DealDetailModal from "./DealDetailModal";
+
+// Topline metric key → /deals metric. The card keys and the route's metric names
+// differ (revenue→rev), so map explicitly rather than passing the key through.
+const METRIC_TO_DEAL: Record<ToplineMetricKey, DealMetric> = {
+  openPipeline: "pipeline",
+  bookings: "bookings",
+  revenue: "rev",
+  take: "take",
+};
 
 // Plain-English metric definitions for the (i) tooltip — no formulas/IDs (reps,
 // not engineers). Describe what's shown today (P1 headline = net booking).
@@ -25,6 +37,7 @@ export default function ToplineStatStrip({ fy, repScope }: ToplineStatStripProps
   const { data: sparkData } = useSparklines(fy, repScope);
   const priorFyLabel = `FY${String(fy - 1).slice(-2)}`;
   const currentFyLabel = `FY${String(fy).slice(-2)}`;
+  const [openMetric, setOpenMetric] = useState<ToplineMetricKey | null>(null);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -63,9 +76,19 @@ export default function ToplineStatStrip({ fy, repScope }: ToplineStatStripProps
             currentFyLabel={currentFyLabel}
             wow={card.metricKey === "openPipeline" || card.metricKey === "bookings" ? sparkData?.wow?.[card.metricKey] : null}
             pipelineDetail={card.pipelineDetail}
+            onExpand={() => setOpenMetric(card.metricKey)}
           />
         ))
       )}
+
+      {/* Drill-in modal for the expanded financial card; repScope flows straight
+          through so the modal population matches the rep/team card it opened from. */}
+      <DealDetailModal
+        metric={openMetric ? METRIC_TO_DEAL[openMetric] : null}
+        fy={fy}
+        repScope={repScope}
+        onClose={() => setOpenMetric(null)}
+      />
     </div>
   );
 }

@@ -22,13 +22,14 @@ interface StatCardProps {
   currentFyLabel?: string;
   wow?: number | null;
   pipelineDetail?: OpenPipelineDetail;
+  onExpand?: () => void;
 }
 
 // A topline financial card rendered through the shared StatCardShell: headline +
 // YoY/WoW deltas, optional open-pipeline min/max line, vertical source legend,
 // sparkline, and the rank pill.
 export default function StatCard({
-  label, labelTooltip, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, currentFyLabel, wow, pipelineDetail,
+  label, labelTooltip, value, rank, totalReps, inRoster, segments, sparkline, priorFyLabel, currentFyLabel, wow, pipelineDetail, onExpand,
 }: StatCardProps) {
   const yoyPct = sparkline?.yoy != null ? Math.round(sparkline.yoy * 100) : null;
   const wowPct = wow != null ? Math.round(wow * 100) : null;
@@ -61,6 +62,7 @@ export default function StatCard({
     <StatCardShell
       label={label}
       labelTooltip={labelTooltip}
+      onExpand={onExpand}
       value={formatCurrency(value, true)}
       deltaPct={yoyPct}
       priorFyLabel={priorFyLabel}
