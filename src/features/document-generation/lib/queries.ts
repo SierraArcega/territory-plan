@@ -8,7 +8,7 @@ export function districtContactsUrl(leaid: string): string {
 
 export function useDistrictContacts(leaid: string | null) {
   return useQuery({
-    queryKey: ["contacts", { leaid }],
+    queryKey: ["contacts", "district", leaid],
     queryFn: () => fetchJson<ContactsResponse>(districtContactsUrl(leaid as string)),
     enabled: !!leaid,
     staleTime: 2 * 60 * 1000,

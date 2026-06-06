@@ -20,6 +20,9 @@ export default function PaymentSection({ state, onChange }: Props) {
       <input placeholder="Payment terms (e.g. Net 30)" value={state.payTerms}
         onChange={(e) => onChange({ payTerms: e.target.value })}
         className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+      <input placeholder="Invoice date (e.g. time of signing)" value={state.invoiceDate}
+        onChange={(e) => onChange({ invoiceDate: e.target.value })}
+        className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
       <label className="flex items-center gap-2 whitespace-nowrap">
         <input type="checkbox" checked={state.poRequired} onChange={(e) => onChange({ poRequired: e.target.checked })} />
         PO required

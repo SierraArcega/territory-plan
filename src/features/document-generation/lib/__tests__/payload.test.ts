@@ -13,6 +13,9 @@ describe("assemblePayload (contract)", () => {
   it("uses client contact for signer/billing when 'same as' is true", () => {
     const s = emptyFormState("contract", "x");
     s.clientContact = jane;
+    s.companyName = "Barstow USD";
+    s.senderFirst = "Rep"; s.senderLast = "Person"; s.senderTitle = "AE"; s.senderEmail = "rep@fm.com";
+    s.invoiceDate = "time of signing";
     s.billingAddress = "1 Main St";
     s.lineItems = [{ id: "1", sku: "HS", service: "HS", description: "", qty: 2, unit: "hrs", listRate: 85, discountPct: 0 }];
     const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
@@ -21,6 +24,10 @@ describe("assemblePayload (contract)", () => {
     expect(p.payment.billing_add).toBe("1 Main St");
     expect(p.quote.line_items).toHaveLength(1);
     expect(p.quote.order_total).toBe(170);
+    expect(p.deal.client_company).toBe("Barstow USD");
+    expect(p.deal.sender_first).toBe("Rep");
+    expect(p.deal.sender_email).toBe("rep@fm.com");
+    expect(p.payment.invoice_date).toBe("time of signing");
   });
 
   it("clears type-B/C fields when payment type is A", () => {

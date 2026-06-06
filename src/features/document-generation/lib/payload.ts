@@ -30,13 +30,14 @@ export function assemblePayload(state: DocFormState): DocPayload {
     pay_prepost: state.paymentType === "C" ? state.payPrePost : "",
     boces_name: state.paymentType === "C" ? state.bocesName : "",
     po_number: state.paymentType === "C" ? state.poNumber : "",
+    invoice_date: state.invoiceDate,
   };
 
   if (state.docType === "boces_quote") {
     const out: BocesQuotePayload = {
       doc_type: "boces_quote",
       deal: {
-        client_company: state.bocesName || fullName(client),
+        client_company: state.companyName || fullName(client),
         quote_number: state.quoteNumber,
         start_date: state.startDate,
         end_date: state.endDate,
@@ -63,7 +64,7 @@ export function assemblePayload(state: DocFormState): DocPayload {
       client_first: client?.firstName ?? "",
       client_last: client?.lastName ?? "",
       client_title: client?.title ?? "",
-      client_company: state.bocesName || "",
+      client_company: state.companyName,
       client_email: client?.email ?? "",
       school_year: state.schoolYear,
       start_date: state.startDate,
@@ -72,6 +73,10 @@ export function assemblePayload(state: DocFormState): DocPayload {
       signer_first: signer?.firstName ?? "",
       signer_last: signer?.lastName ?? "",
       signer_title: signer?.title ?? "",
+      sender_first: state.senderFirst,
+      sender_last: state.senderLast,
+      sender_title: state.senderTitle,
+      sender_email: state.senderEmail,
       today: "",
     },
     quote: {

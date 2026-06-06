@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { getProducts, getBocesProducts, DEFAULT_FISCAL_YEAR } from "@/features/document-generation/lib/pricebook";
 import type { DocType, LineItemRow } from "@/features/document-generation/lib/payload-types";
 
-let rowSeq = 0;
-function newRowId() { rowSeq += 1; return `row-${rowSeq}`; }
+function newRowId(prefix: string): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 interface Props { docType: DocType; onPick: (row: LineItemRow) => void; }
 
@@ -23,7 +24,7 @@ export default function SkuPicker({ docType, onPick }: Props) {
       <div className="max-h-40 overflow-y-auto">
         {filtered.slice(0, 50).map((p) => (
           <button key={p.sku} type="button"
-            onClick={() => onPick({ id: newRowId(), sku: p.sku, service: p.name, description: p.description, qty: 1, unit: p.unit, listRate: p.listRate, discountPct: 0 })}
+            onClick={() => onPick({ id: newRowId("row"), sku: p.sku, service: p.name, description: p.description, qty: 1, unit: p.unit, listRate: p.listRate, discountPct: 0 })}
             className="block w-full rounded px-2 py-1 text-left text-sm hover:bg-[#EFEDF5] whitespace-nowrap">
             {p.name} <span className="text-[#403770]">${p.listRate}</span>
           </button>

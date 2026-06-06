@@ -17,7 +17,19 @@ interface Props {
 
 function seedState(p: PrefillResult): DocFormState {
   const base = emptyFormState(p.docType, p.districtLeaId);
-  return { ...base, startDate: p.startDate, endDate: p.endDate, payTerms: p.payTerms, minAmt: p.minAmt, maxAmt: p.maxAmt, bocesName: p.companyName };
+  return {
+    ...base,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    payTerms: p.payTerms,
+    minAmt: p.minAmt,
+    maxAmt: p.maxAmt,
+    companyName: p.companyName,
+    senderFirst: p.sender.first,
+    senderLast: p.sender.last,
+    senderTitle: p.sender.title,
+    senderEmail: p.sender.email,
+  };
 }
 
 export default function GenerateDocumentModal({ prefill, onClose, renderClient = stubRenderClient }: Props) {

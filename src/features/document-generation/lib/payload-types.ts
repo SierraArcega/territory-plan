@@ -38,12 +38,17 @@ export interface SectionToggles {
 export interface DocFormState {
   docType: DocType;
   districtLeaId: string;
+  companyName: string;
   clientContact: ContactRef | null;
   signerSameAsClient: boolean;
   signerContact: ContactRef | null;
   billingSameAsClient: boolean;
   billingContact: ContactRef | null;
   billingAddress: string;
+  senderFirst: string;
+  senderLast: string;
+  senderTitle: string;
+  senderEmail: string;
   schoolYear: string;
   startDate: string;
   endDate: string;
@@ -122,12 +127,17 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
   return {
     docType,
     districtLeaId,
+    companyName: "",
     clientContact: null,
     signerSameAsClient: true,
     signerContact: null,
     billingSameAsClient: true,
     billingContact: null,
     billingAddress: "",
+    senderFirst: "",
+    senderLast: "",
+    senderTitle: "",
+    senderEmail: "",
     schoolYear: "",
     startDate: "",
     endDate: "",

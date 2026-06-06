@@ -40,6 +40,12 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
         onChange={(e) => onChange({ billingAddress: e.target.value })}
         className="w-full rounded border border-[#F37167] px-2 py-1 text-sm" />
 
+      {!isBoces && (
+        <input placeholder="School year (e.g. 2026 - 2027)" value={state.schoolYear}
+          onChange={(e) => onChange({ schoolYear: e.target.value })}
+          className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+      )}
+
       <div className="flex flex-wrap gap-2">
         <input placeholder="Start date" value={state.startDate}
           onChange={(e) => onChange({ startDate: e.target.value })}
