@@ -109,7 +109,7 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
               className="w-full rounded border border-[#EFEDF5] px-2 py-1 text-sm"
             />
           ))}
-          {error && <p className="text-sm text-[#c44]">{error}</p>}
+          {error && <p className="text-sm text-[#F37167]">{error}</p>}
           <button
             type="button"
             onClick={handleCreate}
