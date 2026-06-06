@@ -74,7 +74,7 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
 
   return (
     <div className="space-y-1">
-      <div className="text-xs uppercase tracking-wide text-[#6B4E9E] whitespace-nowrap">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-[#403770] whitespace-nowrap">{label}</div>
       <div className="flex flex-wrap gap-1">
         {contacts.map((c) => (
           <button
@@ -82,7 +82,7 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
             type="button"
             onClick={() => onChange(toRef(c))}
             className={`rounded-lg px-2 py-1 text-sm whitespace-nowrap ${
-              value?.contactId === c.id ? "bg-[#6B4E9E] text-white" : "bg-[#EFEDF5]"
+              value?.contactId === c.id ? "bg-[#403770] text-white" : "bg-[#EFEDF5]"
             }`}
           >
             {c.name}
@@ -114,7 +114,7 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
             type="button"
             onClick={handleCreate}
             disabled={!form.name || createContact.isPending}
-            className="rounded-lg bg-[#6B4E9E] px-3 py-1 text-sm text-white disabled:opacity-50"
+            className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white disabled:opacity-50"
           >
             Save contact
           </button>
