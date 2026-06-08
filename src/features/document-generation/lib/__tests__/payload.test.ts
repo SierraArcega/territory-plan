@@ -89,3 +89,19 @@ describe("assemblePayload — adjustments", () => {
     expect(typeof p.quote.gross_subtotal).toBe("number");
   });
 });
+
+describe("assemblePayload — BOCES order_total", () => {
+  it("forwards the computed order_total on the BOCES quote payload", () => {
+    const state = emptyFormState("boces_quote", "0600001");
+    state.companyName = "Test BOCES";
+    state.feePct = 10;
+    state.lineItems = [
+      { id: "r1", count: 2, sku: "BOC27-1", service: "Tutoring", description: "",
+        qty: 10, unit: "Hour", listRate: 100, discountPct: 0 },
+    ];
+    const payload = assemblePayload(state);
+    if (payload.doc_type !== "boces_quote") throw new Error("expected boces_quote");
+    // subtotal = 2 * 10 * 100 = 2000; fee 10% = 200; order_total = 2200
+    expect(payload.quote.order_total).toBe(2200);
+  });
+});

@@ -128,6 +128,7 @@ export interface BocesQuotePayload {
   deal: Record<string, string>;
   quote: {
     fee_pct: number;
+    order_total: number;
     line_items: Array<Record<string, string | number>>;
     billable_days: number;
     billable_hours: number;
