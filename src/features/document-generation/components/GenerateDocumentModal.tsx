@@ -61,7 +61,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
             result={result}
             orderTotal={orderTotal}
             onSend={() => { /* delivery sub-project: Dropbox Sign */ }}
-            onManual={async () => { if (busy) return; const r = await render(false); window.open(r.docUrl, "_blank"); }}
+            onManual={() => { if (!busy) void render(false); }}
             onBack={() => setResult(null)}
           />
         ) : (

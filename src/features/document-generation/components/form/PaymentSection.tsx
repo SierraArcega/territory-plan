@@ -11,8 +11,11 @@ const TYPES: { value: PaymentType; label: string }[] = [
 ];
 
 export default function PaymentSection({ state, onChange }: Props) {
-  // Local UI toggle: invoice "at time of signing" (blank) vs a specific date.
-  const [showInvoiceDate, setShowInvoiceDate] = useState(state.invoiceDate.trim() !== "");
+  // "At time of signing" = blank invoice date. The date picker shows when the rep
+  // opts in OR when a date already exists in state (e.g. set by prefill) — derived
+  // from state so the checkbox can't drift out of sync with state.invoiceDate.
+  const [wantsDate, setWantsDate] = useState(false);
+  const showInvoiceDate = wantsDate || state.invoiceDate.trim() !== "";
   return (
     <div className="space-y-2 text-sm">
       <select aria-label="Payment type" value={state.paymentType} onChange={(e) => onChange({ paymentType: e.target.value as PaymentType })}
@@ -28,8 +31,8 @@ export default function PaymentSection({ state, onChange }: Props) {
         <label className="flex items-center gap-2 whitespace-nowrap">
           <input type="checkbox" checked={!showInvoiceDate}
             onChange={(e) => {
-              if (e.target.checked) { setShowInvoiceDate(false); onChange({ invoiceDate: "" }); }
-              else { setShowInvoiceDate(true); }
+              if (e.target.checked) { setWantsDate(false); onChange({ invoiceDate: "" }); }
+              else { setWantsDate(true); }
             }} />
           Invoice at time of signing
         </label>
@@ -38,7 +41,7 @@ export default function PaymentSection({ state, onChange }: Props) {
             <input aria-label="Invoice date" type="date" value={state.invoiceDate}
               onChange={(e) => onChange({ invoiceDate: e.target.value })}
               className="h-8 rounded border border-[#C2BBD4] px-2 py-1 text-[#403770]" />
-            <button type="button" onClick={() => { onChange({ invoiceDate: "" }); setShowInvoiceDate(false); }}
+            <button type="button" onClick={() => { onChange({ invoiceDate: "" }); setWantsDate(false); }}
               className="text-sm text-[#6E6390] hover:text-[#F37167]">Clear</button>
           </div>
         )}

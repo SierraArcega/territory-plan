@@ -19,6 +19,14 @@ describe("getCompleteness", () => {
     expect(r.isComplete).toBe(true);
     expect(r.missing).toEqual([]);
   });
+  it("is incomplete when line items total $0 (zero qty/rate)", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = c; s.billingAddress = "1 Main"; s.startDate = "a"; s.endDate = "b";
+    s.lineItems = [{ id: "1", sku: null, service: "S", description: "", qty: 0, unit: "Day", listRate: 100, discountPct: 0 }];
+    const r = getCompleteness(s);
+    expect(r.isComplete).toBe(false);
+    expect(r.missing).toContain("Line items must total more than $0");
+  });
   it("requires a signer contact only when signer is not the same as client", () => {
     const s = emptyFormState("contract", "x");
     s.clientContact = c; s.billingAddress = "1"; s.startDate = "a"; s.endDate = "b";

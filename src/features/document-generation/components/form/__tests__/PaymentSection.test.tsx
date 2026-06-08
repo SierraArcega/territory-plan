@@ -34,6 +34,12 @@ describe("PaymentSection", () => {
     fireEvent.click(screen.getByLabelText(/Invoice at time of signing/i));
     expect(screen.getByLabelText("Invoice date")).toBeInTheDocument();
   });
+  it("reflects a prefilled invoice date: unchecked + date input shown without toggling", () => {
+    render_({ invoiceDate: "2026-07-15" });
+    const atSigning = screen.getByLabelText(/Invoice at time of signing/i) as HTMLInputElement;
+    expect(atSigning.checked).toBe(false);
+    expect((screen.getByLabelText("Invoice date") as HTMLInputElement).value).toBe("2026-07-15");
+  });
   it("clears the invoice date when re-checking 'at time of signing'", () => {
     const { onChange } = render_({ invoiceDate: "2026-07-15" });
     // starts with the date picker shown (invoiceDate non-empty)
