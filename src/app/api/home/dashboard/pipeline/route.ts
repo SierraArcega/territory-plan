@@ -61,8 +61,11 @@ export async function GET(request: Request) {
         };
 
   const coverage = buildCoverage(subjectOpps, wonBookings, fyTarget);
+  // The full scoped book (weighted-sorted). The funnel drill-in needs every deal so
+  // its modal count matches the funnel headline; the Top-opps table caps its own
+  // render at 50 (CLAUDE.md: never RENDER >50). atRisk keeps its own cap below.
   const views = buildOppViews(subjectOpps, benchmarks);
-  const opps = views.slice(0, 50); // paginate the displayed table per CLAUDE.md
+  const opps = views;
   // At risk = any non-on-track tier OR an overdue close date, worst tier first, then by weighted $.
   // Capped at 50 (most-urgent first) — the team-mode book can be large (CLAUDE.md: never render >50).
   const atRisk = views

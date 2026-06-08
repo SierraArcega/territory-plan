@@ -8,9 +8,14 @@ import OverdueBadge from "./OverdueBadge";
 
 const fmt = (v: number) => formatCurrency(v, true);
 
-// Top open opportunities by minimum commitment (already sorted + capped server-side).
+// Top open opportunities by minimum commitment (weighted-sorted server-side). The
+// route now serves the full book (so the funnel drill-in is complete), so this table
+// caps its own render at 50 — CLAUDE.md: never render more than 50 items at once.
 // No "next action" column — there's no per-opp next-step source (locked decision).
+const RENDER_CAP = 50;
+
 export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
+  const rows = opps.slice(0, RENDER_CAP);
   return (
     <div className="rounded-lg border border-[#D4CFE2] bg-white shadow-sm p-4 flex flex-col gap-3">
       <div>
@@ -36,7 +41,7 @@ export default function TopOpportunitiesTable({ opps }: { opps: OppView[] }) {
               </tr>
             </thead>
             <tbody>
-              {opps.map((o, i) => {
+              {rows.map((o, i) => {
                 const h = TIER_STYLE[o.tier];
                 return (
                   <tr key={`${o.account}-${i}`} className="border-t border-[#E2DEEC]">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { formatCurrency } from "@/features/shared/lib/format";
 import Modal from "@/features/shared/components/Modal";
 import { PIPELINE_STAGES, type OppView } from "@/features/home/lib/pipeline";
@@ -8,8 +9,11 @@ import OverdueBadge from "./OverdueBadge";
 
 const STAGE_NAME = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const fmt = (v: number) => formatCurrency(v, true);
+const PAGE = 50; // never render more than 50 rows at once (CLAUDE.md)
 
 // Drill-in from the funnel: the open deals in one stage (already source-filtered).
+// The full stage book can exceed 50 (team mode runs into the hundreds), so the
+// header counts every deal while the table reveals them a page at a time.
 export default function StageDealsModal({
   stagePrefix,
   opps,
@@ -20,8 +24,13 @@ export default function StageDealsModal({
   onClose: () => void;
 }) {
   const open = stagePrefix != null;
+  const [visible, setVisible] = useState(PAGE);
   const deals = open ? opps.filter((o) => o.stagePrefix === stagePrefix) : [];
   const stageName = open ? STAGE_NAME.get(stagePrefix) ?? "Stage" : "Stage";
+  const shown = deals.slice(0, visible);
+
+  // Reset to the first page whenever a different stage is opened.
+  useEffect(() => { setVisible(PAGE); }, [stagePrefix]);
 
   return (
     <Modal open={open} onClose={onClose} ariaLabel={`${stageName} deals`} maxWidth="max-w-[900px]">
@@ -42,7 +51,7 @@ export default function StageDealsModal({
             </tr>
           </thead>
           <tbody>
-            {deals.map((o, i) => {
+            {shown.map((o, i) => {
               const h = TIER_STYLE[o.tier];
               return (
                 <tr key={`${o.account}-${i}`} className="border-t border-[#E2DEEC]">
@@ -69,6 +78,17 @@ export default function StageDealsModal({
             })}
           </tbody>
         </table>
+        {deals.length > visible && (
+          <div className="flex justify-center pt-4">
+            <button
+              type="button"
+              onClick={() => setVisible((v) => v + PAGE)}
+              className="rounded-full border border-[#D4CFE2] px-4 py-1.5 text-xs font-semibold text-[#5C5378] hover:bg-[#EFEDF5] whitespace-nowrap"
+            >
+              Show more ({deals.length - visible} remaining)
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   );
