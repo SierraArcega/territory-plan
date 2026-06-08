@@ -20,9 +20,32 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const STAGE_NAME = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const toSegment = (category: string | null) => (category ? CATEGORY_TO_SEGMENT[category] ?? null : null);
 
+// Each opp's most recent activity: its date plus the free-text note/outcome from
+// that same touch. Keyed by opp id; opps with no logged activity are absent. Used
+// to enrich the open-pipeline rows with "last activity" + "notes" context.
+async function latestActivityByOpp(oppIds: string[]): Promise<Map<string, { date: Date; note: string | null }>> {
+  const out = new Map<string, { date: Date; note: string | null }>();
+  if (oppIds.length === 0) return out;
+  const links = await prisma.activityOpportunity.findMany({
+    where: { opportunityId: { in: oppIds }, activity: { startDate: { not: null } } },
+    select: { opportunityId: true, activity: { select: { startDate: true, notes: true, outcome: true } } },
+  });
+  for (const l of links) {
+    const d = l.activity?.startDate;
+    if (!d) continue;
+    const cur = out.get(l.opportunityId);
+    if (!cur || d > cur.date) {
+      out.set(l.opportunityId, { date: d, note: l.activity.notes ?? l.activity.outcome ?? null });
+    }
+  }
+  return out;
+}
+
 interface RawPipelineRow {
+  oppId: string;
   account: string | null;
   state: string | null;
+  owner: string | null;
   stagePrefix: number | null;
   category: string | null;
   committed: number;
@@ -32,11 +55,14 @@ interface RawPipelineRow {
 
 // pipeline metric → the scope's OPEN opps (stage prefix 0–5). net_booking is the
 // committed value; maxBudget the ceiling. Source = DOA segment (motion). Mirrors
-// the Pipeline tab's open-opp shape, scoped + ordered by value.
+// the Pipeline tab's open-opp shape, scoped + ordered by value. Each row is enriched
+// with its owner (sales rep) and its most recent activity's date + note.
 export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Promise<PipelineDealRow[]> {
   const rows = await prisma.$queryRaw<RawPipelineRow[]>`
-    SELECT o.district_name AS account,
+    SELECT o.id AS "oppId",
+           o.district_name AS account,
            o.state,
+           o.sales_rep_name AS owner,
            ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",
            c.category,
            o.net_booking_amount::float AS committed,
@@ -53,15 +79,23 @@ export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Pro
       AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
     ORDER BY o.net_booking_amount DESC NULLS LAST`;
 
-  return rows.map((r) => ({
-    account: r.account ?? "—",
-    state: r.state,
-    stageName: r.stagePrefix == null ? "—" : STAGE_NAME.get(r.stagePrefix) ?? "—",
-    source: toSegment(r.category),
-    committed: r.committed,
-    maxBudget: r.maxBudget,
-    closeDate: r.closeDate ? r.closeDate.toISOString() : null,
-  }));
+  const activity = await latestActivityByOpp(rows.map((r) => r.oppId));
+
+  return rows.map((r) => {
+    const act = activity.get(r.oppId);
+    return {
+      account: r.account ?? "—",
+      state: r.state,
+      stageName: r.stagePrefix == null ? "—" : STAGE_NAME.get(r.stagePrefix) ?? "—",
+      source: toSegment(r.category),
+      committed: r.committed,
+      maxBudget: r.maxBudget,
+      closeDate: r.closeDate ? r.closeDate.toISOString() : null,
+      owner: r.owner,
+      lastActivity: act ? act.date.toISOString() : null,
+      lastNote: act?.note ?? null,
+    };
+  });
 }
 
 interface RawBookingRow {

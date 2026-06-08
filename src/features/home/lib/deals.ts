@@ -20,6 +20,9 @@ export interface PipelineDealRow {
   committed: number; // net booking amount
   maxBudget: number;
   closeDate: string | null;
+  owner: string | null; // opp sales rep name
+  lastActivity: string | null; // ISO date of the most recent activity on the opp
+  lastNote: string | null; // that activity's note/outcome (free-text), if any
 }
 
 export interface BookingDealRow {

@@ -12,8 +12,8 @@ const mockUseDeals = vi.mocked(useDeals);
 const result = (over: Record<string, unknown>) => ({ data: undefined, isLoading: false, isError: false, ...over } as any);
 
 const pipelineRows = [
-  { account: "Houston ISD", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null },
-  { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null },
+  { account: "Houston ISD", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: "Sierra Arcega", lastActivity: "2026-06-01T00:00:00.000Z", lastNote: "Left a voicemail with the super" },
+  { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null },
 ];
 
 const utilRows = [
@@ -53,6 +53,9 @@ describe("DealDetailModal", () => {
     render(<DealDetailModal metric="pipeline" fy={2026} repScope="me" onClose={vi.fn()} />);
     expect(screen.getByText("Houston ISD")).toBeInTheDocument();
     expect(screen.getByText("Austin ISD")).toBeInTheDocument();
+    // owner + latest-activity note enrich each row
+    expect(screen.getByText("Sierra Arcega")).toBeInTheDocument();
+    expect(screen.getByText("Left a voicemail with the super")).toBeInTheDocument();
     // footer totals: committed 150, max budget 380
     expect(screen.getByText("$150")).toBeInTheDocument();
     expect(screen.getByText("$380")).toBeInTheDocument();

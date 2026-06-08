@@ -289,26 +289,40 @@ const SourceCell = ({ source }: { source: SegmentKey | null }) => (
 
 // ── Tables ──────────────────────────────────────────────────────────────────
 
+// Last-activity date + the note from that same touch, stacked. Empty when nothing
+// has been logged on the opp.
+function ActivityNoteCell({ date, note }: { date: string | null; note: string | null }) {
+  if (!date && !note) return <span className="text-[12px] text-[#C2BBD4]">—</span>;
+  return (
+    <div className="min-w-0 max-w-[220px]">
+      {date && <div className="text-[12px] text-[#5C5378] whitespace-nowrap">{fmtShortDate(date)}</div>}
+      {note && <div className="truncate text-[11px] text-[#8A80A8]" title={note}>{note}</div>}
+    </div>
+  );
+}
+
 function PipelineTable({ rows }: { rows: PipelineDealRow[] }) {
   return (
-    <table className="min-w-[640px] w-full text-left">
+    <table className="min-w-[860px] w-full text-left">
       <thead>
         <tr className="text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
-          <Th>Account</Th><Th>Stage</Th><Th>Source</Th><Th right>Committed</Th><Th right>Max budget</Th><Th right>Close</Th>
+          <Th>Account</Th><Th>Owner</Th><Th>Stage</Th><Th>Source</Th><Th right>Committed</Th><Th right>Max budget</Th><Th right>Close</Th><Th>Last activity</Th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={`${r.account}-${i}`} className="border-t border-[#E2DEEC]">
+          <tr key={`${r.account}-${i}`} className="border-t border-[#E2DEEC] align-top">
             <td className="py-2 px-3">
               <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</div>
               {r.state && <div className="text-[10px] text-[#8A80A8]">{r.state}</div>}
             </td>
+            <td className="py-2 px-3 text-[12px] text-[#5C5378] whitespace-nowrap">{r.owner ?? "—"}</td>
             <td className="py-2 px-3 text-[12px] text-[#5C5378] whitespace-nowrap">{r.stageName}</td>
             <SourceCell source={r.source} />
             <td className="py-2 px-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(r.committed)}</td>
             <td className="py-2 px-3 text-right text-[13px] tabular-nums text-[#8A80A8]">{fmt(r.maxBudget)}</td>
             <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(r.closeDate)}</td>
+            <td className="py-2 px-3"><ActivityNoteCell date={r.lastActivity} note={r.lastNote} /></td>
           </tr>
         ))}
       </tbody>
@@ -528,10 +542,11 @@ function csvShape(metric: DealMetric): { columns: string[]; toRecord: (r: never)
   }
   if (metric === "pipeline") {
     return {
-      columns: ["Account", "State", "Stage", "Source", "Committed", "Max budget", "Close date"],
+      columns: ["Account", "State", "Owner", "Stage", "Source", "Committed", "Max budget", "Close date", "Last activity", "Last note"],
       toRecord: (r: PipelineDealRow) => ({
-        Account: r.account, State: r.state, Stage: r.stageName, Source: sourceLabel(r.source),
+        Account: r.account, State: r.state, Owner: r.owner ?? "", Stage: r.stageName, Source: sourceLabel(r.source),
         Committed: Math.round(r.committed), "Max budget": Math.round(r.maxBudget), "Close date": r.closeDate ?? "",
+        "Last activity": r.lastActivity ? r.lastActivity.slice(0, 10) : "", "Last note": r.lastNote ?? "",
       }) as unknown as Record<string, unknown>,
     } as { columns: string[]; toRecord: (r: never) => Record<string, unknown> };
   }
