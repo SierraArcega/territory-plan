@@ -11,7 +11,10 @@ function resolveRole(state: DocFormState, role: "signer" | "billing"): ContactRe
 const fullName = (c: ContactRef | null) => (c ? `${c.firstName} ${c.lastName}`.trim() : "");
 
 export function assemblePayload(state: DocFormState): DocPayload {
-  const totals = computeTotals(state.docType, state.lineItems, state.feePct);
+  const totals = computeTotals(state.docType, state.lineItems, state.feePct, state.adjustments ?? []);
+  const activeAdjustments = totals.adjustments
+    .filter((a) => a.label.trim() !== "" && a.value !== 0)
+    .map((a) => ({ label: a.label, type: a.type, mode: a.mode, value: a.value, amount: a.amount }));
   const client = state.clientContact;
   const billing = resolveRole(state, "billing");
 
@@ -49,6 +52,9 @@ export function assemblePayload(state: DocFormState): DocPayload {
         line_items: totals.lines.map((l) => ({ sku: l.sku ?? "", product: l.service, rate: l.listRate, qty: l.qty, count: l.count ?? 1 })),
         billable_days: totals.billableDays,
         billable_hours: totals.billableHours,
+        adjustments: activeAdjustments,
+        savings: totals.savings,
+        gross_subtotal: totals.grossSubtotal,
       },
       payment,
       sections: {
@@ -95,6 +101,9 @@ export function assemblePayload(state: DocFormState): DocPayload {
       order_total: totals.orderTotal,
       billable_days: totals.billableDays,
       billable_hours: totals.billableHours,
+      adjustments: activeAdjustments,
+      savings: totals.savings,
+      gross_subtotal: totals.grossSubtotal,
     },
     payment,
     sections: {

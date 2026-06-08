@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import QuoteSection from "../QuoteSection";
 import { emptyFormState } from "@/features/document-generation/lib/payload-types";
 
+vi.mock("../AdjustmentsSection", () => ({ default: () => <div>adjustments</div> }));
+
 vi.mock("../SkuPicker", () => ({ default: ({ fiscalYear }: { fiscalYear: string }) => <div>sku:{fiscalYear}</div> }));
 
 function makeState(over = {}) {
@@ -80,5 +82,16 @@ describe("QuoteSection", () => {
     );
     expect(screen.getByText(/Billable days: 900/)).toBeInTheDocument();
     expect(screen.getByText(/Order total: \$450,207/)).toBeInTheDocument();
+  });
+  it("shows savings callout and discounted order total when a percent discount adjustment is applied", () => {
+    setup(
+      {
+        adjustments: [{ id: "d", label: "Early Signing", type: "discount", mode: "percent", value: 10 }],
+      },
+      null,
+    );
+    // subtotal 16,500 − 10% = 14,850
+    expect(screen.getByText(/Order total: \$14,850/)).toBeInTheDocument();
+    expect(screen.getByText(/You'll save/i)).toBeInTheDocument();
   });
 });

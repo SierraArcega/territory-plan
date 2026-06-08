@@ -72,3 +72,20 @@ describe("assemblePayload — count field", () => {
     expect(typeof p.quote.billable_days).toBe("number");
   });
 });
+
+describe("assemblePayload — adjustments", () => {
+  it("filters out blank/zero adjustments and emits savings + gross_subtotal", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.lineItems = [{ id: "1", sku: "S", service: "S", description: "", qty: 1, unit: "Day", listRate: 100, discountPct: 0 }];
+    s.adjustments = [
+      { id: "1", label: "Early Signing", type: "discount", mode: "percent", value: 10 },
+      { id: "2", label: "", type: "fee", mode: "amount", value: 0 },
+    ];
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.quote.adjustments).toHaveLength(1);
+    expect(p.quote.adjustments[0].label).toBe("Early Signing");
+    expect(typeof p.quote.savings).toBe("number");
+    expect(typeof p.quote.gross_subtotal).toBe("number");
+  });
+});

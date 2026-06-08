@@ -5,6 +5,16 @@ export type DocType = "contract" | "boces_quote";
 export type PaymentType = "A" | "B" | "C"; // A=Standard, B=Customized, C=BOCES Standardized
 export type SowType = "live_streaming" | "instructional_services";
 
+export type AdjustmentType = "discount" | "fee" | "tax";
+export type AdjustmentMode = "percent" | "amount";
+export interface OrderAdjustment {
+  id: string;
+  label: string;
+  type: AdjustmentType;
+  mode: AdjustmentMode;
+  value: number;
+}
+
 /** A contact resolved into a document role (from the contacts table or inline-created). */
 export interface ContactRef {
   contactId: number | null; // null only transiently before persistence
@@ -56,6 +66,7 @@ export interface DocFormState {
   startDate: string;
   endDate: string;
   lineItems: LineItemRow[];
+  adjustments: OrderAdjustment[];
   fiscalYear: FiscalYearSelection; // "auto" derives the pricebook year from contract dates
   showPricing: boolean;
   feePct: number;
@@ -82,8 +93,11 @@ export interface ComputedLine extends LineItemRow {
 
 export interface QuoteTotals {
   lines: ComputedLine[];
+  grossSubtotal: number;
   subtotal: number;
   fee: number;
+  adjustments: Array<OrderAdjustment & { amount: number }>;
+  savings: number;
   orderTotal: number;
   billableDays: number;
   billableHours: number;
@@ -101,6 +115,9 @@ export interface ContractPayload {
     order_total: number;
     billable_days: number;
     billable_hours: number;
+    adjustments: Array<{ label: string; type: string; mode: string; value: number; amount: number }>;
+    savings: number;
+    gross_subtotal: number;
   };
   payment: Record<string, string | boolean>;
   sections: Record<string, boolean | string | null>;
@@ -114,6 +131,9 @@ export interface BocesQuotePayload {
     line_items: Array<Record<string, string | number>>;
     billable_days: number;
     billable_hours: number;
+    adjustments: Array<{ label: string; type: string; mode: string; value: number; amount: number }>;
+    savings: number;
+    gross_subtotal: number;
   };
   payment: Record<string, string | boolean>;
   sections: Record<string, boolean>;
@@ -155,6 +175,7 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     startDate: "",
     endDate: "",
     lineItems: [],
+    adjustments: [],
     fiscalYear: "auto",
     showPricing: true,
     feePct: DEFAULT_BOCES_FEE_PCT,

@@ -46,3 +46,39 @@ describe("computeTotals (boces)", () => {
     expect(t.orderTotal).toBe(1106);
   });
 });
+
+describe("computeTotals — order-level adjustments", () => {
+  it("a 10% discount adjustment reduces orderTotal and adds to savings", () => {
+    const t = computeTotals(
+      "contract",
+      [row({ count: 1, qty: 1, listRate: 100, discountPct: 0 })],
+      0,
+      [{ id: "a", label: "Early Signing", type: "discount", mode: "percent", value: 10 }],
+    );
+    expect(t.orderTotal).toBe(90);
+    expect(t.savings).toBe(10);
+    expect(t.adjustments[0].amount).toBe(10);
+  });
+
+  it("a fixed fee adds to orderTotal and does not affect savings", () => {
+    const t = computeTotals(
+      "contract",
+      [row({ count: 1, qty: 1, listRate: 100, discountPct: 0 })],
+      0,
+      [{ id: "f", label: "Setup", type: "fee", mode: "amount", value: 25 }],
+    );
+    expect(t.orderTotal).toBe(125);
+    expect(t.savings).toBe(0);
+  });
+
+  it("per-line discount savings are counted in savings (no order adjustments)", () => {
+    const t = computeTotals(
+      "contract",
+      [row({ count: 1, qty: 1, listRate: 100, discountPct: 10 })],
+      0,
+    );
+    expect(t.grossSubtotal).toBe(100);
+    expect(t.subtotal).toBe(90);
+    expect(t.savings).toBe(10);
+  });
+});

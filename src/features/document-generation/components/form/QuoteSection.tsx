@@ -1,10 +1,11 @@
 "use client";
 import { Plus, X } from "lucide-react";
 import SkuPicker from "./SkuPicker";
+import AdjustmentsSection from "./AdjustmentsSection";
 import { computeTotals } from "@/features/document-generation/lib/quote";
 import { resolveFiscalYear } from "@/features/document-generation/lib/fiscal-year";
 import type { FiscalYearSelection } from "@/features/document-generation/lib/fiscal-year";
-import type { DocFormState, LineItemRow } from "@/features/document-generation/lib/payload-types";
+import type { DocFormState, LineItemRow, OrderAdjustment } from "@/features/document-generation/lib/payload-types";
 import { LINE_UNITS } from "@/features/document-generation/lib/units";
 
 function newRowId(prefix: string): string {
@@ -27,7 +28,7 @@ interface Props {
 
 export default function QuoteSection({ state, bookingReference, onChange }: Props) {
   const isBoces = state.docType === "boces_quote";
-  const totals = computeTotals(state.docType, state.lineItems, state.feePct);
+  const totals = computeTotals(state.docType, state.lineItems, state.feePct, state.adjustments ?? []);
   const effectiveFY = resolveFiscalYear(state.fiscalYear, state.startDate, state.endDate);
 
   const setRows = (rows: LineItemRow[]) => onChange({ lineItems: rows });
@@ -134,15 +135,30 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
         )}
       </div>
 
-      <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg p-2 text-sm ${mismatch ? "bg-[#fffaf1] border border-[#ffd98d]" : "bg-[#F7F5FA]"}`}>
-        <span className="font-semibold whitespace-nowrap">Order total: {usd(totals.orderTotal)}</span>
-        {totals.billableDays > 0 && <span className="whitespace-nowrap">Billable days: {totals.billableDays.toLocaleString("en-US")}</span>}
-        {totals.billableHours > 0 && <span className="whitespace-nowrap">Billable hours: {totals.billableHours.toLocaleString("en-US")}</span>}
-        {bookingReference != null && (
-          <span className="whitespace-nowrap">Deal booking: {usd(bookingReference)}
-            {mismatch && <span className="ml-1 text-[#403770]">⚠ doesn&apos;t match — intentional?</span>}
-          </span>
+      <AdjustmentsSection
+        adjustments={state.adjustments ?? []}
+        onChange={(a: OrderAdjustment[]) => onChange({ adjustments: a })}
+      />
+
+      <div className={`space-y-1 rounded-lg p-2 text-sm ${mismatch ? "bg-[#fffaf1] border border-[#ffd98d]" : "bg-[#F7F5FA]"}`}>
+        <div className="font-semibold whitespace-nowrap">Order total: {usd(totals.orderTotal)}</div>
+        {totals.adjustments.filter((a) => a.amount !== 0).map((a) => (
+          <div key={a.id} className="whitespace-nowrap text-[#6E6390]">
+            {a.label || "(unnamed)"} ({a.mode === "percent" ? `${a.value}%` : usd(a.value)}): {a.type === "discount" ? "−" : "+"}{usd(a.amount)}
+          </div>
+        ))}
+        {totals.savings > 0 && (
+          <div className="font-medium text-[#403770] whitespace-nowrap">You&apos;ll save: {usd(totals.savings)}</div>
         )}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#6E6390]">
+          {totals.billableDays > 0 && <span className="whitespace-nowrap">Billable days: {totals.billableDays.toLocaleString("en-US")}</span>}
+          {totals.billableHours > 0 && <span className="whitespace-nowrap">Billable hours: {totals.billableHours.toLocaleString("en-US")}</span>}
+          {bookingReference != null && (
+            <span className="whitespace-nowrap">Deal booking: {usd(bookingReference)}
+              {mismatch && <span className="ml-1 text-[#403770]">⚠ doesn&apos;t match — intentional?</span>}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
