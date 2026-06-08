@@ -1,6 +1,6 @@
 // src/features/document-generation/lib/__tests__/quote.test.ts
 import { describe, it, expect } from "vitest";
-import { computeTotals } from "../quote";
+import { computeTotals, round2 } from "../quote";
 import type { LineItemRow } from "../payload-types";
 
 const row = (over: Partial<LineItemRow>): LineItemRow => ({
@@ -19,7 +19,21 @@ describe("computeTotals (contract)", () => {
   });
   it("rounds to 2 decimals", () => {
     const t = computeTotals("contract", [row({ listRate: 33.333, discountPct: 0, qty: 3 })], 0);
-    expect(t.lines[0].total).toBe(100); // 33.333*3 = 99.999 -> 100.00
+    // netRate is rounded first: round2(33.333) = 33.33; then round2(1*3*33.33) = 99.99
+    expect(t.lines[0].total).toBe(99.99);
+  });
+  it("multiplies count × qty × netRate when count is provided", () => {
+    const t = computeTotals("contract", [row({ count: 5, qty: 180, listRate: 500.23, unit: "Day", discountPct: 0 })], 0);
+    expect(t.lines[0].total).toBe(round2(5 * 180 * 500.23));
+    expect(t.billableDays).toBe(900);
+  });
+  it("accumulates billableHours from Hour-unit rows", () => {
+    const t = computeTotals("contract", [row({ unit: "Hour", count: 2, qty: 100, listRate: 50, discountPct: 0 })], 0);
+    expect(t.billableHours).toBe(200);
+  });
+  it("applies discount before multiplying by count", () => {
+    const t = computeTotals("contract", [row({ count: 2, qty: 1, listRate: 100, discountPct: 10, unit: "Day" })], 0);
+    expect(t.lines[0].total).toBe(180);
   });
 });
 

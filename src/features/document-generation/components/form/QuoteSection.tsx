@@ -5,6 +5,7 @@ import { computeTotals } from "@/features/document-generation/lib/quote";
 import { resolveFiscalYear } from "@/features/document-generation/lib/fiscal-year";
 import type { FiscalYearSelection } from "@/features/document-generation/lib/fiscal-year";
 import type { DocFormState, LineItemRow } from "@/features/document-generation/lib/payload-types";
+import { LINE_UNITS } from "@/features/document-generation/lib/units";
 
 function newRowId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -34,7 +35,7 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
     setRows(state.lineItems.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const removeRow = (id: string) => setRows(state.lineItems.filter((r) => r.id !== id));
   const addCustom = () =>
-    setRows([...state.lineItems, { id: newRowId("custom"), sku: null, service: "", description: "", qty: 1, unit: isBoces ? "hrs" : "flat", listRate: 0, discountPct: 0 }]);
+    setRows([...state.lineItems, { id: newRowId("custom"), sku: null, service: "", description: "", count: 1, qty: 1, unit: isBoces ? "Hour" : "Day", listRate: 0, discountPct: 0 }]);
 
   const mismatch = bookingReference != null && Math.abs(bookingReference - totals.orderTotal) > 1;
 
@@ -72,6 +73,7 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
           <thead>
             <tr className="border-b border-[#E2DEEC] text-xs uppercase tracking-wide text-[#6E6390]">
               <th className="text-left font-semibold whitespace-nowrap">Service</th>
+              <th className="text-right font-semibold whitespace-nowrap">Count</th>
               <th className="text-right font-semibold whitespace-nowrap">Qty</th>
               <th className="text-right font-semibold whitespace-nowrap">Unit</th>
               <th className="text-right font-semibold whitespace-nowrap">List rate</th>
@@ -93,11 +95,22 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
                   )}
                 </td>
                 <td className="text-right">
+                  <input aria-label="Count" type="number" min="1" value={l.count ?? 1}
+                    onChange={(e) => updateRow(l.id, { count: num(e.target.value) })}
+                    className="w-14 rounded border border-[#C2BBD4] px-1 py-0.5 text-right text-sm" />
+                </td>
+                <td className="text-right">
                   <input aria-label="Quantity" type="number" min="0" value={l.qty}
                     onChange={(e) => updateRow(l.id, { qty: num(e.target.value) })}
                     className="w-16 rounded border border-[#C2BBD4] px-1 py-0.5 text-right text-sm" />
                 </td>
-                <td className="text-right whitespace-nowrap">{l.unit}</td>
+                <td className="text-right">
+                  <select aria-label="Unit" value={l.unit ?? "Day"}
+                    onChange={(e) => updateRow(l.id, { unit: e.target.value })}
+                    className="rounded border border-[#C2BBD4] px-1 py-0.5 text-sm">
+                    {LINE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </td>
                 <td className="text-right">
                   {l.sku === null ? (
                     <input aria-label="Rate" type="number" min="0" step="0.01" value={l.listRate}
@@ -127,6 +140,8 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
 
       <div className={`rounded-lg p-2 text-sm ${mismatch ? "bg-[#fffaf1] border border-[#ffd98d]" : "bg-[#F7F5FA]"}`}>
         <span className="font-semibold whitespace-nowrap">Order total: {usd(totals.orderTotal)}</span>
+        {totals.billableDays > 0 && <span className="ml-2 whitespace-nowrap">· Billable days: {totals.billableDays.toLocaleString("en-US")}</span>}
+        {totals.billableHours > 0 && <span className="ml-2 whitespace-nowrap">· Billable hours: {totals.billableHours.toLocaleString("en-US")}</span>}
         {bookingReference != null && (
           <span className="ml-2 whitespace-nowrap">· Deal booking: {usd(bookingReference)}
             {mismatch && <span className="ml-1 text-[#403770]">⚠ doesn&apos;t match — intentional?</span>}

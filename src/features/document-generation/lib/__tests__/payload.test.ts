@@ -53,3 +53,14 @@ describe("assemblePayload (boces)", () => {
     expect(p.deal.quote_number).toBe("Q-1");
   });
 });
+
+describe("assemblePayload — count field", () => {
+  it("propagates count:3 into contract line items and exposes billable_days", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.lineItems = [{ id: "1", sku: "HS", service: "HS SpEd", description: "", count: 3, qty: 5, unit: "Day", listRate: 100, discountPct: 0 }];
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.quote.line_items[0]).toMatchObject(expect.objectContaining({ count: 3 }));
+    expect(typeof p.quote.billable_days).toBe("number");
+  });
+});

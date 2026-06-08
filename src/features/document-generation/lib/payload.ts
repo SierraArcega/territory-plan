@@ -45,7 +45,9 @@ export function assemblePayload(state: DocFormState): DocPayload {
       },
       quote: {
         fee_pct: state.feePct,
-        line_items: totals.lines.map((l) => ({ sku: l.sku ?? "", product: l.service, rate: l.listRate, qty: l.qty })),
+        line_items: totals.lines.map((l) => ({ sku: l.sku ?? "", product: l.service, rate: l.listRate, qty: l.qty, count: l.count ?? 1 })),
+        billable_days: totals.billableDays,
+        billable_hours: totals.billableHours,
       },
       payment,
       sections: {
@@ -84,12 +86,14 @@ export function assemblePayload(state: DocFormState): DocPayload {
       show_pricing: state.showPricing,
       line_items: totals.lines.map((l) => ({
         sku: l.sku ?? "", service: l.service, description: l.description,
-        qty: l.qty, unit: l.unit ?? "", list_rate: l.listRate,
+        count: l.count ?? 1, qty: l.qty, unit: l.unit ?? "", list_rate: l.listRate,
         discount_pct: l.discountPct, net_rate: l.netRate, total: l.total,
       })),
       min_amt: state.minAmt,
       max_amt: state.maxAmt,
       order_total: totals.orderTotal,
+      billable_days: totals.billableDays,
+      billable_hours: totals.billableHours,
     },
     payment,
     sections: {

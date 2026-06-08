@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { getProducts, getBocesProducts } from "@/features/document-generation/lib/pricebook";
 import type { FiscalYear } from "@/features/document-generation/lib/pricebook";
 import type { DocType, LineItemRow } from "@/features/document-generation/lib/payload-types";
+import { canonicalUnit } from "@/features/document-generation/lib/units";
 
 function newRowId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -32,7 +33,7 @@ export default function SkuPicker({ docType, fiscalYear, onPick }: Props) {
   }, [open]);
 
   function select(p: (typeof products)[number]) {
-    onPick({ id: newRowId("row"), sku: p.sku, service: p.name, description: p.description, qty: 1, unit: p.unit, listRate: p.listRate, discountPct: 0 });
+    onPick({ id: newRowId("row"), sku: p.sku, service: p.name, description: p.description, count: 1, qty: 1, unit: canonicalUnit(p.unit), listRate: p.listRate, discountPct: 0 });
     setQ("");
     setOpen(false);
   }

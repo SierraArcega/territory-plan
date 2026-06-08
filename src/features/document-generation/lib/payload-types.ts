@@ -18,6 +18,7 @@ export interface ContactRef {
 
 export interface LineItemRow {
   id: string; // client-side row id (stable key)
+  count?: number; // number of units (e.g. teachers); defaults to 1
   sku: string | null; // null for custom rows
   service: string; // contract: service name; boces: product name
   description: string;
@@ -84,6 +85,8 @@ export interface QuoteTotals {
   subtotal: number;
   fee: number;
   orderTotal: number;
+  billableDays: number;
+  billableHours: number;
 }
 
 export interface ContractPayload {
@@ -96,6 +99,8 @@ export interface ContractPayload {
     min_amt: number | null;
     max_amt: number | null;
     order_total: number;
+    billable_days: number;
+    billable_hours: number;
   };
   payment: Record<string, string | boolean>;
   sections: Record<string, boolean | string | null>;
@@ -104,7 +109,12 @@ export interface ContractPayload {
 export interface BocesQuotePayload {
   doc_type: "boces_quote";
   deal: Record<string, string>;
-  quote: { fee_pct: number; line_items: Array<Record<string, string | number>> };
+  quote: {
+    fee_pct: number;
+    line_items: Array<Record<string, string | number>>;
+    billable_days: number;
+    billable_hours: number;
+  };
   payment: Record<string, string | boolean>;
   sections: Record<string, boolean>;
 }

@@ -59,4 +59,26 @@ describe("QuoteSection", () => {
     setup({ startDate: "2025-08-01" });
     expect(screen.getByText("sku:FY26")).toBeInTheDocument();
   });
+  it("editing the Count field calls onChange with updated count", () => {
+    const { onChange } = setup();
+    fireEvent.change(screen.getAllByLabelText("Count")[0], { target: { value: "5" } });
+    expect(onChange).toHaveBeenCalledWith({ lineItems: expect.arrayContaining([expect.objectContaining({ id: "1", count: 5 })]) });
+  });
+  it("changing the Unit select calls onChange with updated unit", () => {
+    const { onChange } = setup();
+    fireEvent.change(screen.getAllByLabelText("Unit")[0], { target: { value: "Day" } });
+    expect(onChange).toHaveBeenCalledWith({ lineItems: expect.arrayContaining([expect.objectContaining({ id: "1", unit: "Day" })]) });
+  });
+  it("shows Billable days and correct Order total when a Day-unit line has count × qty", () => {
+    const { onChange: _onChange } = setup(
+      {
+        lineItems: [
+          { id: "1", sku: "S", service: "Educator", description: "", count: 5, qty: 180, unit: "Day", listRate: 500.23, discountPct: 0 },
+        ],
+      },
+      null,
+    );
+    expect(screen.getByText(/Billable days: 900/)).toBeInTheDocument();
+    expect(screen.getByText(/Order total: \$450,207/)).toBeInTheDocument();
+  });
 });
