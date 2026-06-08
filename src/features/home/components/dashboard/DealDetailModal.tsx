@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Download, CalendarClock } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { Download, CalendarClock, StickyNote } from "lucide-react";
 import Modal from "@/features/shared/components/Modal";
 import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/lib/format";
 import { rowsToCsv, downloadCsv } from "@/features/shared/lib/csv";
 import { SEGMENT_DEFS, type SegmentKey } from "@/features/home/lib/segments";
-import { sourceLabel, sourceColor, fmtShortDate } from "./pipeline/health";
+import { sourceLabel, sourceColor, fmtShortDate, TIER_STYLE } from "./pipeline/health";
+import OverdueBadge from "./pipeline/OverdueBadge";
 import { useDeals } from "@/features/home/lib/queries";
 import type {
   DealMetric,
@@ -289,41 +290,82 @@ const SourceCell = ({ source }: { source: SegmentKey | null }) => (
 
 // ── Tables ──────────────────────────────────────────────────────────────────
 
-// Last-activity date + the note from that same touch, stacked. Empty when nothing
-// has been logged on the opp.
-function ActivityNoteCell({ date, note }: { date: string | null; note: string | null }) {
-  if (!date && !note) return <span className="text-[12px] text-[#C2BBD4]">—</span>;
+// Deal-age health pill (On track / Watch / Concerning / Stale), graded against the
+// stage benchmark — same vocabulary as the Pipeline tab. Overdue rides alongside.
+function TierBadge({ tier }: { tier: PipelineDealRow["tier"] }) {
+  const s = TIER_STYLE[tier];
   return (
-    <div className="min-w-0 max-w-[220px]">
-      {date && <div className="text-[12px] text-[#5C5378] whitespace-nowrap">{fmtShortDate(date)}</div>}
-      {note && <div className="truncate text-[11px] text-[#8A80A8]" title={note}>{note}</div>}
+    <span className="rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" style={{ color: s.color, background: s.bg }}>
+      {s.label}
+    </span>
+  );
+}
+
+// The opp's activity timing: last logged (muted) over next scheduled (steel-blue
+// with a calendar cue). Em dash when nothing is on the books.
+function ActivityTiming({ last, next }: { last: string | null; next: string | null }) {
+  if (!last && !next) return <span className="text-[12px] text-[#C2BBD4]">—</span>;
+  return (
+    <div className="flex flex-col gap-0.5">
+      {last && (
+        <span className="text-[12px] text-[#5C5378] whitespace-nowrap" title="Last logged activity">{fmtShortDate(last)}</span>
+      )}
+      {next && (
+        <span className="flex items-center gap-1 text-[12px] font-medium text-[#6EA3BE] whitespace-nowrap" title="Next scheduled activity">
+          <CalendarClock size={11} /> {fmtShortDate(next)}
+        </span>
+      )}
     </div>
   );
 }
 
+const PIPELINE_COLS = 7;
+
 function PipelineTable({ rows }: { rows: PipelineDealRow[] }) {
   return (
-    <table className="min-w-[860px] w-full text-left">
+    <table className="min-w-[820px] w-full text-left">
       <thead>
         <tr className="text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
-          <Th>Account</Th><Th>Owner</Th><Th>Stage</Th><Th>Source</Th><Th right>Committed</Th><Th right>Max budget</Th><Th right>Close</Th><Th>Last activity</Th>
+          <Th>Deal</Th><Th>Stage &amp; health</Th><Th>Source</Th><Th right>Committed</Th><Th right>Max budget</Th><Th right>Close</Th><Th>Last / next</Th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={`${r.account}-${i}`} className="border-t border-[#E2DEEC] align-top">
-            <td className="py-2 px-3">
-              <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</div>
-              {r.state && <div className="text-[10px] text-[#8A80A8]">{r.state}</div>}
-            </td>
-            <td className="py-2 px-3 text-[12px] text-[#5C5378] whitespace-nowrap">{r.owner ?? "—"}</td>
-            <td className="py-2 px-3 text-[12px] text-[#5C5378] whitespace-nowrap">{r.stageName}</td>
-            <SourceCell source={r.source} />
-            <td className="py-2 px-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(r.committed)}</td>
-            <td className="py-2 px-3 text-right text-[13px] tabular-nums text-[#8A80A8]">{fmt(r.maxBudget)}</td>
-            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(r.closeDate)}</td>
-            <td className="py-2 px-3"><ActivityNoteCell date={r.lastActivity} note={r.lastNote} /></td>
-          </tr>
+          <Fragment key={`${r.account}-${i}`}>
+            <tr className={`align-top ${r.lastNote ? "" : "border-b border-[#F0EDF6]"}`}>
+              <td className="pt-3 px-3 pb-1.5">
+                <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</div>
+                <div className="text-[10px] text-[#8A80A8] whitespace-nowrap">
+                  {r.owner ?? "Unassigned"}{r.state ? ` · ${r.state}` : ""}
+                </div>
+              </td>
+              <td className="pt-3 px-3 pb-1.5">
+                <div className="text-[12px] text-[#5C5378] whitespace-nowrap">{r.stageName}</div>
+                <div className="mt-1 flex items-center gap-1">
+                  <TierBadge tier={r.tier} />
+                  {r.overdue && <OverdueBadge />}
+                </div>
+              </td>
+              <SourceCell source={r.source} />
+              <td className="pt-3 px-3 pb-1.5 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(r.committed)}</td>
+              <td className="pt-3 px-3 pb-1.5 text-right text-[13px] tabular-nums text-[#8A80A8]">{fmt(r.maxBudget)}</td>
+              <td className="pt-3 px-3 pb-1.5 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(r.closeDate)}</td>
+              <td className="pt-3 px-3 pb-1.5"><ActivityTiming last={r.lastActivity} next={r.nextActivity} /></td>
+            </tr>
+            {r.lastNote && (
+              <tr className="border-b border-[#F0EDF6]">
+                <td colSpan={PIPELINE_COLS} className="px-3 pb-3 pt-0">
+                  <div className="flex items-start gap-1.5 rounded-md bg-[#F7F5FA] px-2.5 py-1.5">
+                    <StickyNote size={12} className="mt-0.5 shrink-0 text-[#8A80A8]" />
+                    <p className="text-[12px] leading-snug text-[#5C5378]">
+                      {r.lastActivity && <span className="font-medium text-[#8A80A8]">{fmtShortDate(r.lastActivity)} · </span>}
+                      {r.lastNote}
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </Fragment>
         ))}
       </tbody>
     </table>
@@ -542,11 +584,13 @@ function csvShape(metric: DealMetric): { columns: string[]; toRecord: (r: never)
   }
   if (metric === "pipeline") {
     return {
-      columns: ["Account", "State", "Owner", "Stage", "Source", "Committed", "Max budget", "Close date", "Last activity", "Last note"],
+      columns: ["Account", "State", "Owner", "Stage", "Health", "Overdue", "Source", "Committed", "Max budget", "Close date", "Last activity", "Next scheduled", "Last note"],
       toRecord: (r: PipelineDealRow) => ({
-        Account: r.account, State: r.state, Owner: r.owner ?? "", Stage: r.stageName, Source: sourceLabel(r.source),
+        Account: r.account, State: r.state, Owner: r.owner ?? "", Stage: r.stageName, Health: TIER_STYLE[r.tier].label,
+        Overdue: r.overdue ? "yes" : "", Source: sourceLabel(r.source),
         Committed: Math.round(r.committed), "Max budget": Math.round(r.maxBudget), "Close date": r.closeDate ?? "",
-        "Last activity": r.lastActivity ? r.lastActivity.slice(0, 10) : "", "Last note": r.lastNote ?? "",
+        "Last activity": r.lastActivity ? r.lastActivity.slice(0, 10) : "", "Next scheduled": r.nextActivity ? r.nextActivity.slice(0, 10) : "",
+        "Last note": r.lastNote ?? "",
       }) as unknown as Record<string, unknown>,
     } as { columns: string[]; toRecord: (r: never) => Record<string, unknown> };
   }

@@ -110,8 +110,8 @@ describe("buildUtilizationRows", () => {
 describe("buildDealTotals", () => {
   it("pipeline → count, committed (Σ net booking), max budget", () => {
     const rows: PipelineDealRow[] = [
-      { account: "A", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: null, lastActivity: null, lastNote: null },
-      { account: "B", state: "CA", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null },
+      { account: "A", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: null, lastActivity: null, lastNote: null, nextActivity: null, tier: "on", overdue: false },
+      { account: "B", state: "CA", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null, nextActivity: null, tier: "on", overdue: false },
     ];
     expect(buildDealTotals("pipeline", rows)).toEqual({ count: 2, committed: 150, maxBudget: 380 });
   });

@@ -55,8 +55,8 @@ describe("GET /api/home/dashboard/deals", () => {
 
   it("pipeline → rows + computed totals, scoped to the caller (rep mode)", async () => {
     mockPipeline.mockResolvedValue([
-      { account: "Houston ISD", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: "Sierra", lastActivity: "2026-06-01T00:00:00.000Z", lastNote: "Left a voicemail" },
-      { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null },
+      { account: "Houston ISD", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: "Sierra", lastActivity: "2026-06-01T00:00:00.000Z", lastNote: "Left a voicemail", nextActivity: "2026-06-12T00:00:00.000Z", tier: "watch", overdue: false },
+      { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null, nextActivity: null, tier: "stale", overdue: true },
     ]);
     const res = await GET(req("fy=2026&metric=pipeline"));
     const body = await res.json();

@@ -12,8 +12,8 @@ const mockUseDeals = vi.mocked(useDeals);
 const result = (over: Record<string, unknown>) => ({ data: undefined, isLoading: false, isError: false, ...over } as any);
 
 const pipelineRows = [
-  { account: "Houston ISD", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: "Sierra Arcega", lastActivity: "2026-06-01T00:00:00.000Z", lastNote: "Left a voicemail with the super" },
-  { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null },
+  { account: "Houston ISD", state: "TX", stageName: "Discovery", source: "new", committed: 100, maxBudget: 300, closeDate: null, owner: "Sierra Arcega", lastActivity: "2026-06-01T00:00:00.000Z", lastNote: "Left a voicemail with the super", nextActivity: "2026-06-12T00:00:00.000Z", tier: "watch", overdue: false },
+  { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null, nextActivity: null, tier: "stale", overdue: true },
 ];
 
 const utilRows = [
@@ -54,8 +54,12 @@ describe("DealDetailModal", () => {
     expect(screen.getByText("Houston ISD")).toBeInTheDocument();
     expect(screen.getByText("Austin ISD")).toBeInTheDocument();
     // owner + latest-activity note enrich each row
-    expect(screen.getByText("Sierra Arcega")).toBeInTheDocument();
+    expect(screen.getByText(/Sierra Arcega/)).toBeInTheDocument();
     expect(screen.getByText("Left a voicemail with the super")).toBeInTheDocument();
+    // deal-age health + overdue labels (Austin row is stale + overdue)
+    expect(screen.getByText("Watch")).toBeInTheDocument();
+    expect(screen.getByText("Stale")).toBeInTheDocument();
+    expect(screen.getByText("Overdue")).toBeInTheDocument();
     // footer totals: committed 150, max budget 380
     expect(screen.getByText("$150")).toBeInTheDocument();
     expect(screen.getByText("$380")).toBeInTheDocument();

@@ -7,6 +7,7 @@
 //   - utilPct is guarded against a zero ceiling (returns null, never NaN/Infinity).
 
 import type { SegmentKey } from "./segments";
+import type { AgeTier } from "./pipeline";
 
 export type DealMetric = "pipeline" | "bookings" | "rev" | "take" | "targets";
 
@@ -21,8 +22,11 @@ export interface PipelineDealRow {
   maxBudget: number;
   closeDate: string | null;
   owner: string | null; // opp sales rep name
-  lastActivity: string | null; // ISO date of the most recent activity on the opp
-  lastNote: string | null; // that activity's note/outcome (free-text), if any
+  lastActivity: string | null; // ISO date of the most recent past activity on the opp
+  lastNote: string | null; // that past activity's note/outcome (free-text), if any
+  nextActivity: string | null; // ISO date of the nearest future scheduled activity
+  tier: AgeTier; // deal-age health (on/watch/concerning/stale) vs stage benchmark
+  overdue: boolean; // close date already passed while still open
 }
 
 export interface BookingDealRow {

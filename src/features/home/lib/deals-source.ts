@@ -12,7 +12,8 @@ import { stagePrefixSql } from "./trajectory-source";
 import { emailFilterSql, type DashboardScope } from "./scope";
 import { CATEGORY_TO_SEGMENT } from "./segments";
 import { districtSegment } from "./targets";
-import { PIPELINE_STAGES } from "./pipeline";
+import { PIPELINE_STAGES, classifyTier } from "./pipeline";
+import { fetchStageBenchmarks } from "./pipeline-source";
 import type { PipelineDealRow, BookingDealRow, WonAccountAgg, DoaAccountAgg, TargetDistrictAgg } from "./deals";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -20,12 +21,17 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const STAGE_NAME = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const toSegment = (category: string | null) => (category ? CATEGORY_TO_SEGMENT[category] ?? null : null);
 
-// Each opp's most recent activity: its date plus the free-text note/outcome from
-// that same touch. Keyed by opp id; opps with no logged activity are absent. Used
-// to enrich the open-pipeline rows with "last activity" + "notes" context.
-async function latestActivityByOpp(oppIds: string[]): Promise<Map<string, { date: Date; note: string | null }>> {
-  const out = new Map<string, { date: Date; note: string | null }>();
+// Each opp's activity timing: the most recent PAST touch (with the free-text note
+// from that same touch) and the nearest FUTURE scheduled touch. Keyed by opp id;
+// opps with no logged activity are absent.
+interface OppActivity {
+  last: { date: Date; note: string | null } | null;
+  next: { date: Date } | null;
+}
+async function activityByOpp(oppIds: string[]): Promise<Map<string, OppActivity>> {
+  const out = new Map<string, OppActivity>();
   if (oppIds.length === 0) return out;
+  const now = new Date();
   const links = await prisma.activityOpportunity.findMany({
     where: { opportunityId: { in: oppIds }, activity: { startDate: { not: null } } },
     select: { opportunityId: true, activity: { select: { startDate: true, notes: true, outcome: true } } },
@@ -33,10 +39,13 @@ async function latestActivityByOpp(oppIds: string[]): Promise<Map<string, { date
   for (const l of links) {
     const d = l.activity?.startDate;
     if (!d) continue;
-    const cur = out.get(l.opportunityId);
-    if (!cur || d > cur.date) {
-      out.set(l.opportunityId, { date: d, note: l.activity.notes ?? l.activity.outcome ?? null });
+    const cur = out.get(l.opportunityId) ?? { last: null, next: null };
+    if (d <= now) {
+      if (!cur.last || d > cur.last.date) cur.last = { date: d, note: l.activity.notes ?? l.activity.outcome ?? null };
+    } else if (!cur.next || d < cur.next.date) {
+      cur.next = { date: d };
     }
+    out.set(l.opportunityId, cur);
   }
   return out;
 }
@@ -51,35 +60,50 @@ interface RawPipelineRow {
   committed: number;
   maxBudget: number;
   closeDate: Date | null;
+  daysInStage: number;
+  overdueClose: boolean;
 }
 
 // pipeline metric → the scope's OPEN opps (stage prefix 0–5). net_booking is the
 // committed value; maxBudget the ceiling. Source = DOA segment (motion). Mirrors
-// the Pipeline tab's open-opp shape, scoped + ordered by value. Each row is enriched
-// with its owner (sales rep) and its most recent activity's date + note.
+// the Pipeline tab's open-opp shape, scoped + ordered by value. Each row carries its
+// owner, deal-age health (tier/overdue, graded against the same Stale 2.0 stage
+// benchmarks as the Pipeline tab), and its last/next activity + note.
 export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Promise<PipelineDealRow[]> {
-  const rows = await prisma.$queryRaw<RawPipelineRow[]>`
-    SELECT o.id AS "oppId",
-           o.district_name AS account,
-           o.state,
-           o.sales_rep_name AS owner,
-           ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",
-           c.category,
-           o.net_booking_amount::float AS committed,
-           COALESCE(o.maximum_budget, 0)::float AS "maxBudget",
-           o.close_date AS "closeDate"
-    FROM opportunities o
-    LEFT JOIN (
-      SELECT district_lea_id, (ARRAY_AGG(category ORDER BY bookings DESC, open_pipeline DESC))[1] AS category
-      FROM district_opportunity_actuals WHERE school_yr = ${sy} GROUP BY district_lea_id
-    ) c ON c.district_lea_id = o.district_lea_id
-    WHERE o.school_yr = ${sy}
-      AND o.net_booking_amount IS NOT NULL
-      ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
-      AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
-    ORDER BY o.net_booking_amount DESC NULLS LAST`;
+  const rowsP = prisma.$queryRaw<RawPipelineRow[]>`
+    SELECT * FROM (
+      SELECT o.id AS "oppId",
+             o.district_name AS account,
+             o.state,
+             o.sales_rep_name AS owner,
+             ${stagePrefixSql(Prisma.sql`o.stage`)} AS "stagePrefix",
+             c.category,
+             o.net_booking_amount::float AS committed,
+             COALESCE(o.maximum_budget, 0)::float AS "maxBudget",
+             o.close_date AS "closeDate",
+             GREATEST(0, EXTRACT(EPOCH FROM (now() - COALESCE((last.elem ->> 'changed_at')::timestamptz, o.created_at))) / 86400)::float AS "daysInStage",
+             (o.close_date IS NOT NULL AND o.close_date < now()) AS "overdueClose"
+      FROM opportunities o
+      LEFT JOIN (
+        SELECT district_lea_id, (ARRAY_AGG(category ORDER BY bookings DESC, open_pipeline DESC))[1] AS category
+        FROM district_opportunity_actuals WHERE school_yr = ${sy} GROUP BY district_lea_id
+      ) c ON c.district_lea_id = o.district_lea_id
+      LEFT JOIN LATERAL (
+        SELECT elem
+        FROM jsonb_array_elements(o.stage_history) elem
+        WHERE jsonb_typeof(o.stage_history) = 'array'
+        ORDER BY (elem ->> 'changed_at')::timestamptz DESC NULLS LAST
+        LIMIT 1
+      ) last ON true
+      WHERE o.school_yr = ${sy}
+        AND o.net_booking_amount IS NOT NULL
+        ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
+    ) t
+    WHERE t."stagePrefix" BETWEEN 0 AND 5
+    ORDER BY t.committed DESC NULLS LAST`;
 
-  const activity = await latestActivityByOpp(rows.map((r) => r.oppId));
+  const [rows, benchmarks] = await Promise.all([rowsP, fetchStageBenchmarks()]);
+  const activity = await activityByOpp(rows.map((r) => r.oppId));
 
   return rows.map((r) => {
     const act = activity.get(r.oppId);
@@ -92,8 +116,11 @@ export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Pro
       maxBudget: r.maxBudget,
       closeDate: r.closeDate ? r.closeDate.toISOString() : null,
       owner: r.owner,
-      lastActivity: act ? act.date.toISOString() : null,
-      lastNote: act?.note ?? null,
+      lastActivity: act?.last ? act.last.date.toISOString() : null,
+      lastNote: act?.last?.note ?? null,
+      nextActivity: act?.next ? act.next.date.toISOString() : null,
+      tier: r.stagePrefix == null ? "on" : classifyTier(r.daysInStage, r.stagePrefix, benchmarks.get(r.stagePrefix)),
+      overdue: r.overdueClose,
     };
   });
 }
