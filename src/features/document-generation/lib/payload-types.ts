@@ -1,4 +1,6 @@
 // src/features/document-generation/lib/payload-types.ts
+import type { FiscalYearSelection } from "./fiscal-year";
+
 export type DocType = "contract" | "boces_quote";
 export type PaymentType = "A" | "B" | "C"; // A=Standard, B=Customized, C=BOCES Standardized
 export type SowType = "live_streaming" | "instructional_services";
@@ -53,6 +55,7 @@ export interface DocFormState {
   startDate: string;
   endDate: string;
   lineItems: LineItemRow[];
+  fiscalYear: FiscalYearSelection; // "auto" derives the pricebook year from contract dates
   showPricing: boolean;
   feePct: number;
   quoteNumber: string;
@@ -142,6 +145,7 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     startDate: "",
     endDate: "",
     lineItems: [],
+    fiscalYear: "auto",
     showPricing: true,
     feePct: DEFAULT_BOCES_FEE_PCT,
     quoteNumber: "",
