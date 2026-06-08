@@ -7,11 +7,15 @@
 
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { schoolYearForFY } from "@/lib/fiscal-year";
 import { stagePrefixSql } from "./trajectory-source";
 import { emailFilterSql, type DashboardScope } from "./scope";
 import { CATEGORY_TO_SEGMENT } from "./segments";
+import { districtSegment } from "./targets";
 import { PIPELINE_STAGES } from "./pipeline";
-import type { PipelineDealRow, BookingDealRow, WonAccountAgg, DoaAccountAgg } from "./deals";
+import type { PipelineDealRow, BookingDealRow, WonAccountAgg, DoaAccountAgg, TargetDistrictAgg } from "./deals";
+
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 const STAGE_NAME = new Map(PIPELINE_STAGES.map((s) => [s.prefix, s.name]));
 const toSegment = (category: string | null) => (category ? CATEGORY_TO_SEGMENT[category] ?? null : null);
@@ -164,4 +168,112 @@ export async function fetchUtilizationSource(
     })),
     doa: doaRows.map((r) => ({ leaid: r.leaid, revenue: r.revenue, take: r.take })),
   };
+}
+
+// targets metric → the per-district funnel behind the Targets card. Mirrors the
+// Targets card's data assembly (targets/route.ts) so the drill-in can't drift from
+// the headline: worked districts come from PLAN OWNERSHIP (team = every fy plan;
+// rep = the subject's plans), summed to one row per DISTINCT district. Pipeline/won
+// come from DOA scoped by sales_rep_email; the 90-day "active" flag from logged
+// activities (team = any plan owner; rep = the subject). Deduping to distinct
+// districts keeps pipeline sums consistent — in rep mode it's 1:1 with the card's
+// worked-district count. Fed into buildTargetDetailRows by the route.
+export async function fetchTargetDetail(
+  fy: number,
+  scope: DashboardScope,
+  callerUserId: string,
+): Promise<TargetDistrictAgg[]> {
+  const schoolYr = schoolYearForFY(fy);
+
+  // Worked plan-districts for the scope. Team = the whole book; rep = the subject's
+  // own plans (ownerId, or a legacy userId-owned plan with no ownerId).
+  const planWhere =
+    scope.mode === "team"
+      ? { fiscalYear: fy }
+      : {
+          OR: [{ ownerId: scope.rep.id }, { userId: scope.rep.id, ownerId: null }],
+          fiscalYear: fy,
+        };
+
+  const planRows = await prisma.territoryPlanDistrict.findMany({
+    where: { plan: planWhere },
+    select: {
+      districtLeaid: true,
+      winbackTarget: true,
+      expansionTarget: true,
+      newBusinessTarget: true,
+      plan: { select: { ownerId: true, userId: true } },
+    },
+  });
+
+  // Dedupe to one row per distinct district, summing the growth target columns (a
+  // district can appear in several plans, or be worked by multiple reps in team mode).
+  const byLea = new Map<string, { newB: number; winback: number; expansion: number }>();
+  const owners = new Set<string>();
+  for (const r of planRows) {
+    const owner = r.plan.ownerId ?? r.plan.userId;
+    if (owner) owners.add(owner);
+    const acc = byLea.get(r.districtLeaid) ?? { newB: 0, winback: 0, expansion: 0 };
+    acc.newB += Number(r.newBusinessTarget ?? 0);
+    acc.winback += Number(r.winbackTarget ?? 0);
+    acc.expansion += Number(r.expansionTarget ?? 0);
+    byLea.set(r.districtLeaid, acc);
+  }
+  const leaids = Array.from(byLea.keys());
+  if (leaids.length === 0) return [];
+
+  // Team = a logged activity by ANY plan owner counts; rep = the subject only.
+  const activityUserIds =
+    scope.mode === "team" ? Array.from(new Set([...owners, callerUserId])) : [scope.rep.id];
+
+  const [districts, doaRows, activeRows] = await Promise.all([
+    prisma.district.findMany({
+      where: { leaid: { in: leaids } },
+      select: { leaid: true, name: true, stateAbbrev: true },
+    }),
+    prisma.$queryRaw<{ leaid: string; openPipe: number; won: number }[]>`
+      SELECT district_lea_id AS leaid,
+             COALESCE(SUM(open_pipeline), 0)::float AS "openPipe",
+             COALESCE(SUM(bookings), 0)::float AS won
+      FROM district_opportunity_actuals
+      WHERE school_yr = ${schoolYr}
+        ${emailFilterSql(scope, Prisma.sql`sales_rep_email`)}
+        AND district_lea_id = ANY(${leaids})
+      GROUP BY district_lea_id`,
+    prisma.activityDistrict.findMany({
+      where: {
+        districtLeaid: { in: leaids },
+        activity: {
+          createdByUserId: { in: activityUserIds },
+          startDate: { gte: new Date(Date.now() - NINETY_DAYS_MS) },
+        },
+      },
+      select: { districtLeaid: true },
+      distinct: ["districtLeaid"],
+    }),
+  ]);
+
+  const metaByLea = new Map(districts.map((d) => [d.leaid, { name: d.name, state: d.stateAbbrev }]));
+  const doaByLea = new Map(doaRows.map((d) => [d.leaid, d]));
+  const activeLeaids = new Set(activeRows.map((a) => a.districtLeaid));
+
+  return leaids.map((leaid) => {
+    const t = byLea.get(leaid)!;
+    const doa = doaByLea.get(leaid);
+    const meta = metaByLea.get(leaid);
+    return {
+      leaid,
+      account: meta?.name ?? "—",
+      state: meta?.state ?? null,
+      segment: districtSegment({
+        newBusinessTarget: t.newB,
+        winbackTarget: t.winback,
+        expansionTarget: t.expansion,
+      }),
+      targetDollars: t.newB + t.winback + t.expansion,
+      openPipe: doa?.openPipe ?? 0,
+      won: doa?.won ?? 0,
+      active: activeLeaids.has(leaid),
+    };
+  });
 }

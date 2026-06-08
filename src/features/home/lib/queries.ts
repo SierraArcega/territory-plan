@@ -13,6 +13,7 @@ import type {
   PipelineDealRow,
   BookingDealRow,
   UtilizationRow,
+  TargetDetailRow,
 } from "./deals";
 
 // Types for the alerts response
@@ -181,7 +182,7 @@ export interface DealsResponse {
   schoolYr: string;
   mode?: "rep" | "team";
   metric: DealMetric;
-  rows: PipelineDealRow[] | BookingDealRow[] | UtilizationRow[];
+  rows: PipelineDealRow[] | BookingDealRow[] | UtilizationRow[] | TargetDetailRow[];
   totals: DealTotals;
 }
 

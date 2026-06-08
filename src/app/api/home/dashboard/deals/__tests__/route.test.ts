@@ -6,18 +6,20 @@ vi.mock("@/features/home/lib/deals-source", () => ({
   fetchPipelineDeals: vi.fn(),
   fetchBookingDeals: vi.fn(),
   fetchUtilizationSource: vi.fn(),
+  fetchTargetDetail: vi.fn(),
 }));
 
 import { GET } from "../route";
 import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
-import { fetchPipelineDeals, fetchBookingDeals, fetchUtilizationSource } from "@/features/home/lib/deals-source";
+import { fetchPipelineDeals, fetchBookingDeals, fetchUtilizationSource, fetchTargetDetail } from "@/features/home/lib/deals-source";
 
 const mockGetUser = vi.mocked(getUser);
 const mockReps = vi.mocked(getActiveReps);
 const mockPipeline = vi.mocked(fetchPipelineDeals);
 const mockBookings = vi.mocked(fetchBookingDeals);
 const mockUtil = vi.mocked(fetchUtilizationSource);
+const mockTargets = vi.mocked(fetchTargetDetail);
 
 const REPS = [
   { id: "me", email: "me@x", fullName: "Me", avatarUrl: null },
@@ -108,6 +110,21 @@ describe("GET /api/home/dashboard/deals", () => {
     expect(body.metric).toBe("take");
     expect(body.rows).toEqual([]);
     expect(mockUtil).toHaveBeenCalledTimes(1);
+  });
+
+  it("targets → builds funnel rows + counts, passing the caller id for activity/plan scope", async () => {
+    mockTargets.mockResolvedValue([
+      { leaid: "1", account: "Dallas ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, active: true },
+      { leaid: "2", account: "Plano ISD", state: "TX", segment: null, targetDollars: 0, openPipe: 0, won: 0, active: false },
+    ]);
+    const body = await (await GET(req("fy=2026&metric=targets"))).json();
+    expect(body.metric).toBe("targets");
+    expect(body.rows).toHaveLength(2);
+    // sorted by target $ desc → Dallas first, with derived pipeline + converted
+    expect(body.rows[0]).toMatchObject({ account: "Dallas ISD", pipeline: 100, converted: true });
+    expect(body.totals).toEqual({ count: 2, targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: 1, active: 1 });
+    // worked districts come from plan ownership, so the route passes (fy, scope, callerId)
+    expect(mockTargets).toHaveBeenCalledWith(2026, { mode: "rep", rep: { id: "me", email: "me@x" }, emails: ["me@x"] }, "me");
   });
 
   it("rep=team threads the whole-book scope to the source query", async () => {

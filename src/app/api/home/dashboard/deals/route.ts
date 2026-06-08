@@ -3,14 +3,14 @@ import { getUser } from "@/lib/supabase/server";
 import { getActiveReps } from "@/lib/reps";
 import { getCurrentFY, schoolYearForFY } from "@/lib/fiscal-year";
 import { resolveScope } from "@/features/home/lib/scope";
-import { fetchPipelineDeals, fetchBookingDeals, fetchUtilizationSource } from "@/features/home/lib/deals-source";
-import { buildUtilizationRows, buildDealTotals, type DealMetric } from "@/features/home/lib/deals";
+import { fetchPipelineDeals, fetchBookingDeals, fetchUtilizationSource, fetchTargetDetail } from "@/features/home/lib/deals-source";
+import { buildUtilizationRows, buildTargetDetailRows, buildDealTotals, type DealMetric } from "@/features/home/lib/deals";
 
 export const dynamic = "force-dynamic";
 
-const METRICS: DealMetric[] = ["pipeline", "bookings", "rev", "take"];
+const METRICS: DealMetric[] = ["pipeline", "bookings", "rev", "take", "targets"];
 
-// GET /api/home/dashboard/deals?fy=2026&metric=pipeline|bookings|rev|take&rep=<id|team>
+// GET /api/home/dashboard/deals?fy=2026&metric=pipeline|bookings|rev|take|targets&rep=<id|team>
 // Backs the topline cards' drill-in modals: the scope's deal/utilization rows for
 // one metric, plus a totals footer. Scope mirrors the card it opened from — rep =
 // the subject's email; team = the whole book (every non-null sales_rep_email).
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
   const metric = searchParams.get("metric") as DealMetric | null;
   if (!metric || !METRICS.includes(metric)) {
-    return NextResponse.json({ error: "metric must be one of pipeline, bookings, rev, take" }, { status: 400 });
+    return NextResponse.json({ error: "metric must be one of pipeline, bookings, rev, take, targets" }, { status: 400 });
   }
 
   const schoolYr = schoolYearForFY(fy);
@@ -41,6 +41,12 @@ export async function GET(request: Request) {
   }
   if (metric === "bookings") {
     const rows = await fetchBookingDeals(schoolYr, scope);
+    return NextResponse.json({ fy, schoolYr, mode: scope.mode, metric, rows, totals: buildDealTotals(metric, rows) });
+  }
+  if (metric === "targets") {
+    // Worked districts come from plan ownership, not sales_rep_email, so this path
+    // also needs the caller (team activity attribution / admin-self plans).
+    const rows = buildTargetDetailRows(await fetchTargetDetail(fy, scope, user.id));
     return NextResponse.json({ fy, schoolYr, mode: scope.mode, metric, rows, totals: buildDealTotals(metric, rows) });
   }
 
