@@ -206,14 +206,16 @@ export async function fetchTargetDetail(
     },
   });
 
-  // Dedupe to one row per distinct district, summing the growth target columns (a
-  // district can appear in several plans, or be worked by multiple reps in team mode).
-  const byLea = new Map<string, { newB: number; winback: number; expansion: number }>();
-  const owners = new Set<string>();
+  // Dedupe to one row per distinct district, summing the growth target columns and
+  // collecting the owner(s) — a district can appear in several plans, or be worked
+  // by multiple reps in team mode.
+  const byLea = new Map<string, { newB: number; winback: number; expansion: number; owners: Set<string> }>();
+  const allOwners = new Set<string>();
   for (const r of planRows) {
     const owner = r.plan.ownerId ?? r.plan.userId;
-    if (owner) owners.add(owner);
-    const acc = byLea.get(r.districtLeaid) ?? { newB: 0, winback: 0, expansion: 0 };
+    if (owner) allOwners.add(owner);
+    const acc = byLea.get(r.districtLeaid) ?? { newB: 0, winback: 0, expansion: 0, owners: new Set<string>() };
+    if (owner) acc.owners.add(owner);
     acc.newB += Number(r.newBusinessTarget ?? 0);
     acc.winback += Number(r.winbackTarget ?? 0);
     acc.expansion += Number(r.expansionTarget ?? 0);
@@ -224,9 +226,11 @@ export async function fetchTargetDetail(
 
   // Team = a logged activity by ANY plan owner counts; rep = the subject only.
   const activityUserIds =
-    scope.mode === "team" ? Array.from(new Set([...owners, callerUserId])) : [scope.rep.id];
+    scope.mode === "team" ? Array.from(new Set([...allOwners, callerUserId])) : [scope.rep.id];
+  const ninetyDaysAgo = new Date(Date.now() - NINETY_DAYS_MS);
+  const now = new Date();
 
-  const [districts, doaRows, activeRows] = await Promise.all([
+  const [districts, doaRows, activityRows, profiles] = await Promise.all([
     prisma.district.findMany({
       where: { leaid: { in: leaids } },
       select: { leaid: true, name: true, stateAbbrev: true },
@@ -240,27 +244,47 @@ export async function fetchTargetDetail(
         ${emailFilterSql(scope, Prisma.sql`sales_rep_email`)}
         AND district_lea_id = ANY(${leaids})
       GROUP BY district_lea_id`,
+    // Every in-scope activity touch on these districts, with its date — reduced
+    // below to each district's last-logged (past) and next-scheduled (future) dates.
     prisma.activityDistrict.findMany({
       where: {
         districtLeaid: { in: leaids },
-        activity: {
-          createdByUserId: { in: activityUserIds },
-          startDate: { gte: new Date(Date.now() - NINETY_DAYS_MS) },
-        },
+        activity: { createdByUserId: { in: activityUserIds }, startDate: { not: null } },
       },
-      select: { districtLeaid: true },
-      distinct: ["districtLeaid"],
+      select: { districtLeaid: true, activity: { select: { startDate: true } } },
+    }),
+    prisma.userProfile.findMany({
+      where: { id: { in: Array.from(allOwners) } },
+      select: { id: true, fullName: true, email: true },
     }),
   ]);
 
   const metaByLea = new Map(districts.map((d) => [d.leaid, { name: d.name, state: d.stateAbbrev }]));
   const doaByLea = new Map(doaRows.map((d) => [d.leaid, d]));
-  const activeLeaids = new Set(activeRows.map((a) => a.districtLeaid));
+  const nameById = new Map(profiles.map((p) => [p.id, p.fullName ?? p.email]));
+
+  // Reduce activity links to each district's most recent past date and nearest
+  // future date in one pass.
+  const lastByLea = new Map<string, Date>();
+  const nextByLea = new Map<string, Date>();
+  for (const a of activityRows) {
+    const d = a.activity?.startDate;
+    if (!d) continue;
+    if (d <= now) {
+      const cur = lastByLea.get(a.districtLeaid);
+      if (!cur || d > cur) lastByLea.set(a.districtLeaid, d);
+    } else {
+      const cur = nextByLea.get(a.districtLeaid);
+      if (!cur || d < cur) nextByLea.set(a.districtLeaid, d);
+    }
+  }
 
   return leaids.map((leaid) => {
     const t = byLea.get(leaid)!;
     const doa = doaByLea.get(leaid);
     const meta = metaByLea.get(leaid);
+    const last = lastByLea.get(leaid) ?? null;
+    const next = nextByLea.get(leaid) ?? null;
     return {
       leaid,
       account: meta?.name ?? "—",
@@ -273,7 +297,13 @@ export async function fetchTargetDetail(
       targetDollars: t.newB + t.winback + t.expansion,
       openPipe: doa?.openPipe ?? 0,
       won: doa?.won ?? 0,
-      active: activeLeaids.has(leaid),
+      owners: Array.from(t.owners)
+        .map((id) => nameById.get(id))
+        .filter((n): n is string => !!n)
+        .sort(),
+      lastActivity: last ? last.toISOString() : null,
+      nextActivity: next ? next.toISOString() : null,
+      active: last != null && last >= ninetyDaysAgo,
     };
   });
 }

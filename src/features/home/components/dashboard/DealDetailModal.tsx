@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, CalendarClock } from "lucide-react";
 import Modal from "@/features/shared/components/Modal";
 import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/lib/format";
 import { rowsToCsv, downloadCsv } from "@/features/shared/lib/csv";
@@ -222,7 +222,7 @@ export default function DealDetailModal({ metric, fy, repScope, onClose }: Props
               {metric === "pipeline" && <PipelineTable rows={shown as PipelineDealRow[]} />}
               {metric === "bookings" && <BookingTable rows={shown as BookingDealRow[]} />}
               {isUtil && <UtilTable rows={shown as UtilizationRow[]} metric={metric as "rev" | "take"} />}
-              {isTargets && <TargetTable rows={shown as TargetDetailRow[]} />}
+              {isTargets && <TargetTable rows={shown as TargetDetailRow[]} showOwner={data?.mode === "team"} />}
             </div>
             {shown.length < total && (
               <div className="flex justify-center py-3">
@@ -376,12 +376,38 @@ function UtilTable({ rows, metric }: { rows: UtilizationRow[]; metric: "rev" | "
   );
 }
 
-function TargetTable({ rows }: { rows: TargetDetailRow[] }) {
+// "Targeted by" — one rep's name, or the first + a "+N" count when a district is
+// worked by several reps (team mode). Full list in the title tooltip.
+function ownerLabel(owners: string[]): string {
+  if (owners.length === 0) return "—";
+  if (owners.length === 1) return owners[0];
+  return `${owners[0]} +${owners.length - 1}`;
+}
+
+// The district's activity timing: a scheduled future touch wins (it's the live
+// signal), else the most recent past one, else nothing logged.
+function ActivityCell({ row }: { row: TargetDetailRow }) {
+  if (row.nextActivity) {
+    return (
+      <span className="flex items-center gap-1 text-[12px] font-medium text-[#6EA3BE] whitespace-nowrap" title="Next scheduled activity">
+        <CalendarClock size={12} /> {fmtShortDate(row.nextActivity)}
+      </span>
+    );
+  }
+  if (row.lastActivity) {
+    return <span className="text-[12px] text-[#5C5378] whitespace-nowrap" title="Last logged activity">{fmtShortDate(row.lastActivity)}</span>;
+  }
+  return <span className="text-[12px] text-[#C2BBD4]">—</span>;
+}
+
+function TargetTable({ rows, showOwner }: { rows: TargetDetailRow[]; showOwner?: boolean }) {
   return (
-    <table className="min-w-[720px] w-full text-left">
+    <table className="min-w-[760px] w-full text-left">
       <thead>
         <tr className="text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
-          <Th>District</Th><Th>Segment</Th><Th right>Target $</Th><Th right>Open pipe</Th><Th right>Pipeline</Th><Th>Status</Th>
+          <Th>District</Th>
+          {showOwner && <Th>Targeted by</Th>}
+          <Th>Segment</Th><Th right>Target $</Th><Th right>Pipeline</Th><Th>Last / next activity</Th><Th>Status</Th>
         </tr>
       </thead>
       <tbody>
@@ -391,6 +417,11 @@ function TargetTable({ rows }: { rows: TargetDetailRow[] }) {
               <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</div>
               {r.state && <div className="text-[10px] text-[#8A80A8]">{r.state}</div>}
             </td>
+            {showOwner && (
+              <td className="py-2 px-3 text-[12px] text-[#5C5378] whitespace-nowrap" title={r.owners.join(", ")}>
+                {ownerLabel(r.owners)}
+              </td>
+            )}
             <td className="py-2 px-3">
               <span className="flex items-center gap-1 text-[11px] font-medium whitespace-nowrap" style={{ color: r.segment ? sourceColor(r.segment) : "#8A80A8" }}>
                 <span className="h-2 w-2 rounded-full" style={{ background: r.segment ? sourceColor(r.segment) : "#C2BBD4" }} />
@@ -398,8 +429,8 @@ function TargetTable({ rows }: { rows: TargetDetailRow[] }) {
               </span>
             </td>
             <td className="py-2 px-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{r.targetDollars > 0 ? fmt(r.targetDollars) : "—"}</td>
-            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#8A80A8]">{r.openPipe > 0 ? fmt(r.openPipe) : "—"}</td>
             <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#5C5378]">{r.pipeline > 0 ? fmt(r.pipeline) : "—"}</td>
+            <td className="py-2 px-3"><ActivityCell row={r} /></td>
             <td className="py-2 px-3">
               <div className="flex items-center gap-1 whitespace-nowrap">
                 {r.converted
@@ -484,11 +515,14 @@ function TotalsSummary({ metric, rows }: { metric: DealMetric; rows: (PipelineDe
 function csvShape(metric: DealMetric): { columns: string[]; toRecord: (r: never) => Record<string, unknown> } {
   if (metric === "targets") {
     return {
-      columns: ["District", "State", "Segment", "Target $", "Open pipeline", "Won", "Pipeline", "Converted", "Active 90d"],
+      columns: ["District", "State", "Targeted by", "Segment", "Target $", "Open pipeline", "Won", "Pipeline", "Converted", "Last activity", "Next scheduled", "Active 90d"],
       toRecord: (r: TargetDetailRow) => ({
-        District: r.account, State: r.state ?? "", Segment: r.segment ? sourceLabel(r.segment) : "No target",
+        District: r.account, State: r.state ?? "", "Targeted by": r.owners.join("; "),
+        Segment: r.segment ? sourceLabel(r.segment) : "No target",
         "Target $": Math.round(r.targetDollars), "Open pipeline": Math.round(r.openPipe), Won: Math.round(r.won),
-        Pipeline: Math.round(r.pipeline), Converted: r.converted ? "yes" : "", "Active 90d": r.active ? "yes" : "",
+        Pipeline: Math.round(r.pipeline), Converted: r.converted ? "yes" : "",
+        "Last activity": r.lastActivity ? r.lastActivity.slice(0, 10) : "", "Next scheduled": r.nextActivity ? r.nextActivity.slice(0, 10) : "",
+        "Active 90d": r.active ? "yes" : "",
       }) as unknown as Record<string, unknown>,
     } as { columns: string[]; toRecord: (r: never) => Record<string, unknown> };
   }

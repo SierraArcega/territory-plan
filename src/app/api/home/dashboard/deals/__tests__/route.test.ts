@@ -114,14 +114,14 @@ describe("GET /api/home/dashboard/deals", () => {
 
   it("targets → builds funnel rows + counts, passing the caller id for activity/plan scope", async () => {
     mockTargets.mockResolvedValue([
-      { leaid: "1", account: "Dallas ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, active: true },
-      { leaid: "2", account: "Plano ISD", state: "TX", segment: null, targetDollars: 0, openPipe: 0, won: 0, active: false },
+      { leaid: "1", account: "Dallas ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, owners: ["Sierra"], lastActivity: "2026-06-01T00:00:00.000Z", nextActivity: null, active: true },
+      { leaid: "2", account: "Plano ISD", state: "TX", segment: null, targetDollars: 0, openPipe: 0, won: 0, owners: [], lastActivity: null, nextActivity: null, active: false },
     ]);
     const body = await (await GET(req("fy=2026&metric=targets"))).json();
     expect(body.metric).toBe("targets");
     expect(body.rows).toHaveLength(2);
-    // sorted by target $ desc → Dallas first, with derived pipeline + converted
-    expect(body.rows[0]).toMatchObject({ account: "Dallas ISD", pipeline: 100, converted: true });
+    // sorted by target $ desc → Dallas first, with derived pipeline + converted + passthrough
+    expect(body.rows[0]).toMatchObject({ account: "Dallas ISD", pipeline: 100, converted: true, owners: ["Sierra"], lastActivity: "2026-06-01T00:00:00.000Z" });
     expect(body.totals).toEqual({ count: 2, targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: 1, active: 1 });
     // worked districts come from plan ownership, so the route passes (fy, scope, callerId)
     expect(mockTargets).toHaveBeenCalledWith(2026, { mode: "rep", rep: { id: "me", email: "me@x" }, emails: ["me@x"] }, "me");

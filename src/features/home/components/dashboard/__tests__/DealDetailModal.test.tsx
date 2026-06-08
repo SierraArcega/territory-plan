@@ -22,8 +22,8 @@ const utilRows = [
 ];
 
 const targetRows = [
-  { account: "Dallas ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: true, active: true },
-  { account: "Plano ISD", state: "TX", segment: null, targetDollars: 0, openPipe: 0, won: 0, pipeline: 0, converted: false, active: false },
+  { account: "Dallas ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: true, owners: ["Sierra Arcega"], lastActivity: "2026-06-01T00:00:00.000Z", nextActivity: "2026-06-12T00:00:00.000Z", active: true },
+  { account: "Plano ISD", state: "TX", segment: null, targetDollars: 0, openPipe: 0, won: 0, pipeline: 0, converted: false, owners: [], lastActivity: null, nextActivity: null, active: false },
 ];
 
 describe("DealDetailModal", () => {
@@ -93,6 +93,18 @@ describe("DealDetailModal", () => {
     expect(screen.getByText("Dallas ISD")).toBeInTheDocument();
     expect(screen.getByText("Plano ISD")).toBeInTheDocument();
     expect(screen.getByText("No target")).toBeInTheDocument(); // segment null label
+  });
+
+  it("shows the Targeted-by owner column only in team mode", () => {
+    mockUseDeals.mockReturnValue(result({ data: { metric: "targets", mode: "team", rows: targetRows, totals: { count: 2 } } }));
+    const { unmount } = render(<DealDetailModal metric="targets" fy={2026} repScope="team" onClose={vi.fn()} />);
+    expect(screen.getByText("Targeted by")).toBeInTheDocument();
+    expect(screen.getByText("Sierra Arcega")).toBeInTheDocument();
+    unmount();
+    // rep mode → no owner column (redundant: every row is the same rep)
+    mockUseDeals.mockReturnValue(result({ data: { metric: "targets", mode: "rep", rows: targetRows, totals: { count: 2 } } }));
+    render(<DealDetailModal metric="targets" fy={2026} repScope="me" onClose={vi.fn()} />);
+    expect(screen.queryByText("Targeted by")).toBeNull();
   });
 
   it("filters targets to converted districts via the Converted pill", () => {

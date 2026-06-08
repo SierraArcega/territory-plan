@@ -123,8 +123,8 @@ export function buildUtilizationRows(
 // matching the Targets card's segment split).
 export type TargetSegment = "new" | "winback" | "expansion";
 
-// Per-district input: the deduped target $ plus the account's DOA pipeline/won and
-// whether it's been touched in the last 90 days. Assembled in deals-source.ts.
+// Per-district input: the deduped target $ plus the account's DOA pipeline/won, the
+// rep(s) working it, and its activity timing. Assembled in deals-source.ts.
 export interface TargetDistrictAgg {
   leaid: string;
   account: string;
@@ -133,6 +133,9 @@ export interface TargetDistrictAgg {
   targetDollars: number; // Σ new+winback+expansion target $
   openPipe: number; // DOA open pipeline on the account
   won: number; // DOA closed-won on the account
+  owners: string[]; // display names of the rep(s) whose plan(s) work this district
+  lastActivity: string | null; // ISO date of the most recent past logged activity
+  nextActivity: string | null; // ISO date of the nearest future scheduled activity
   active: boolean; // a logged activity within the last 90 days
 }
 
@@ -145,6 +148,9 @@ export interface TargetDetailRow {
   won: number;
   pipeline: number; // openPipe + won
   converted: boolean; // has open pipeline (openPipe > 0)
+  owners: string[];
+  lastActivity: string | null;
+  nextActivity: string | null;
   active: boolean;
 }
 
@@ -162,6 +168,9 @@ export function buildTargetDetailRows(aggs: TargetDistrictAgg[]): TargetDetailRo
       won: a.won,
       pipeline: a.openPipe + a.won,
       converted: a.openPipe > 0,
+      owners: a.owners,
+      lastActivity: a.lastActivity,
+      nextActivity: a.nextActivity,
       active: a.active,
     }))
     .sort(

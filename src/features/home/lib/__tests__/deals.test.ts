@@ -142,10 +142,14 @@ describe("buildDealTotals", () => {
   });
 
   it("targets → district count, summed target $/pipeline, converted + active counts", () => {
+    const tr = (over: Partial<TargetDetailRow>): TargetDetailRow => ({
+      account: "X", state: null, segment: null, targetDollars: 0, openPipe: 0, won: 0, pipeline: 0,
+      converted: false, owners: [], lastActivity: null, nextActivity: null, active: false, ...over,
+    });
     const rows: TargetDetailRow[] = [
-      { account: "A", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: true, active: true },
-      { account: "B", state: "CA", segment: "expansion", targetDollars: 50, openPipe: 0, won: 0, pipeline: 0, converted: false, active: false },
-      { account: "C", state: null, segment: null, targetDollars: 0, openPipe: 10, won: 0, pipeline: 10, converted: true, active: false },
+      tr({ account: "A", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: true, active: true }),
+      tr({ account: "B", state: "CA", segment: "expansion", targetDollars: 50, pipeline: 0 }),
+      tr({ account: "C", openPipe: 10, pipeline: 10, converted: true }),
     ];
     expect(buildDealTotals("targets", rows)).toEqual({
       count: 3,
@@ -161,13 +165,13 @@ describe("buildDealTotals", () => {
 
 const agg = (over: Partial<TargetDistrictAgg>): TargetDistrictAgg => ({
   leaid: "100", account: "Acct", state: null, segment: null,
-  targetDollars: 0, openPipe: 0, won: 0, active: false, ...over,
+  targetDollars: 0, openPipe: 0, won: 0, owners: [], lastActivity: null, nextActivity: null, active: false, ...over,
 });
 
 describe("buildTargetDetailRows", () => {
-  it("derives pipeline (open + won) and converted (open pipe > 0) per district", () => {
+  it("derives pipeline (open + won) and converted (open pipe > 0), passing owners + activity through", () => {
     const [row] = buildTargetDetailRows([
-      agg({ leaid: "1", account: "Houston ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, active: true }),
+      agg({ leaid: "1", account: "Houston ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, owners: ["Sierra"], lastActivity: "2026-06-01", nextActivity: "2026-06-12", active: true }),
     ]);
     expect(row).toEqual({
       account: "Houston ISD",
@@ -178,6 +182,9 @@ describe("buildTargetDetailRows", () => {
       won: 40,
       pipeline: 100, // 60 + 40
       converted: true, // openPipe > 0
+      owners: ["Sierra"],
+      lastActivity: "2026-06-01",
+      nextActivity: "2026-06-12",
       active: true,
     });
   });
