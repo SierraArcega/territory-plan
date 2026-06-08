@@ -37,12 +37,14 @@ export default function ToplineStatStrip({ fy, repScope }: ToplineStatStripProps
   const { data: sparkData } = useSparklines(fy, repScope);
   const priorFyLabel = `FY${String(fy - 1).slice(-2)}`;
   const currentFyLabel = `FY${String(fy).slice(-2)}`;
-  const [openMetric, setOpenMetric] = useState<ToplineMetricKey | null>(null);
+  // The open drill-in metric, tracked as a /deals DealMetric directly — the financial
+  // cards map their topline key at click time, and Targets opens "targets".
+  const [openDeal, setOpenDeal] = useState<DealMetric | null>(null);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {/* Targets (card 1) owns its own query + loading/error state */}
-      <TargetsCard fy={fy} repScope={repScope} />
+      <TargetsCard fy={fy} repScope={repScope} onExpand={() => setOpenDeal("targets")} />
 
       {/* The four financial cards from the topline endpoint */}
       {isError ? (
@@ -76,18 +78,18 @@ export default function ToplineStatStrip({ fy, repScope }: ToplineStatStripProps
             currentFyLabel={currentFyLabel}
             wow={card.metricKey === "openPipeline" || card.metricKey === "bookings" ? sparkData?.wow?.[card.metricKey] : null}
             pipelineDetail={card.pipelineDetail}
-            onExpand={() => setOpenMetric(card.metricKey)}
+            onExpand={() => setOpenDeal(METRIC_TO_DEAL[card.metricKey])}
           />
         ))
       )}
 
-      {/* Drill-in modal for the expanded financial card; repScope flows straight
-          through so the modal population matches the rep/team card it opened from. */}
+      {/* Drill-in modal for the expanded card (financial or Targets); repScope flows
+          straight through so the modal population matches the rep/team card it opened from. */}
       <DealDetailModal
-        metric={openMetric ? METRIC_TO_DEAL[openMetric] : null}
+        metric={openDeal}
         fy={fy}
         repScope={repScope}
-        onClose={() => setOpenMetric(null)}
+        onClose={() => setOpenDeal(null)}
       />
     </div>
   );

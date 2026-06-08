@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import Modal from "@/features/shared/components/Modal";
-import { formatCurrency, formatPercent } from "@/features/shared/lib/format";
+import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/lib/format";
 import { rowsToCsv, downloadCsv } from "@/features/shared/lib/csv";
 import { SEGMENT_DEFS, type SegmentKey } from "@/features/home/lib/segments";
 import { sourceLabel, sourceColor, fmtShortDate } from "./pipeline/health";
@@ -13,6 +13,7 @@ import type {
   PipelineDealRow,
   BookingDealRow,
   UtilizationRow,
+  TargetDetailRow,
 } from "@/features/home/lib/deals";
 
 const fmt = (v: number | null | undefined) => formatCurrency(v, true);
@@ -45,6 +46,12 @@ const META: Record<DealMetric, { title: string; noun: string; nounPlural: string
     nounPlural: "accounts",
     empty: "No contracted accounts to measure yet — take appears once deals are won.",
   },
+  targets: {
+    title: "Targets",
+    noun: "district",
+    nounPlural: "districts",
+    empty: "No districts being worked in this view yet — they appear here once a plan covers them.",
+  },
 };
 
 type UtilFilter = "all" | "underMin" | "lt40" | "40to80" | "gt80";
@@ -65,6 +72,26 @@ function matchesUtil(r: UtilizationRow, f: UtilFilter): boolean {
   return r.utilPct > 0.8; // gt80
 }
 
+// Targets funnel filter — mirrors the Targets card's sub-rows so the drill-in reads
+// the same way: converted (has open pipeline), active (touched in 90d), stale (not),
+// and untargeted (worked but no growth target set).
+type TargetFilter = "all" | "converted" | "active" | "stale" | "untargeted";
+const TARGET_PILLS: { key: TargetFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "converted", label: "Converted" },
+  { key: "active", label: "Active · 90d" },
+  { key: "stale", label: "Stale" },
+  { key: "untargeted", label: "No targets" },
+];
+
+function matchesTarget(r: TargetDetailRow, f: TargetFilter): boolean {
+  if (f === "converted") return r.converted;
+  if (f === "active") return r.active;
+  if (f === "stale") return !r.active;
+  if (f === "untargeted") return r.segment == null;
+  return true; // all
+}
+
 interface Props {
   metric: DealMetric | null;
   fy: number;
@@ -79,10 +106,12 @@ export default function DealDetailModal({ metric, fy, repScope, onClose }: Props
   const open = metric != null;
   const { data, isLoading, isError } = useDeals(fy, repScope, metric);
 
-  // Source filter (pipeline/bookings) and utilization filter (rev/take) are kept in
-  // separate state so switching cards doesn't carry an incompatible filter over.
+  // Source filter (pipeline/bookings), utilization filter (rev/take), and the targets
+  // funnel filter are kept in separate state so switching cards doesn't carry an
+  // incompatible filter over.
   const [source, setSource] = useState<SegmentKey | "all">("all");
   const [util, setUtil] = useState<UtilFilter>("all");
+  const [target, setTarget] = useState<TargetFilter>("all");
   const [visible, setVisible] = useState(PAGE);
 
   // Reset filters + pagination whenever the card (metric) changes, so an open-pipeline
@@ -94,28 +123,31 @@ export default function DealDetailModal({ metric, fy, repScope, onClose }: Props
     setPrevMetric(metric);
     setSource("all");
     setUtil("all");
+    setTarget("all");
     setVisible(PAGE);
   }
 
   const isUtil = metric === "rev" || metric === "take";
+  const isTargets = metric === "targets";
   const meta = metric ? META[metric] : null;
 
   // Segments actually present in the rows → no dead source pills.
   const presentSources = useMemo(() => {
-    if (!data || isUtil) return [];
+    if (!data || isUtil || isTargets) return [];
     const seen = new Set<SegmentKey>();
     for (const r of data.rows as (PipelineDealRow | BookingDealRow)[]) {
       if (r.source) seen.add(r.source);
     }
     return SEGMENT_DEFS.filter((d) => seen.has(d.key));
-  }, [data, isUtil]);
+  }, [data, isUtil, isTargets]);
 
-  const filtered = useMemo<(PipelineDealRow | BookingDealRow | UtilizationRow)[]>(() => {
+  const filtered = useMemo<(PipelineDealRow | BookingDealRow | UtilizationRow | TargetDetailRow)[]>(() => {
     if (!data) return [];
+    if (isTargets) return (data.rows as TargetDetailRow[]).filter((r) => matchesTarget(r, target));
     if (isUtil) return (data.rows as UtilizationRow[]).filter((r) => matchesUtil(r, util));
     if (source === "all") return data.rows as (PipelineDealRow | BookingDealRow)[];
     return (data.rows as (PipelineDealRow | BookingDealRow)[]).filter((r) => r.source === source);
-  }, [data, isUtil, source, util]);
+  }, [data, isTargets, isUtil, source, util, target]);
 
   function exportCsv() {
     if (!metric || !data) return;
@@ -146,20 +178,24 @@ export default function DealDetailModal({ metric, fy, repScope, onClose }: Props
       {!isLoading && !isError && data && (
         <div className="flex flex-wrap items-center gap-2 px-5 pt-4" role="tablist" aria-label="Filter">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
-            {isUtil ? "Utilization" : "Source"}
+            {isTargets ? "Status" : isUtil ? "Utilization" : "Source"}
           </span>
-          {isUtil
-            ? UTIL_PILLS.map((p) => (
-                <Pill key={p.key} active={util === p.key} label={p.label} onClick={() => { setUtil(p.key); setVisible(PAGE); }} />
-              ))
-            : (
-                <>
-                  <Pill active={source === "all"} label="All" onClick={() => { setSource("all"); setVisible(PAGE); }} />
-                  {presentSources.map((d) => (
-                    <Pill key={d.key} active={source === d.key} label={d.label} color={d.color} onClick={() => { setSource(d.key); setVisible(PAGE); }} />
-                  ))}
-                </>
-              )}
+          {isTargets ? (
+            TARGET_PILLS.map((p) => (
+              <Pill key={p.key} active={target === p.key} label={p.label} onClick={() => { setTarget(p.key); setVisible(PAGE); }} />
+            ))
+          ) : isUtil ? (
+            UTIL_PILLS.map((p) => (
+              <Pill key={p.key} active={util === p.key} label={p.label} onClick={() => { setUtil(p.key); setVisible(PAGE); }} />
+            ))
+          ) : (
+            <>
+              <Pill active={source === "all"} label="All" onClick={() => { setSource("all"); setVisible(PAGE); }} />
+              {presentSources.map((d) => (
+                <Pill key={d.key} active={source === d.key} label={d.label} color={d.color} onClick={() => { setSource(d.key); setVisible(PAGE); }} />
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -186,6 +222,7 @@ export default function DealDetailModal({ metric, fy, repScope, onClose }: Props
               {metric === "pipeline" && <PipelineTable rows={shown as PipelineDealRow[]} />}
               {metric === "bookings" && <BookingTable rows={shown as BookingDealRow[]} />}
               {isUtil && <UtilTable rows={shown as UtilizationRow[]} metric={metric as "rev" | "take"} />}
+              {isTargets && <TargetTable rows={shown as TargetDetailRow[]} />}
             </div>
             {shown.length < total && (
               <div className="flex justify-center py-3">
@@ -339,6 +376,47 @@ function UtilTable({ rows, metric }: { rows: UtilizationRow[]; metric: "rev" | "
   );
 }
 
+function TargetTable({ rows }: { rows: TargetDetailRow[] }) {
+  return (
+    <table className="min-w-[720px] w-full text-left">
+      <thead>
+        <tr className="text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
+          <Th>District</Th><Th>Segment</Th><Th right>Target $</Th><Th right>Open pipe</Th><Th right>Pipeline</Th><Th>Status</Th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={`${r.account}-${i}`} className="border-t border-[#E2DEEC]">
+            <td className="py-2 px-3">
+              <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</div>
+              {r.state && <div className="text-[10px] text-[#8A80A8]">{r.state}</div>}
+            </td>
+            <td className="py-2 px-3">
+              <span className="flex items-center gap-1 text-[11px] font-medium whitespace-nowrap" style={{ color: r.segment ? sourceColor(r.segment) : "#8A80A8" }}>
+                <span className="h-2 w-2 rounded-full" style={{ background: r.segment ? sourceColor(r.segment) : "#C2BBD4" }} />
+                {r.segment ? sourceLabel(r.segment) : "No target"}
+              </span>
+            </td>
+            <td className="py-2 px-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{r.targetDollars > 0 ? fmt(r.targetDollars) : "—"}</td>
+            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#8A80A8]">{r.openPipe > 0 ? fmt(r.openPipe) : "—"}</td>
+            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#5C5378]">{r.pipeline > 0 ? fmt(r.pipeline) : "—"}</td>
+            <td className="py-2 px-3">
+              <div className="flex items-center gap-1 whitespace-nowrap">
+                {r.converted
+                  ? <span className="rounded-full bg-[#403770]/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#403770]">CONVERTED</span>
+                  : <span className="rounded-full bg-[#EFEDF5] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#8A80A8]">TARGETED</span>}
+                {r.active
+                  ? <span className="rounded-full bg-[#6BA368]/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#5C8A53]">ACTIVE</span>
+                  : <span className="rounded-full bg-[#C77]/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#C77]">STALE</span>}
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ── Totals footer ─────────────────────────────────────────────────────────────
 
 function TotalItem({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -350,10 +428,22 @@ function TotalItem({ label, value, strong }: { label: string; value: string; str
   );
 }
 
-function TotalsSummary({ metric, rows }: { metric: DealMetric; rows: (PipelineDealRow | BookingDealRow | UtilizationRow)[] }) {
+function TotalsSummary({ metric, rows }: { metric: DealMetric; rows: (PipelineDealRow | BookingDealRow | UtilizationRow | TargetDetailRow)[] }) {
   const sum = (pick: (r: never) => number) => (rows as never[]).reduce((s, r) => s + pick(r), 0);
+  const count = (pick: (r: never) => boolean) => (rows as never[]).filter(pick).length;
   const Item = TotalItem;
 
+  if (metric === "targets") {
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <Item label="Districts" value={rows.length.toLocaleString()} />
+        <Item label="Target $" value={fmt(sum((r: TargetDetailRow) => r.targetDollars))} strong />
+        <Item label="Pipeline" value={fmt(sum((r: TargetDetailRow) => r.pipeline))} />
+        <Item label="Converted" value={formatNumber(count((r: TargetDetailRow) => r.converted))} />
+        <Item label="Active · 90d" value={formatNumber(count((r: TargetDetailRow) => r.active))} />
+      </div>
+    );
+  }
   if (metric === "pipeline") {
     return (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -392,6 +482,16 @@ function TotalsSummary({ metric, rows }: { metric: DealMetric; rows: (PipelineDe
 // ── CSV shape per metric ───────────────────────────────────────────────────────
 
 function csvShape(metric: DealMetric): { columns: string[]; toRecord: (r: never) => Record<string, unknown> } {
+  if (metric === "targets") {
+    return {
+      columns: ["District", "State", "Segment", "Target $", "Open pipeline", "Won", "Pipeline", "Converted", "Active 90d"],
+      toRecord: (r: TargetDetailRow) => ({
+        District: r.account, State: r.state ?? "", Segment: r.segment ? sourceLabel(r.segment) : "No target",
+        "Target $": Math.round(r.targetDollars), "Open pipeline": Math.round(r.openPipe), Won: Math.round(r.won),
+        Pipeline: Math.round(r.pipeline), Converted: r.converted ? "yes" : "", "Active 90d": r.active ? "yes" : "",
+      }) as unknown as Record<string, unknown>,
+    } as { columns: string[]; toRecord: (r: never) => Record<string, unknown> };
+  }
   if (metric === "pipeline") {
     return {
       columns: ["Account", "State", "Stage", "Source", "Committed", "Max budget", "Close date"],

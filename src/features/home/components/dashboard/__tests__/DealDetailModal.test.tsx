@@ -21,6 +21,11 @@ const utilRows = [
   { account: "Small ISD", source: "return", minCommit: 80, maxBudget: 300, revenue: 40, take: 12, deferred: 40, utilPct: 40 / 300, underMin: true },
 ];
 
+const targetRows = [
+  { account: "Dallas ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: true, active: true },
+  { account: "Plano ISD", state: "TX", segment: null, targetDollars: 0, openPipe: 0, won: 0, pipeline: 0, converted: false, active: false },
+];
+
 describe("DealDetailModal", () => {
   beforeEach(() => vi.resetAllMocks());
 
@@ -79,6 +84,31 @@ describe("DealDetailModal", () => {
     // blended util = (120+40) / (200+300) = 160/500 = 32%
     const footer = screen.getByRole("dialog");
     expect(within(footer).getByText("32%")).toBeInTheDocument();
+  });
+
+  it("renders the targets table with a worked-but-untargeted district", () => {
+    mockUseDeals.mockReturnValue(result({ data: { metric: "targets", mode: "rep", rows: targetRows, totals: { count: 2 } } }));
+    render(<DealDetailModal metric="targets" fy={2026} repScope="me" onClose={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Targets" })).toBeInTheDocument();
+    expect(screen.getByText("Dallas ISD")).toBeInTheDocument();
+    expect(screen.getByText("Plano ISD")).toBeInTheDocument();
+    expect(screen.getByText("No target")).toBeInTheDocument(); // segment null label
+  });
+
+  it("filters targets to converted districts via the Converted pill", () => {
+    mockUseDeals.mockReturnValue(result({ data: { metric: "targets", mode: "rep", rows: targetRows, totals: { count: 2 } } }));
+    render(<DealDetailModal metric="targets" fy={2026} repScope="me" onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Converted" }));
+    expect(screen.getByText("Dallas ISD")).toBeInTheDocument(); // converted: true
+    expect(screen.queryByText("Plano ISD")).toBeNull(); // converted: false
+  });
+
+  it("filters targets to untargeted districts via the No-targets pill", () => {
+    mockUseDeals.mockReturnValue(result({ data: { metric: "targets", mode: "rep", rows: targetRows, totals: { count: 2 } } }));
+    render(<DealDetailModal metric="targets" fy={2026} repScope="me" onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("tab", { name: "No targets" }));
+    expect(screen.getByText("Plano ISD")).toBeInTheDocument(); // segment null
+    expect(screen.queryByText("Dallas ISD")).toBeNull();
   });
 
   it("calls onClose from the Modal close button", () => {
