@@ -92,19 +92,19 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
                 Count
                 <input aria-label="Count" type="number" min="1" value={l.count ?? 1}
                   onChange={(e) => updateRow(l.id, { count: num(e.target.value) })}
-                  className="mt-0.5 w-16 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+                  className="mt-0.5 w-16 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
               </label>
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 Qty
                 <input aria-label="Quantity" type="number" min="0" value={l.qty}
                   onChange={(e) => updateRow(l.id, { qty: num(e.target.value) })}
-                  className="mt-0.5 w-20 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+                  className="mt-0.5 w-20 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
               </label>
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 Unit
                 <select aria-label="Unit" value={l.unit ?? "Day"}
                   onChange={(e) => updateRow(l.id, { unit: e.target.value })}
-                  className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]">
+                  className="mt-0.5 h-8 w-24 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]">
                   {LINE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               </label>
@@ -113,7 +113,7 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
                 {l.sku === null ? (
                   <input aria-label="Rate" type="number" min="0" step="0.01" value={l.listRate}
                     onChange={(e) => updateRow(l.id, { listRate: num(e.target.value) })}
-                    className="mt-0.5 w-24 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+                    className="mt-0.5 w-24 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
                 ) : (
                   <span className="mt-0.5 py-1 text-sm text-[#403770]">${l.listRate}</span>
                 )}
@@ -123,7 +123,7 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
                   Disc %
                   <input aria-label="Discount %" type="number" min="0" max="100" value={l.discountPct}
                     onChange={(e) => updateRow(l.id, { discountPct: num(e.target.value) })}
-                    className="mt-0.5 w-16 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+                    className="mt-0.5 w-16 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
                 </label>
               )}
             </div>
