@@ -136,4 +136,17 @@ describe("StatCard", () => {
     expect(screen.getByText(/max budget/i)).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument(); // opp count retained
   });
+
+  it("shows closed-won min commit / max budget (as deals) on the bookings card", () => {
+    render(
+      <StatCard
+        label="Closed Won Bookings" value={58000} rank={6} totalReps={43} inRoster segments={[]}
+        bookingsDetail={{ minCommit: 50000, maxBudget: 90000, oppCount: 7, accountCount: 5 }}
+      />,
+    );
+    expect(screen.getByText(/min commit/i)).toBeInTheDocument();
+    expect(screen.getByText(/max budget/i)).toBeInTheDocument();
+    expect(screen.getByText("7")).toBeInTheDocument(); // deal count
+    expect(screen.getByText(/deals/i)).toBeInTheDocument(); // noun, not "open opps"
+  });
 });

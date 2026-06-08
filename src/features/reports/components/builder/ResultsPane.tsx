@@ -4,7 +4,7 @@ import { Code2, Download, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { ResultsTable } from "../ResultsTable";
 import { SqlPreviewModal } from "../SqlPreviewModal";
-import { downloadCsv, rowsToCsv, slugifyForFilename } from "../../lib/csv";
+import { downloadCsv, rowsToCsv, slugifyForFilename } from "@/features/shared/lib/csv";
 import { ChipStrip } from "./ChipStrip";
 import { SaveButton, type SessionMode } from "./SaveButton";
 import type { BuilderVersion } from "./types";

@@ -55,13 +55,15 @@ describe("GET /api/home/dashboard/topline", () => {
         "u2@x": { [yrs[0]]: { openPipeline: 300 } },
       }),
     );
-    // First $queryRaw call: per-category breakdown; second: pipeline detail.
+    // $queryRaw calls in order: per-category breakdown, open-pipeline detail,
+    // closed-won (bookings) detail.
     mockQueryRaw
       .mockResolvedValueOnce([
         { category: "renewal", openPipeline: 120, bookings: 0, take: 0, revenue: 0 },
         { category: "new_business", openPipeline: 80, bookings: 0, take: 0, revenue: 0 },
       ] as never)
-      .mockResolvedValueOnce([] as never);
+      .mockResolvedValueOnce([{ minCommit: 100, maxBudget: 300, oppCount: 4, accountCount: 3 }] as never)
+      .mockResolvedValueOnce([{ minCommit: 500, maxBudget: 900, oppCount: 7, accountCount: 5 }] as never);
 
     const res = await GET(req("2026"));
     const body = await res.json();
@@ -77,6 +79,11 @@ describe("GET /api/home/dashboard/topline", () => {
       { key: "return", label: "Return", value: 120 },
       { key: "new", label: "New biz", value: 80 },
     ]);
+    // open-pipeline detail → openPipeline card; closed-won detail → bookings card
+    expect(op.pipelineDetail).toEqual({ minCommit: 100, maxBudget: 300, oppCount: 4, accountCount: 3 });
+    const bk = body.cards.find((c: { metricKey: string }) => c.metricKey === "bookings");
+    expect(bk.bookingsDetail).toEqual({ minCommit: 500, maxBudget: 900, oppCount: 7, accountCount: 5 });
+    expect(bk.pipelineDetail).toBeUndefined();
   });
 
   it("rep=team returns mode 'team' with null ranks", async () => {
@@ -92,6 +99,7 @@ describe("GET /api/home/dashboard/topline", () => {
       }),
     );
     mockQueryRaw
+      .mockResolvedValueOnce([] as never)
       .mockResolvedValueOnce([] as never)
       .mockResolvedValueOnce([] as never);
 

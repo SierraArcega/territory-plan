@@ -54,10 +54,13 @@ export async function GET(request: Request) {
       GROUP BY category
     `;
 
-  // Subject's open-pipeline detail: commit floor (Σ minimum_purchase_amount),
-  // budget ceiling (Σ maximum_budget), and opp/account counts. Open stages
-  // (prefix 0-5) match the Pipeline tab + trajectory via the shared helper.
-  const detailRows = await prisma.$queryRaw<{ minCommit: number; maxBudget: number; oppCount: number; accountCount: number }[]>`
+  // Subject's commit floor (Σ minimum_purchase_amount), budget ceiling
+  // (Σ maximum_budget), and opp/account counts for a stage band. Open stages
+  // (prefix 0-5) back the Open Pipeline card; closed-won (prefix ≥6) back the
+  // Bookings card. Stage bucketing matches the Pipeline tab + trajectory via the
+  // shared helper.
+  const moneyDetail = (stageCond: Prisma.Sql) =>
+    prisma.$queryRaw<{ minCommit: number; maxBudget: number; oppCount: number; accountCount: number }[]>`
       SELECT
         COALESCE(SUM(COALESCE(o.minimum_purchase_amount, 0)), 0)::float AS "minCommit",
         COALESCE(SUM(COALESCE(o.maximum_budget, 0)), 0)::float AS "maxBudget",
@@ -67,11 +70,16 @@ export async function GET(request: Request) {
       WHERE o.school_yr = ${schoolYr}
         ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
         AND o.net_booking_amount IS NOT NULL
-        AND ${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5
+        AND ${stageCond}
     `;
-  const openPipelineDetail: OpenPipelineDetail | null = detailRows[0] ?? null;
+  const [openDetailRows, bookingsDetailRows] = await Promise.all([
+    moneyDetail(Prisma.sql`${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5`),
+    moneyDetail(Prisma.sql`${stagePrefixSql(Prisma.sql`o.stage`)} >= 6`),
+  ]);
+  const openPipelineDetail: OpenPipelineDetail | null = openDetailRows[0] ?? null;
+  const bookingsDetail: OpenPipelineDetail | null = bookingsDetailRows[0] ?? null;
 
-  const cards = buildToplineCards(reps, actualsByEmail, schoolYr, subjectId, subjectCategories, openPipelineDetail, scope.mode);
+  const cards = buildToplineCards(reps, actualsByEmail, schoolYr, subjectId, subjectCategories, openPipelineDetail, scope.mode, bookingsDetail);
 
   return NextResponse.json({ fy, schoolYr, mode: scope.mode, cards });
 }

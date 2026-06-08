@@ -22,8 +22,43 @@ export interface PipelineData {
   benchmarks: BenchmarkMap; // per-stage win/loss duration benchmarks (all-time)
 }
 
+// Per-stage staleness benchmarks (all-time, all reps): median days Closed-Won deals
+// spent in each open stage, plus median + p75 for Closed Lost. Ported from the
+// "Stale 2.0" saved report; duration_days is the stored per-entry dwell time in each
+// historical stage_history element. Shared so the Pipeline tab and the open-pipeline
+// drill-in grade deal age identically. Only stages with a Closed-Won median are
+// usable; the rest fall back to the hardcoded healthy age in classifyTier.
+export async function fetchStageBenchmarks(): Promise<BenchmarkMap> {
+  const benchmarkRows = await prisma.$queryRaw<{ stagePrefix: number | null; wonMedian: number | null; lostMedian: number | null; lostP75: number | null }[]>`
+    SELECT
+      LEFT(sh ->> 'stage', 1)::int AS "stagePrefix",
+      (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (sh ->> 'duration_days')::numeric)
+        FILTER (WHERE o.stage = 'Closed Won'))::float AS "wonMedian",
+      (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (sh ->> 'duration_days')::numeric)
+        FILTER (WHERE o.stage = 'Closed Lost'))::float AS "lostMedian",
+      (PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY (sh ->> 'duration_days')::numeric)
+        FILTER (WHERE o.stage = 'Closed Lost'))::float AS "lostP75"
+    FROM opportunities o
+    CROSS JOIN LATERAL jsonb_array_elements(o.stage_history) AS sh
+    WHERE o.stage IN ('Closed Won','Closed Lost')
+      AND o.stage_history IS NOT NULL
+      AND jsonb_typeof(o.stage_history) = 'array'
+      AND (sh ->> 'stage') SIMILAR TO '[0-5]%'
+      AND (sh ->> 'duration_days') IS NOT NULL
+    GROUP BY LEFT(sh ->> 'stage', 1)`;
+
+  return new Map(
+    benchmarkRows
+      .filter((r) => r.stagePrefix != null && r.wonMedian != null)
+      .map((r) => [
+        r.stagePrefix as number,
+        { wonMedian: r.wonMedian as number, lostMedian: r.lostMedian, lostP75: r.lostP75 },
+      ]),
+  );
+}
+
 export async function fetchPipelineData(sy: string, fy: number, scope: DashboardScope): Promise<PipelineData> {
-  const [openOpps, won, target, weekRows, targetsByRep, wonByRep, benchmarkRows] = await Promise.all([
+  const [openOpps, won, target, weekRows, targetsByRep, wonByRep, benchmarks] = await Promise.all([
     // Open opps (stage prefix 0-5) for every rep. days_in_stage = time since the
     // opp entered its current stage (the most recent stage_history entry's
     // changed_at; verified to match the live stage). overdue = a close date
@@ -140,39 +175,8 @@ export async function fetchPipelineData(sy: string, fy: number, scope: Dashboard
         AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
       GROUP BY o.sales_rep_email`,
 
-    // Per-stage staleness benchmarks (all-time, all reps): median days Closed-Won
-    // deals spent in each open stage, plus median + p75 for Closed Lost. Ported
-    // from the "Stale 2.0" saved report. duration_days is the stored per-entry
-    // dwell time in each historical stage_history element.
-    prisma.$queryRaw<{ stagePrefix: number | null; wonMedian: number | null; lostMedian: number | null; lostP75: number | null }[]>`
-      SELECT
-        LEFT(sh ->> 'stage', 1)::int AS "stagePrefix",
-        (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (sh ->> 'duration_days')::numeric)
-          FILTER (WHERE o.stage = 'Closed Won'))::float AS "wonMedian",
-        (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (sh ->> 'duration_days')::numeric)
-          FILTER (WHERE o.stage = 'Closed Lost'))::float AS "lostMedian",
-        (PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY (sh ->> 'duration_days')::numeric)
-          FILTER (WHERE o.stage = 'Closed Lost'))::float AS "lostP75"
-      FROM opportunities o
-      CROSS JOIN LATERAL jsonb_array_elements(o.stage_history) AS sh
-      WHERE o.stage IN ('Closed Won','Closed Lost')
-        AND o.stage_history IS NOT NULL
-        AND jsonb_typeof(o.stage_history) = 'array'
-        AND (sh ->> 'stage') SIMILAR TO '[0-5]%'
-        AND (sh ->> 'duration_days') IS NOT NULL
-      GROUP BY LEFT(sh ->> 'stage', 1)`,
+    fetchStageBenchmarks(),
   ]);
-
-  // Only stages with a Closed-Won median are usable benchmarks; the rest fall
-  // back to the hardcoded healthy age in classifyTier.
-  const benchmarks: BenchmarkMap = new Map(
-    benchmarkRows
-      .filter((r) => r.stagePrefix != null && r.wonMedian != null)
-      .map((r) => [
-        r.stagePrefix as number,
-        { wonMedian: r.wonMedian as number, lostMedian: r.lostMedian, lostP75: r.lostP75 },
-      ]),
-  );
 
   return {
     openOpps,

@@ -10,6 +10,7 @@ import type { Segment } from "@/features/home/lib/segments";
 interface TargetsCardProps {
   fy: number;
   repScope: string;
+  onExpand?: () => void;
 }
 
 const SEGMENT_LABELS: { key: "new" | "winback" | "expansion"; label: string }[] = [
@@ -18,7 +19,7 @@ const SEGMENT_LABELS: { key: "new" | "winback" | "expansion"; label: string }[] 
   { key: "expansion", label: "Expansion" },
 ];
 
-export default function TargetsCard({ fy, repScope }: TargetsCardProps) {
+export default function TargetsCard({ fy, repScope, onExpand }: TargetsCardProps) {
   const { data, isLoading, isError } = useTargets(fy, repScope);
 
   if (isError) {
@@ -49,6 +50,7 @@ export default function TargetsCard({ fy, repScope }: TargetsCardProps) {
       value={formatNumber(total)}
       minMaxLine={<span>districts being worked</span>}
       footerRight={<RankPill rank={card.rank} totalReps={card.totalReps} inRoster={card.inRoster} />}
+      onExpand={onExpand}
     >
       {segments.length > 0 && <SegmentLegend segments={segments} format={formatNumber} />}
 

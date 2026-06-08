@@ -1,17 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ getUser: vi.fn() }));
-vi.mock("@/features/home/lib/trajectory-source", () => ({ fetchTrajectoryRows: vi.fn(), fetchWowSnapshots: vi.fn() }));
+vi.mock("@/features/home/lib/trajectory-source", () => ({
+  fetchTrajectoryRows: vi.fn(),
+  fetchWowSnapshots: vi.fn(),
+  fetchWowSnapshotsTeam: vi.fn(),
+}));
 vi.mock("@/lib/reps", () => ({ getActiveReps: vi.fn() }));
 
 import { GET } from "../route";
 import { getUser } from "@/lib/supabase/server";
-import { fetchTrajectoryRows, fetchWowSnapshots } from "@/features/home/lib/trajectory-source";
+import { fetchTrajectoryRows, fetchWowSnapshots, fetchWowSnapshotsTeam } from "@/features/home/lib/trajectory-source";
 import { getActiveReps } from "@/lib/reps";
 
 const mockGetUser = vi.mocked(getUser);
 const mockFetchRows = vi.mocked(fetchTrajectoryRows);
 const mockWow = vi.mocked(fetchWowSnapshots);
+const mockWowTeam = vi.mocked(fetchWowSnapshotsTeam);
 const mockGetActiveReps = vi.mocked(getActiveReps);
 
 const d = (iso: string) => new Date(iso + "T12:00:00Z");
@@ -90,16 +95,12 @@ describe("GET /api/home/dashboard/sparklines", () => {
     const prior = empty();
     mockFetchRows.mockResolvedValueOnce(current as never).mockResolvedValueOnce(prior as never);
 
-    // WoW: rep-a has 2 snapshots, rep-b has 2 snapshots — team sums by date
-    mockWow
-      .mockResolvedValueOnce([
-        { date: "2026-05-22", openPipeline: 100, bookings: 50 },
-        { date: "2026-05-29", openPipeline: 120, bookings: 60 },
-      ])
-      .mockResolvedValueOnce([
-        { date: "2026-05-22", openPipeline: 200, bookings: 100 },
-        { date: "2026-05-29", openPipeline: 240, bookings: 110 },
-      ]);
+    // Team WoW is one aggregate query (summed across the book by snapshot date):
+    // 2026-05-22 → {openPipeline:300, bookings:150}, 2026-05-29 → {openPipeline:360, bookings:170}
+    mockWowTeam.mockResolvedValue([
+      { date: "2026-05-22", openPipeline: 300, bookings: 150 },
+      { date: "2026-05-29", openPipeline: 360, bookings: 170 },
+    ]);
 
     const res = await GET(req({ fy: "2026", rep: "team" }));
     const body = await res.json();
@@ -116,7 +117,9 @@ describe("GET /api/home/dashboard/sparklines", () => {
     expect(body.wow.openPipeline).toBeCloseTo(0.2, 5);
     // bookings WoW: (170-150)/150 ≈ 0.1333
     expect(body.wow.bookings).toBeCloseTo((170 - 150) / 150, 5);
-    // fetchWowSnapshots called once per rep (2 reps)
-    expect(mockWow).toHaveBeenCalledTimes(2);
+    // Team uses the single whole-book snapshot query, not the per-rep one
+    expect(mockWowTeam).toHaveBeenCalledTimes(1);
+    expect(mockWowTeam).toHaveBeenCalledWith("2025-26");
+    expect(mockWow).not.toHaveBeenCalled();
   });
 });

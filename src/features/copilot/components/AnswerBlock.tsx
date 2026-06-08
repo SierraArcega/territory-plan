@@ -2,7 +2,7 @@
 
 import { Download, MapPin } from "lucide-react";
 import { isIdColumn } from "@/features/reports/lib/result-columns";
-import { downloadCsv, rowsToCsv, slugifyForFilename } from "@/features/reports/lib/csv";
+import { downloadCsv, rowsToCsv, slugifyForFilename } from "@/features/shared/lib/csv";
 import { extractDistrictLeaids } from "../lib/plot-districts";
 
 /** Cap the rendered table; the full set (up to the query LIMIT) is still

@@ -5,6 +5,8 @@ const mockUseTopline = vi.fn();
 vi.mock("@/features/home/lib/queries", () => ({
   useTopline: (fy: number, repScope: string) => mockUseTopline(fy, repScope),
   useSparklines: () => ({ data: undefined }),
+  // The drill-in modal is always mounted (closed → metric null); stub its query.
+  useDeals: () => ({ data: undefined, isLoading: false, isError: false }),
 }));
 
 // The Targets card owns its own query; stub it here so this test stays focused

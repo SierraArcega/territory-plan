@@ -10,7 +10,7 @@ import {
   type ActivityStatus,
 } from "@/features/activities/types";
 import type { ActivityListItem } from "@/features/shared/types/api-types";
-import { rowsToCsv, downloadCsv } from "@/features/reports/lib/csv";
+import { rowsToCsv, downloadCsv } from "@/features/shared/lib/csv";
 import { cn } from "@/features/shared/lib/cn";
 
 interface BulkActionBarProps {
