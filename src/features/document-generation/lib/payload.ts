@@ -30,7 +30,8 @@ export function assemblePayload(state: DocFormState): DocPayload {
     pay_prepost: state.paymentType === "C" ? state.payPrePost : "",
     boces_name: state.paymentType === "C" ? state.bocesName : "",
     po_number: state.paymentType === "C" ? state.poNumber : "",
-    invoice_date: state.invoiceDate,
+    // Blank invoice date renders as "time of signing"; otherwise the chosen date.
+    invoice_date: state.invoiceDate.trim() === "" ? "time of signing" : state.invoiceDate,
   };
 
   if (state.docType === "boces_quote") {
