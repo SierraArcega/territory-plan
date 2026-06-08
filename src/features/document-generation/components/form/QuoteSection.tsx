@@ -134,12 +134,12 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
         )}
       </div>
 
-      <div className={`rounded-lg p-2 text-sm ${mismatch ? "bg-[#fffaf1] border border-[#ffd98d]" : "bg-[#F7F5FA]"}`}>
+      <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg p-2 text-sm ${mismatch ? "bg-[#fffaf1] border border-[#ffd98d]" : "bg-[#F7F5FA]"}`}>
         <span className="font-semibold whitespace-nowrap">Order total: {usd(totals.orderTotal)}</span>
-        {totals.billableDays > 0 && <span className="ml-2 whitespace-nowrap">· Billable days: {totals.billableDays.toLocaleString("en-US")}</span>}
-        {totals.billableHours > 0 && <span className="ml-2 whitespace-nowrap">· Billable hours: {totals.billableHours.toLocaleString("en-US")}</span>}
+        {totals.billableDays > 0 && <span className="whitespace-nowrap">Billable days: {totals.billableDays.toLocaleString("en-US")}</span>}
+        {totals.billableHours > 0 && <span className="whitespace-nowrap">Billable hours: {totals.billableHours.toLocaleString("en-US")}</span>}
         {bookingReference != null && (
-          <span className="ml-2 whitespace-nowrap">· Deal booking: {usd(bookingReference)}
+          <span className="whitespace-nowrap">Deal booking: {usd(bookingReference)}
             {mismatch && <span className="ml-1 text-[#403770]">⚠ doesn&apos;t match — intentional?</span>}
           </span>
         )}

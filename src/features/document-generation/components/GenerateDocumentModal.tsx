@@ -54,7 +54,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label="Generate document"
-        className="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        className="relative mx-4 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         {result ? (
           <ReviewStage
             result={result}
