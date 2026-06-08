@@ -1,6 +1,6 @@
 // src/features/document-generation/lib/__tests__/prefill.test.ts
 import { describe, it, expect } from "vitest";
-import { buildPrefill } from "../prefill";
+import { buildPrefill, formatDistrictAddress } from "../prefill";
 
 describe("buildPrefill", () => {
   it("maps the 8 opportunity fields and the booking reference", () => {
@@ -45,6 +45,25 @@ describe("buildPrefill", () => {
     expect(single.sender).toMatchObject({ first: "Cher", last: "" });
     const multi = buildPrefill({ doc_type: "contract" }, baseOpp(), { fullName: "Maria del Carmen", email: null, jobTitle: null });
     expect(multi.sender).toMatchObject({ first: "Maria", last: "del Carmen" });
+  });
+
+  it("composes billingAddress from a district's location fields (blank without one)", () => {
+    const withDistrict = buildPrefill(
+      { doc_type: "contract" },
+      baseOpp(),
+      { fullName: null, email: null, jobTitle: null },
+      { streetLocation: "123 Main St", cityLocation: "Springfield", stateAbbrev: "IL", zipLocation: "62704" },
+    );
+    expect(withDistrict.billingAddress).toBe("123 Main St, Springfield, IL 62704");
+    const noDistrict = buildPrefill({ doc_type: "contract" }, baseOpp(), { fullName: null, email: null, jobTitle: null });
+    expect(noDistrict.billingAddress).toBe("");
+  });
+});
+
+describe("formatDistrictAddress", () => {
+  it("skips missing parts", () => {
+    expect(formatDistrictAddress({ streetLocation: null, cityLocation: "Austin", stateAbbrev: "TX", zipLocation: null })).toBe("Austin, TX");
+    expect(formatDistrictAddress({ streetLocation: "1 A St", cityLocation: null, stateAbbrev: null, zipLocation: null })).toBe("1 A St");
   });
 });
 

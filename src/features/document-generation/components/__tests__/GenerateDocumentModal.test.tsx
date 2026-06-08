@@ -7,7 +7,7 @@ vi.mock("../form/ContactRolePicker", () => ({ default: () => <div>picker</div> }
 vi.mock("../form/SkuPicker", () => ({ default: () => <div>sku</div> }));
 
 const completePrefill = {
-  docType: "contract" as const, districtLeaId: "x", companyName: "Barstow",
+  docType: "contract" as const, districtLeaId: "x", companyName: "Barstow", billingAddress: "1 Main St",
   startDate: "a", endDate: "b", payTerms: "Net 30", minAmt: null, maxAmt: null,
   bookingReference: 188000, sender: { first: "R", last: "P", title: "AE", email: "e" },
 };

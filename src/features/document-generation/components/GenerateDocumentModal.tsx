@@ -25,6 +25,7 @@ function seedState(p: PrefillResult): DocFormState {
     minAmt: p.minAmt,
     maxAmt: p.maxAmt,
     companyName: p.companyName,
+    billingAddress: p.billingAddress,
     senderFirst: p.sender.first,
     senderLast: p.sender.last,
     senderTitle: p.sender.title,

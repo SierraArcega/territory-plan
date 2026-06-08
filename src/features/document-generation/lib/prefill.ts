@@ -17,10 +17,18 @@ export interface ProfilePrefill {
   jobTitle: string | null;
 }
 
+export interface DistrictAddressPrefill {
+  streetLocation: string | null;
+  cityLocation: string | null;
+  stateAbbrev: string | null;
+  zipLocation: string | null;
+}
+
 export interface PrefillResult {
   docType: DocType;
   districtLeaId: string;
   companyName: string;
+  billingAddress: string;
   startDate: string;
   endDate: string;
   payTerms: string;
@@ -36,16 +44,26 @@ function splitName(full: string | null): { first: string; last: string } {
   return { first: parts[0], last: parts.slice(1).join(" ") };
 }
 
+/** Compose a one-line billing address from a district's location fields (skipping blanks). */
+export function formatDistrictAddress(d: DistrictAddressPrefill): string {
+  const cityStateZip = [d.cityLocation, [d.stateAbbrev, d.zipLocation].filter(Boolean).join(" ").trim()]
+    .filter(Boolean)
+    .join(", ");
+  return [d.streetLocation, cityStateZip].filter(Boolean).join(", ").trim();
+}
+
 export function buildPrefill(
   opts: { doc_type: DocType },
   opp: OpportunityPrefill,
   profile: ProfilePrefill,
+  district?: DistrictAddressPrefill,
 ): PrefillResult {
   const name = splitName(profile.fullName);
   return {
     docType: opts.doc_type,
     districtLeaId: opp.districtLeaId ?? "",
     companyName: opp.districtName ?? "",
+    billingAddress: district ? formatDistrictAddress(district) : "",
     startDate: opp.startDate ?? "",
     endDate: opp.contractThrough ?? "",
     payTerms: opp.paymentTerms ?? "",

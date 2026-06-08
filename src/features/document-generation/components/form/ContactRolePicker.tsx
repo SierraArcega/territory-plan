@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Plus } from "lucide-react";
 import { useDistrictContacts } from "@/features/document-generation/lib/queries";
 import { useCreateContact } from "@/features/shared/lib/queries";
 import type { ContactRef } from "@/features/document-generation/lib/payload-types";
@@ -9,63 +9,50 @@ function splitName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return { first: parts[0] ?? "", last: parts.slice(1).join(" ") };
 }
-
-/**
- * Map a contacts-list item (`ContactListItem`, no salutation) or a freshly
- * created `Contact` (has salutation) into the document's `ContactRef` shape.
- */
-function toRef(c: {
-  id: number;
-  name: string;
-  salutation?: string | null;
-  title?: string | null;
-  email?: string | null;
-  phone?: string | null;
-}): ContactRef {
+function toRef(c: { id: number; name: string; salutation?: string | null; title?: string | null; email?: string | null; phone?: string | null }): ContactRef {
   const { first, last } = splitName(c.name);
-  return {
-    contactId: c.id,
-    salutation: c.salutation ?? null,
-    firstName: first,
-    lastName: last,
-    title: c.title ?? null,
-    email: c.email ?? null,
-    phone: c.phone ?? null,
-  };
+  return { contactId: c.id, salutation: c.salutation ?? null, firstName: first, lastName: last, title: c.title ?? null, email: c.email ?? null, phone: c.phone ?? null };
 }
-
 const NEW_CONTACT_FIELDS = ["salutation", "name", "title", "email", "phone"] as const;
 
-interface Props {
-  label: string;
-  leaid: string;
-  value: ContactRef | null;
-  onChange: (c: ContactRef) => void;
-}
+interface Props { label: string; leaid: string; value: ContactRef | null; onChange: (c: ContactRef) => void; }
 
 export default function ContactRolePicker({ label, leaid, value, onChange }: Props) {
   const { data } = useDistrictContacts(leaid);
   const createContact = useCreateContact();
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ salutation: "", name: "", title: "", email: "", phone: "" });
   const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
-  // data?.contacts is ContactListItem[] — list items carry no salutation.
   const contacts = data?.contacts ?? [];
+  const filtered = useMemo(
+    () => contacts.filter((c) => `${c.name} ${c.title ?? ""}`.toLowerCase().includes(query.toLowerCase())),
+    [contacts, query],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const selectedLabel = value
+    ? `${value.salutation ? value.salutation + " " : ""}${value.firstName} ${value.lastName}`.trim() + (value.title ? ` — ${value.title}` : "")
+    : "";
 
   async function handleCreate() {
     setError(null);
     try {
       const created = await createContact.mutateAsync({
-        leaid,
-        name: form.name,
-        salutation: form.salutation || undefined,
-        title: form.title || undefined,
-        email: form.email || undefined,
-        phone: form.phone || undefined,
+        leaid, name: form.name, salutation: form.salutation || undefined,
+        title: form.title || undefined, email: form.email || undefined, phone: form.phone || undefined,
       });
-      onChange(toRef(created)); // auto-select the newly created contact into this role
-      setAdding(false);
+      onChange(toRef(created));
+      setAdding(false); setOpen(false);
       setForm({ salutation: "", name: "", title: "", email: "", phone: "" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create contact");
@@ -73,49 +60,51 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
   }
 
   return (
-    <div className="space-y-1">
+    <div ref={ref} className="space-y-1">
       <div className="text-xs uppercase tracking-wide text-[#403770] whitespace-nowrap">{label}</div>
-      <div className="flex flex-wrap gap-1">
-        {contacts.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onChange(toRef(c))}
-            className={`rounded-lg px-2 py-1 text-sm whitespace-nowrap ${
-              value?.contactId === c.id ? "bg-[#403770] text-white" : "bg-[#EFEDF5]"
-            }`}
-          >
-            {c.name}
-            {c.title ? ` — ${c.title}` : ""}
+      {value && <div className="text-sm text-[#403770]">{selectedLabel}</div>}
+      <div className="relative flex items-center gap-1">
+        <div className="flex flex-1 items-center rounded border border-[#C2BBD4]">
+          <input aria-label={label} value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+            placeholder={value ? "Change contact…" : "Search or select a contact…"}
+            className="h-8 w-full rounded-l px-2 py-1 text-sm outline-none" />
+          <button type="button" aria-label="Browse contacts" onClick={() => setOpen((o) => !o)} className="px-2 text-[#6E6390]">
+            <ChevronDown size={16} />
           </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => setAdding((a) => !a)}
-          className="flex items-center gap-1 rounded-lg border border-[#EFEDF5] px-2 py-1 text-sm whitespace-nowrap"
-        >
+        </div>
+        <button type="button" onClick={() => setAdding((a) => !a)}
+          className="flex items-center gap-1 rounded-lg border border-[#EFEDF5] px-2 py-1 text-sm whitespace-nowrap">
           <Plus size={14} /> Add new
         </button>
+        {open && (
+          <div className="absolute left-0 top-9 z-10 max-h-48 w-full overflow-y-auto rounded border border-[#C2BBD4] bg-white shadow-lg">
+            {filtered.length === 0 ? (
+              <div className="px-2 py-1 text-sm text-[#6E6390]">No matches</div>
+            ) : (
+              filtered.map((c) => (
+                <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { onChange(toRef(c)); setQuery(""); setOpen(false); }}
+                  className="block w-full px-2 py-1 text-left text-sm hover:bg-[#EFEDF5] whitespace-nowrap">
+                  {c.name}{c.title ? ` — ${c.title}` : ""}
+                </button>
+              ))
+            )}
+          </div>
+        )}
       </div>
       {adding && (
         <div className="space-y-1 rounded-lg bg-[#F7F5FA] p-2">
           {NEW_CONTACT_FIELDS.map((f) => (
-            <input
-              key={f}
-              aria-label={f}
-              placeholder={f}
-              value={form[f]}
+            <input key={f} aria-label={f} placeholder={f} value={form[f]}
               onChange={(e) => setForm((s) => ({ ...s, [f]: e.target.value }))}
-              className="w-full rounded border border-[#EFEDF5] px-2 py-1 text-sm"
-            />
+              className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
           ))}
           {error && <p className="text-sm text-[#F37167]">{error}</p>}
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={!form.name || createContact.isPending}
-            className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white disabled:opacity-50"
-          >
+          <button type="button" onClick={handleCreate} disabled={!form.name || createContact.isPending}
+            className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white disabled:opacity-50">
             Save contact
           </button>
         </div>

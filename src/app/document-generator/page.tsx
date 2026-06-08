@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import GenerateDocumentModal from "@/features/document-generation/components/GenerateDocumentModal";
 import { useProfile } from "@/features/shared/lib/queries";
-import type { PrefillResult } from "@/features/document-generation/lib/prefill";
+import { useDistrictDetail } from "@/features/districts/lib/queries";
+import { formatDistrictAddress, type PrefillResult } from "@/features/document-generation/lib/prefill";
 
 interface DistrictsResp {
   districts: { leaid: string; name: string }[];
@@ -25,12 +26,16 @@ export default function DocumentGeneratorDevPage() {
   const [open, setOpen] = useState(false);
 
   const leaid = (leaidOverride.trim() || sampleDistrict?.leaid || "").trim();
-  const companyName = leaidOverride.trim() ? "" : (sampleDistrict?.name ?? "");
+  // District detail gives us the name + address to pre-fill billing.
+  const { data: detail } = useDistrictDetail(leaid || null);
+  const companyName = detail?.district?.name ?? (leaidOverride.trim() ? "" : sampleDistrict?.name ?? "");
+  const billingAddress = detail?.district ? formatDistrictAddress(detail.district) : "";
 
   const prefill: PrefillResult = {
     docType: "contract",
     districtLeaId: leaid,
     companyName: companyName || "Sample District",
+    billingAddress,
     startDate: "2026-07-01",
     endDate: "2027-06-30",
     payTerms: "Net 30",
