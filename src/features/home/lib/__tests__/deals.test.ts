@@ -2,11 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   buildUtilizationRows,
   buildDealTotals,
+  buildTargetDetailRows,
   type WonAccountAgg,
   type DoaAccountAgg,
   type PipelineDealRow,
   type BookingDealRow,
   type UtilizationRow,
+  type TargetDistrictAgg,
+  type TargetDetailRow,
 } from "../deals";
 
 const won = (over: Partial<WonAccountAgg>): WonAccountAgg => ({
@@ -136,5 +139,70 @@ describe("buildDealTotals", () => {
       { account: "A", source: null, minCommit: 0, maxBudget: 0, revenue: 0, take: 0, deferred: 0, utilPct: null, underMin: false },
     ];
     expect(buildDealTotals("take", rows).utilPct).toBeNull();
+  });
+
+  it("targets → district count, summed target $/pipeline, converted + active counts", () => {
+    const rows: TargetDetailRow[] = [
+      { account: "A", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, pipeline: 100, converted: true, active: true },
+      { account: "B", state: "CA", segment: "expansion", targetDollars: 50, openPipe: 0, won: 0, pipeline: 0, converted: false, active: false },
+      { account: "C", state: null, segment: null, targetDollars: 0, openPipe: 10, won: 0, pipeline: 10, converted: true, active: false },
+    ];
+    expect(buildDealTotals("targets", rows)).toEqual({
+      count: 3,
+      targetDollars: 150,
+      openPipe: 70,
+      won: 40,
+      pipeline: 110,
+      converted: 2,
+      active: 1,
+    });
+  });
+});
+
+const agg = (over: Partial<TargetDistrictAgg>): TargetDistrictAgg => ({
+  leaid: "100", account: "Acct", state: null, segment: null,
+  targetDollars: 0, openPipe: 0, won: 0, active: false, ...over,
+});
+
+describe("buildTargetDetailRows", () => {
+  it("derives pipeline (open + won) and converted (open pipe > 0) per district", () => {
+    const [row] = buildTargetDetailRows([
+      agg({ leaid: "1", account: "Houston ISD", state: "TX", segment: "new", targetDollars: 100, openPipe: 60, won: 40, active: true }),
+    ]);
+    expect(row).toEqual({
+      account: "Houston ISD",
+      state: "TX",
+      segment: "new",
+      targetDollars: 100,
+      openPipe: 60,
+      won: 40,
+      pipeline: 100, // 60 + 40
+      converted: true, // openPipe > 0
+      active: true,
+    });
+  });
+
+  it("is not converted when there's no open pipeline, even if there are bookings", () => {
+    const [row] = buildTargetDetailRows([agg({ openPipe: 0, won: 500 })]);
+    expect(row.converted).toBe(false);
+    expect(row.pipeline).toBe(500);
+  });
+
+  it("keeps a worked district with no targets set (segment null) as its own row", () => {
+    const [row] = buildTargetDetailRows([agg({ segment: null, targetDollars: 0, openPipe: 0, won: 0 })]);
+    expect(row.segment).toBeNull();
+    expect(row.converted).toBe(false);
+    expect(row.pipeline).toBe(0);
+  });
+
+  it("sorts by target $ desc, tie-broken by pipeline desc, then account name", () => {
+    const rows = buildTargetDetailRows([
+      agg({ leaid: "1", account: "Small", targetDollars: 100, openPipe: 10 }),
+      agg({ leaid: "2", account: "Big", targetDollars: 900 }),
+      agg({ leaid: "3", account: "Apex", targetDollars: 100, openPipe: 50 }),
+      agg({ leaid: "4", account: "Zed", targetDollars: 100, openPipe: 50 }),
+    ]);
+    // Big (900) leads; among the 100s, higher pipeline first, then name (Apex < Zed > Small).
+    expect(rows.map((r) => r.account)).toEqual(["Big", "Apex", "Zed", "Small"]);
   });
 });

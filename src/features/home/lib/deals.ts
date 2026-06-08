@@ -8,7 +8,7 @@
 
 import type { SegmentKey } from "./segments";
 
-export type DealMetric = "pipeline" | "bookings" | "rev" | "take";
+export type DealMetric = "pipeline" | "bookings" | "rev" | "take" | "targets";
 
 // ── Row shapes (one per metric; the modal switches on the metric) ─────────────
 
@@ -112,6 +112,66 @@ export function buildUtilizationRows(
   return rows.sort((a, b) => b.maxBudget - a.maxBudget || a.account.localeCompare(b.account));
 }
 
+// ── Targets drill-in (district funnel) ────────────────────────────────────────
+// Behind the Targets card. The atomic unit is one DISTINCT worked district within
+// the scope (an account drill-in), so pipeline sums stay consistent — in rep mode
+// (the default) this is also 1:1 with the card's worked-district count. The growth
+// segment is the largest of new/winback/expansion ($-weighted), or null when no
+// growth target is set ("No targets set" — its own row, never guessed).
+
+// One growth segment of a target (renewal is excluded from segment classification,
+// matching the Targets card's segment split).
+export type TargetSegment = "new" | "winback" | "expansion";
+
+// Per-district input: the deduped target $ plus the account's DOA pipeline/won and
+// whether it's been touched in the last 90 days. Assembled in deals-source.ts.
+export interface TargetDistrictAgg {
+  leaid: string;
+  account: string;
+  state: string | null;
+  segment: TargetSegment | null; // largest growth target; null = none set
+  targetDollars: number; // Σ new+winback+expansion target $
+  openPipe: number; // DOA open pipeline on the account
+  won: number; // DOA closed-won on the account
+  active: boolean; // a logged activity within the last 90 days
+}
+
+export interface TargetDetailRow {
+  account: string;
+  state: string | null;
+  segment: TargetSegment | null;
+  targetDollars: number;
+  openPipe: number;
+  won: number;
+  pipeline: number; // openPipe + won
+  converted: boolean; // has open pipeline (openPipe > 0)
+  active: boolean;
+}
+
+// Derive the funnel fields per district and order biggest-target-first. Pure: the
+// source layer has already deduped to one row per district. Tie-broken by pipeline
+// then account name so the order is stable.
+export function buildTargetDetailRows(aggs: TargetDistrictAgg[]): TargetDetailRow[] {
+  return aggs
+    .map((a) => ({
+      account: a.account,
+      state: a.state,
+      segment: a.segment,
+      targetDollars: a.targetDollars,
+      openPipe: a.openPipe,
+      won: a.won,
+      pipeline: a.openPipe + a.won,
+      converted: a.openPipe > 0,
+      active: a.active,
+    }))
+    .sort(
+      (a, b) =>
+        b.targetDollars - a.targetDollars ||
+        b.pipeline - a.pipeline ||
+        a.account.localeCompare(b.account),
+    );
+}
+
 // ── Totals footer per metric ──────────────────────────────────────────────────
 
 export interface DealTotals {
@@ -124,6 +184,12 @@ export interface DealTotals {
   take?: number; // rev/take
   deferred?: number; // rev/take
   utilPct?: number | null; // rev/take: blended Σrevenue / Σmaxbudget
+  targetDollars?: number; // targets: Σ growth target $
+  openPipe?: number; // targets: Σ open pipeline on the accounts
+  won?: number; // targets: Σ closed-won on the accounts
+  pipeline?: number; // targets: Σ open + won
+  converted?: number; // targets: # districts with open pipeline
+  active?: number; // targets: # districts touched in 90d
 }
 
 function sum<T>(rows: T[], pick: (r: T) => number): number {
@@ -135,8 +201,20 @@ function sum<T>(rows: T[], pick: (r: T) => number): number {
 // per-row percentages, so a few large accounts dominate as they should.
 export function buildDealTotals(
   metric: DealMetric,
-  rows: PipelineDealRow[] | BookingDealRow[] | UtilizationRow[],
+  rows: PipelineDealRow[] | BookingDealRow[] | UtilizationRow[] | TargetDetailRow[],
 ): DealTotals {
+  if (metric === "targets") {
+    const r = rows as TargetDetailRow[];
+    return {
+      count: r.length,
+      targetDollars: sum(r, (x) => x.targetDollars),
+      openPipe: sum(r, (x) => x.openPipe),
+      won: sum(r, (x) => x.won),
+      pipeline: sum(r, (x) => x.pipeline),
+      converted: r.filter((x) => x.converted).length,
+      active: r.filter((x) => x.active).length,
+    };
+  }
   if (metric === "pipeline") {
     const r = rows as PipelineDealRow[];
     return { count: r.length, committed: sum(r, (x) => x.committed), maxBudget: sum(r, (x) => x.maxBudget) };
