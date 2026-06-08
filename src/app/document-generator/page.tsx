@@ -11,7 +11,7 @@ export default function DocumentGeneratorDevPage() {
   // Sample prefill for dev; real prefill comes from the opportunity in the entry-points sub-project.
   const prefill: PrefillResult = {
     docType: "contract", districtLeaId: "0612345", companyName: "Sample USD",
-    startDate: "07/01/2026", endDate: "06/30/2027", payTerms: "Net 30",
+    startDate: "2026-07-01", endDate: "2027-06-30", payTerms: "Net 30",
     minAmt: null, maxAmt: null, bookingReference: 188000,
     sender: { first: (profile?.fullName ?? "Rep").split(" ")[0], last: "", title: profile?.jobTitle ?? "", email: profile?.email ?? "" },
   };

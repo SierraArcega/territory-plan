@@ -68,74 +68,70 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
         </label>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm [&_td]:px-3 [&_td]:py-1.5 [&_th]:px-3 [&_th]:py-1.5">
-          <thead>
-            <tr className="border-b border-[#E2DEEC] text-xs uppercase tracking-wide text-[#6E6390]">
-              <th className="text-left font-semibold whitespace-nowrap">Service</th>
-              <th className="text-right font-semibold whitespace-nowrap">Count</th>
-              <th className="text-right font-semibold whitespace-nowrap">Qty</th>
-              <th className="text-right font-semibold whitespace-nowrap">Unit</th>
-              <th className="text-right font-semibold whitespace-nowrap">List rate</th>
-              {!isBoces && <th className="text-right font-semibold whitespace-nowrap">Disc %</th>}
-              <th className="text-right font-semibold whitespace-nowrap">Total</th>
-              <th aria-hidden="true"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {totals.lines.map((l) => (
-              <tr key={l.id} className="border-t border-[#E2DEEC]">
-                <td className="whitespace-nowrap">
-                  {l.sku === null ? (
-                    <input aria-label="Service name" placeholder="Custom service" value={l.service}
-                      onChange={(e) => updateRow(l.id, { service: e.target.value })}
-                      className="w-full rounded border border-[#C2BBD4] px-1 py-0.5 text-sm" />
-                  ) : (
-                    l.service
-                  )}
-                </td>
-                <td className="text-right">
-                  <input aria-label="Count" type="number" min="1" value={l.count ?? 1}
-                    onChange={(e) => updateRow(l.id, { count: num(e.target.value) })}
-                    className="w-14 rounded border border-[#C2BBD4] px-1 py-0.5 text-right text-sm" />
-                </td>
-                <td className="text-right">
-                  <input aria-label="Quantity" type="number" min="0" value={l.qty}
-                    onChange={(e) => updateRow(l.id, { qty: num(e.target.value) })}
-                    className="w-16 rounded border border-[#C2BBD4] px-1 py-0.5 text-right text-sm" />
-                </td>
-                <td className="text-right">
-                  <select aria-label="Unit" value={l.unit ?? "Day"}
-                    onChange={(e) => updateRow(l.id, { unit: e.target.value })}
-                    className="rounded border border-[#C2BBD4] px-1 py-0.5 text-sm">
-                    {LINE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </td>
-                <td className="text-right">
-                  {l.sku === null ? (
-                    <input aria-label="Rate" type="number" min="0" step="0.01" value={l.listRate}
-                      onChange={(e) => updateRow(l.id, { listRate: num(e.target.value) })}
-                      className="w-20 rounded border border-[#C2BBD4] px-1 py-0.5 text-right text-sm" />
-                  ) : (
-                    `$${l.listRate}`
-                  )}
-                </td>
-                {!isBoces && (
-                  <td className="text-right">
-                    <input aria-label="Discount %" type="number" min="0" max="100" value={l.discountPct}
-                      onChange={(e) => updateRow(l.id, { discountPct: num(e.target.value) })}
-                      className="w-16 rounded border border-[#C2BBD4] px-1 py-0.5 text-right text-sm" />
-                  </td>
+      <div className="space-y-2">
+        {totals.lines.map((l) => (
+          <div key={l.id} className="rounded-lg border border-[#E2DEEC] p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                {l.sku === null ? (
+                  <input aria-label="Service name" placeholder="Custom service name" value={l.service}
+                    onChange={(e) => updateRow(l.id, { service: e.target.value })}
+                    className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+                ) : (
+                  <span className="text-sm font-medium text-[#403770]">{l.service}</span>
                 )}
-                <td className="text-right whitespace-nowrap">{usd(l.total)}</td>
-                <td className="text-right">
-                  <button type="button" aria-label="Remove line item" onClick={() => removeRow(l.id)}
-                    className="text-[#6E6390] hover:text-[#F37167]"><X size={14} /></button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </div>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-sm font-semibold">{usd(l.total)}</span>
+                <button type="button" aria-label="Remove line item" onClick={() => removeRow(l.id)}
+                  className="text-[#6E6390] hover:text-[#F37167]"><X size={14} /></button>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-end gap-3">
+              <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+                Count
+                <input aria-label="Count" type="number" min="1" value={l.count ?? 1}
+                  onChange={(e) => updateRow(l.id, { count: num(e.target.value) })}
+                  className="mt-0.5 w-16 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+              </label>
+              <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+                Qty
+                <input aria-label="Quantity" type="number" min="0" value={l.qty}
+                  onChange={(e) => updateRow(l.id, { qty: num(e.target.value) })}
+                  className="mt-0.5 w-20 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+              </label>
+              <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+                Unit
+                <select aria-label="Unit" value={l.unit ?? "Day"}
+                  onChange={(e) => updateRow(l.id, { unit: e.target.value })}
+                  className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]">
+                  {LINE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+                List rate
+                {l.sku === null ? (
+                  <input aria-label="Rate" type="number" min="0" step="0.01" value={l.listRate}
+                    onChange={(e) => updateRow(l.id, { listRate: num(e.target.value) })}
+                    className="mt-0.5 w-24 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+                ) : (
+                  <span className="mt-0.5 py-1 text-sm text-[#403770]">${l.listRate}</span>
+                )}
+              </label>
+              {!isBoces && (
+                <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+                  Disc %
+                  <input aria-label="Discount %" type="number" min="0" max="100" value={l.discountPct}
+                    onChange={(e) => updateRow(l.id, { discountPct: num(e.target.value) })}
+                    className="mt-0.5 w-16 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+                </label>
+              )}
+            </div>
+          </div>
+        ))}
+        {totals.lines.length === 0 && (
+          <p className="text-sm text-[#6E6390]">No line items yet — search the pricebook or add a custom row above.</p>
+        )}
       </div>
 
       <div className={`rounded-lg p-2 text-sm ${mismatch ? "bg-[#fffaf1] border border-[#ffd98d]" : "bg-[#F7F5FA]"}`}>

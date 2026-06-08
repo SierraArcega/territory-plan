@@ -47,12 +47,18 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <input placeholder="Start date" value={state.startDate}
-          onChange={(e) => onChange({ startDate: e.target.value })}
-          className="flex-1 rounded border border-[#EFEDF5] px-2 py-1 text-sm" />
-        <input placeholder="End date" value={state.endDate}
-          onChange={(e) => onChange({ endDate: e.target.value })}
-          className="flex-1 rounded border border-[#EFEDF5] px-2 py-1 text-sm" />
+        <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+          Start date
+          <input aria-label="Start date" type="date" value={state.startDate}
+            onChange={(e) => onChange({ startDate: e.target.value })}
+            className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+        </label>
+        <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
+          End date
+          <input aria-label="End date" type="date" value={state.endDate}
+            onChange={(e) => onChange({ endDate: e.target.value })}
+            className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+        </label>
       </div>
     </div>
   );
