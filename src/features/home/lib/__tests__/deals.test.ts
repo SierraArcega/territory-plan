@@ -117,9 +117,13 @@ describe("buildDealTotals", () => {
   });
 
   it("bookings → count, amount (signed), min commit, max budget", () => {
+    const bk = (over: Partial<BookingDealRow>): BookingDealRow => ({
+      account: "X", product: null, source: null, amount: 0, minCommit: 0, maxBudget: 0, closedDate: null,
+      owner: null, lastActivity: null, lastNote: null, nextActivity: null, ...over,
+    });
     const rows: BookingDealRow[] = [
-      { account: "A", product: "Renewal", source: "return", amount: 100, minCommit: 80, maxBudget: 200, closedDate: null },
-      { account: "B", product: "New", source: "new", amount: 50, minCommit: 40, maxBudget: 60, closedDate: null },
+      bk({ account: "A", product: "Renewal", source: "return", amount: 100, minCommit: 80, maxBudget: 200 }),
+      bk({ account: "B", product: "New", source: "new", amount: 50, minCommit: 40, maxBudget: 60 }),
     ];
     expect(buildDealTotals("bookings", rows)).toEqual({ count: 2, amount: 150, minCommit: 120, maxBudget: 260 });
   });

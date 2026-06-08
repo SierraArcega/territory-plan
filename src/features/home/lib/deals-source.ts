@@ -126,7 +126,9 @@ export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Pro
 }
 
 interface RawBookingRow {
+  oppId: string;
   account: string | null;
+  owner: string | null;
   product: string | null;
   category: string | null;
   amount: number;
@@ -138,9 +140,13 @@ interface RawBookingRow {
 // bookings metric → the scope's CLOSED-WON opps (prefix ≥6). Product = contract_type
 // (the tier) — kept distinct from `source` (the DOA motion segment). amount = signed
 // net booking; minCommit / maxBudget are the contract's agreed floor / max budget.
+// Enriched with the owner (sales rep) and the opp's last/next activity + note — but
+// no deal-age health (these are already closed, so staleness/overdue don't apply).
 export async function fetchBookingDeals(sy: string, scope: DashboardScope): Promise<BookingDealRow[]> {
   const rows = await prisma.$queryRaw<RawBookingRow[]>`
-    SELECT o.district_name AS account,
+    SELECT o.id AS "oppId",
+           o.district_name AS account,
+           o.sales_rep_name AS owner,
            o.contract_type AS product,
            c.category,
            o.net_booking_amount::float AS amount,
@@ -158,15 +164,24 @@ export async function fetchBookingDeals(sy: string, scope: DashboardScope): Prom
       AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
     ORDER BY o.net_booking_amount DESC NULLS LAST`;
 
-  return rows.map((r) => ({
-    account: r.account ?? "—",
-    product: r.product,
-    source: toSegment(r.category),
-    amount: r.amount,
-    minCommit: r.minCommit,
-    maxBudget: r.maxBudget,
-    closedDate: r.closedDate ? r.closedDate.toISOString() : null,
-  }));
+  const activity = await activityByOpp(rows.map((r) => r.oppId));
+
+  return rows.map((r) => {
+    const act = activity.get(r.oppId);
+    return {
+      account: r.account ?? "—",
+      product: r.product,
+      source: toSegment(r.category),
+      amount: r.amount,
+      minCommit: r.minCommit,
+      maxBudget: r.maxBudget,
+      closedDate: r.closedDate ? r.closedDate.toISOString() : null,
+      owner: r.owner,
+      lastActivity: act?.last ? act.last.date.toISOString() : null,
+      lastNote: act?.last?.note ?? null,
+      nextActivity: act?.next ? act.next.date.toISOString() : null,
+    };
+  });
 }
 
 interface RawWonAggRow {

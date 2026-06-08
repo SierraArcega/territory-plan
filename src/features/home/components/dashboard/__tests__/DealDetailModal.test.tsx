@@ -16,6 +16,10 @@ const pipelineRows = [
   { account: "Austin ISD", state: "TX", stageName: "Proposal", source: "return", committed: 50, maxBudget: 80, closeDate: null, owner: null, lastActivity: null, lastNote: null, nextActivity: null, tier: "stale", overdue: true },
 ];
 
+const bookingRows = [
+  { account: "Miami-Dade", product: "Renewal", source: "return", amount: 200, minCommit: 150, maxBudget: 300, closedDate: "2026-05-20T00:00:00.000Z", owner: "Sierra Arcega", lastActivity: "2026-05-18T00:00:00.000Z", lastNote: "Signed the renewal", nextActivity: null },
+];
+
 const utilRows = [
   { account: "Big ISD", source: "new", minCommit: 100, maxBudget: 200, revenue: 120, take: 36, deferred: 0, utilPct: 0.6, underMin: false },
   { account: "Small ISD", source: "return", minCommit: 80, maxBudget: 300, revenue: 40, take: 12, deferred: 40, utilPct: 40 / 300, underMin: true },
@@ -74,6 +78,14 @@ describe("DealDetailModal", () => {
     fireEvent.click(screen.getByRole("tab", { name: "New biz" }));
     expect(screen.getByText("Houston ISD")).toBeInTheDocument();
     expect(screen.queryByText("Austin ISD")).toBeNull();
+  });
+
+  it("renders the bookings table with owner + latest-activity note", () => {
+    mockUseDeals.mockReturnValue(result({ data: { metric: "bookings", mode: "team", rows: bookingRows, totals: { count: 1 } } }));
+    render(<DealDetailModal metric="bookings" fy={2026} repScope="team" onClose={vi.fn()} />);
+    expect(screen.getByText("Miami-Dade")).toBeInTheDocument();
+    expect(screen.getByText(/Sierra Arcega/)).toBeInTheDocument();
+    expect(screen.getByText("Signed the renewal")).toBeInTheDocument();
   });
 
   it("filters utilization rows by the Under-min pill", () => {

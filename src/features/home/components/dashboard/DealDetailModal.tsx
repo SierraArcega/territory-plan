@@ -290,6 +290,36 @@ const SourceCell = ({ source }: { source: SegmentKey | null }) => (
 
 // ── Tables ──────────────────────────────────────────────────────────────────
 
+// Account + owner/state identity cell, shared by the pipeline & bookings tables.
+function DealIdentityCell({ account, state, owner }: { account: string; state: string | null; owner: string | null }) {
+  return (
+    <td className="pt-3 px-3 pb-1.5">
+      <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{account}</div>
+      <div className="text-[10px] text-[#8A80A8] whitespace-nowrap">
+        {owner ?? "Unassigned"}{state ? ` · ${state}` : ""}
+      </div>
+    </td>
+  );
+}
+
+// Full-width latest-activity note sub-row (off-white panel with the activity date),
+// shared by the pipeline & bookings tables. Only rendered when a note exists.
+function NoteRow({ date, note, colSpan }: { date: string | null; note: string; colSpan: number }) {
+  return (
+    <tr className="border-b border-[#F0EDF6]">
+      <td colSpan={colSpan} className="px-3 pb-3 pt-0">
+        <div className="flex items-start gap-1.5 rounded-md bg-[#F7F5FA] px-2.5 py-1.5">
+          <StickyNote size={12} className="mt-0.5 shrink-0 text-[#8A80A8]" />
+          <p className="text-[12px] leading-snug text-[#5C5378]">
+            {date && <span className="font-medium text-[#8A80A8]">{fmtShortDate(date)} · </span>}
+            {note}
+          </p>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // Deal-age health pill (On track / Watch / Concerning / Stale), graded against the
 // stage benchmark — same vocabulary as the Pipeline tab. Overdue rides alongside.
 function TierBadge({ tier }: { tier: PipelineDealRow["tier"] }) {
@@ -333,12 +363,7 @@ function PipelineTable({ rows }: { rows: PipelineDealRow[] }) {
         {rows.map((r, i) => (
           <Fragment key={`${r.account}-${i}`}>
             <tr className={`align-top ${r.lastNote ? "" : "border-b border-[#F0EDF6]"}`}>
-              <td className="pt-3 px-3 pb-1.5">
-                <div className="text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</div>
-                <div className="text-[10px] text-[#8A80A8] whitespace-nowrap">
-                  {r.owner ?? "Unassigned"}{r.state ? ` · ${r.state}` : ""}
-                </div>
-              </td>
+              <DealIdentityCell account={r.account} state={r.state} owner={r.owner} />
               <td className="pt-3 px-3 pb-1.5">
                 <div className="text-[12px] text-[#5C5378] whitespace-nowrap">{r.stageName}</div>
                 <div className="mt-1 flex items-center gap-1">
@@ -352,19 +377,7 @@ function PipelineTable({ rows }: { rows: PipelineDealRow[] }) {
               <td className="pt-3 px-3 pb-1.5 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(r.closeDate)}</td>
               <td className="pt-3 px-3 pb-1.5"><ActivityTiming last={r.lastActivity} next={r.nextActivity} /></td>
             </tr>
-            {r.lastNote && (
-              <tr className="border-b border-[#F0EDF6]">
-                <td colSpan={PIPELINE_COLS} className="px-3 pb-3 pt-0">
-                  <div className="flex items-start gap-1.5 rounded-md bg-[#F7F5FA] px-2.5 py-1.5">
-                    <StickyNote size={12} className="mt-0.5 shrink-0 text-[#8A80A8]" />
-                    <p className="text-[12px] leading-snug text-[#5C5378]">
-                      {r.lastActivity && <span className="font-medium text-[#8A80A8]">{fmtShortDate(r.lastActivity)} · </span>}
-                      {r.lastNote}
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            )}
+            {r.lastNote && <NoteRow date={r.lastActivity} note={r.lastNote} colSpan={PIPELINE_COLS} />}
           </Fragment>
         ))}
       </tbody>
@@ -372,25 +385,31 @@ function PipelineTable({ rows }: { rows: PipelineDealRow[] }) {
   );
 }
 
+const BOOKING_COLS = 8;
+
 function BookingTable({ rows }: { rows: BookingDealRow[] }) {
   return (
-    <table className="min-w-[680px] w-full text-left">
+    <table className="min-w-[820px] w-full text-left">
       <thead>
         <tr className="text-[10px] font-semibold uppercase tracking-wider text-[#8A80A8]">
-          <Th>Account</Th><Th>Product</Th><Th>Source</Th><Th right>Amount</Th><Th right>Min commit</Th><Th right>Max budget</Th><Th right>Closed</Th>
+          <Th>Deal</Th><Th>Product</Th><Th>Source</Th><Th right>Amount</Th><Th right>Min commit</Th><Th right>Max budget</Th><Th right>Closed</Th><Th>Last / next</Th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={`${r.account}-${i}`} className="border-t border-[#E2DEEC]">
-            <td className="py-2 px-3 text-[13px] font-semibold text-[#403770] whitespace-nowrap">{r.account}</td>
-            <td className="py-2 px-3 text-[12px] text-[#5C5378] whitespace-nowrap">{r.product ?? "—"}</td>
-            <SourceCell source={r.source} />
-            <td className="py-2 px-3 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(r.amount)}</td>
-            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#5C5378]">{fmt(r.minCommit)}</td>
-            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#8A80A8]">{fmt(r.maxBudget)}</td>
-            <td className="py-2 px-3 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(r.closedDate)}</td>
-          </tr>
+          <Fragment key={`${r.account}-${i}`}>
+            <tr className={`align-top ${r.lastNote ? "" : "border-b border-[#F0EDF6]"}`}>
+              <DealIdentityCell account={r.account} state={null} owner={r.owner} />
+              <td className="pt-3 px-3 pb-1.5 text-[12px] text-[#5C5378] whitespace-nowrap">{r.product ?? "—"}</td>
+              <SourceCell source={r.source} />
+              <td className="pt-3 px-3 pb-1.5 text-right text-[13px] font-bold tabular-nums text-[#403770]">{fmt(r.amount)}</td>
+              <td className="pt-3 px-3 pb-1.5 text-right text-[12px] tabular-nums text-[#5C5378]">{fmt(r.minCommit)}</td>
+              <td className="pt-3 px-3 pb-1.5 text-right text-[12px] tabular-nums text-[#8A80A8]">{fmt(r.maxBudget)}</td>
+              <td className="pt-3 px-3 pb-1.5 text-right text-[12px] tabular-nums text-[#5C5378] whitespace-nowrap">{fmtShortDate(r.closedDate)}</td>
+              <td className="pt-3 px-3 pb-1.5"><ActivityTiming last={r.lastActivity} next={r.nextActivity} /></td>
+            </tr>
+            {r.lastNote && <NoteRow date={r.lastActivity} note={r.lastNote} colSpan={BOOKING_COLS} />}
+          </Fragment>
         ))}
       </tbody>
     </table>
@@ -596,10 +615,12 @@ function csvShape(metric: DealMetric): { columns: string[]; toRecord: (r: never)
   }
   if (metric === "bookings") {
     return {
-      columns: ["Account", "Product", "Source", "Amount", "Min commit", "Max budget", "Closed date"],
+      columns: ["Account", "Owner", "Product", "Source", "Amount", "Min commit", "Max budget", "Closed date", "Last activity", "Next scheduled", "Last note"],
       toRecord: (r: BookingDealRow) => ({
-        Account: r.account, Product: r.product ?? "", Source: sourceLabel(r.source),
+        Account: r.account, Owner: r.owner ?? "", Product: r.product ?? "", Source: sourceLabel(r.source),
         Amount: Math.round(r.amount), "Min commit": Math.round(r.minCommit), "Max budget": Math.round(r.maxBudget), "Closed date": r.closedDate ?? "",
+        "Last activity": r.lastActivity ? r.lastActivity.slice(0, 10) : "", "Next scheduled": r.nextActivity ? r.nextActivity.slice(0, 10) : "",
+        "Last note": r.lastNote ?? "",
       }) as unknown as Record<string, unknown>,
     } as { columns: string[]; toRecord: (r: never) => Record<string, unknown> };
   }

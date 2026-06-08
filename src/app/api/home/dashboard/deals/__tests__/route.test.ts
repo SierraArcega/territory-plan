@@ -75,8 +75,8 @@ describe("GET /api/home/dashboard/deals", () => {
 
   it("bookings → rows + signed/min/max totals", async () => {
     mockBookings.mockResolvedValue([
-      { account: "A", product: "Renewal", source: "return", amount: 100, minCommit: 80, maxBudget: 200, closedDate: null },
-      { account: "B", product: "New", source: "new", amount: 50, minCommit: 40, maxBudget: 60, closedDate: null },
+      { account: "A", product: "Renewal", source: "return", amount: 100, minCommit: 80, maxBudget: 200, closedDate: null, owner: "Sierra", lastActivity: null, lastNote: null, nextActivity: null },
+      { account: "B", product: "New", source: "new", amount: 50, minCommit: 40, maxBudget: 60, closedDate: null, owner: null, lastActivity: null, lastNote: null, nextActivity: null },
     ]);
     const body = await (await GET(req("fy=2026&metric=bookings"))).json();
     expect(body.metric).toBe("bookings");

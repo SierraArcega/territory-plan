@@ -37,6 +37,10 @@ export interface BookingDealRow {
   minCommit: number;
   maxBudget: number;
   closedDate: string | null;
+  owner: string | null; // opp sales rep name
+  lastActivity: string | null; // ISO date of the most recent past activity on the opp
+  lastNote: string | null; // that past activity's note/outcome (free-text), if any
+  nextActivity: string | null; // ISO date of the nearest future scheduled activity
 }
 
 export interface UtilizationRow {
