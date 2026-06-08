@@ -12,11 +12,11 @@ export interface ToplineSegment {
   value: number;
 }
 
-// Open-pipeline-only extras: the caller's pipeline expressed as a commitment
-// floor (Σ minimum_purchase_amount) and a budget ceiling (Σ maximum_budget),
-// plus how many open opps / distinct accounts make it up. minCommit and
-// maxBudget are independent totals (per-row min can exceed max in the data), so
-// the UI shows them as two figures, not a guaranteed-ordered range.
+// Commitment floor (Σ minimum_purchase_amount) and budget ceiling
+// (Σ maximum_budget) for a set of opps, plus how many opps / distinct accounts
+// make it up. minCommit and maxBudget are independent totals (per-row min can
+// exceed max in the data), so the UI shows them as two figures, not a
+// guaranteed-ordered range. Used for both the open-pipeline and closed-won cards.
 export interface OpenPipelineDetail {
   minCommit: number;
   maxBudget: number;
@@ -33,8 +33,11 @@ export interface ToplineCard {
   inRoster: boolean;
   // The caller's value split by source (non-zero segments only, in display order).
   segments: ToplineSegment[];
-  // Open-pipeline card only: commit/budget totals + opp/account counts.
+  // Open-pipeline card only: commit/budget totals + opp/account counts (open opps).
   pipelineDetail?: OpenPipelineDetail;
+  // Closed-won bookings card only: the same commit/budget floor & ceiling + counts
+  // across the won deals.
+  bookingsDetail?: OpenPipelineDetail;
 }
 
 // The caller's DOA actuals grouped by category, for the segment bars. NOTE:
@@ -92,6 +95,7 @@ export function buildToplineCards(
   subjectCategories: CategoryActuals[],
   openPipelineDetail: OpenPipelineDetail | null = null,
   mode: "rep" | "team" = "rep",
+  bookingsDetail: OpenPipelineDetail | null = null,
 ): ToplineCard[] {
   return METRICS.map(({ key, label, value, categoryValue }) => {
     const values = reps.map((r) => ({
@@ -117,6 +121,7 @@ export function buildToplineCards(
       inRoster: mode === "team" ? true : standing.inRoster,
       segments: segmentsFor(subjectCategories, categoryValue),
       ...(key === "openPipeline" && openPipelineDetail ? { pipelineDetail: openPipelineDetail } : {}),
+      ...(key === "bookings" && bookingsDetail ? { bookingsDetail } : {}),
     };
   });
 }

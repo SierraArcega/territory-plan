@@ -78,6 +78,7 @@ export default function ToplineStatStrip({ fy, repScope }: ToplineStatStripProps
             currentFyLabel={currentFyLabel}
             wow={card.metricKey === "openPipeline" || card.metricKey === "bookings" ? sparkData?.wow?.[card.metricKey] : null}
             pipelineDetail={card.pipelineDetail}
+            bookingsDetail={card.bookingsDetail}
             onExpand={() => setOpenDeal(METRIC_TO_DEAL[card.metricKey])}
           />
         ))

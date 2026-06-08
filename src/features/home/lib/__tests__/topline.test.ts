@@ -87,6 +87,16 @@ describe("buildToplineCards", () => {
     const cards = buildToplineCards(reps, batch({}), SY, "me", []);
     expect(cards.every((c) => c.pipelineDetail === undefined)).toBe(true);
   });
+
+  it("attaches the closed-won detail to the bookings card only", () => {
+    const wonDetail = { minCommit: 50000, maxBudget: 90000, oppCount: 7, accountCount: 5 };
+    const cards = buildToplineCards(reps, batch({ "me@x": { bookings: 58000 } }), SY, "me", [], null, "rep", wonDetail);
+    const bk = cards.find((c) => c.metricKey === "bookings")!;
+    expect(bk.bookingsDetail).toEqual(wonDetail);
+    for (const c of cards.filter((c) => c.metricKey !== "bookings")) {
+      expect(c.bookingsDetail).toBeUndefined();
+    }
+  });
 });
 
 const twoReps = [
