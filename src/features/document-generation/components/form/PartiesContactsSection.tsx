@@ -38,7 +38,7 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
 
       <input placeholder="Billing address (required) *" value={state.billingAddress}
         onChange={(e) => onChange({ billingAddress: e.target.value })}
-        className="w-full rounded border border-[#F37167] px-2 py-1 text-sm" />
+        className={`w-full rounded border px-2 py-1 text-sm ${state.billingAddress.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
 
       {!isBoces && (
         <input placeholder="School year (e.g. 2026 - 2027)" value={state.schoolYear}

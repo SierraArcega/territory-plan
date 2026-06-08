@@ -44,4 +44,14 @@ describe("PartiesContactsSection", () => {
     setup();
     expect(screen.getByPlaceholderText(/Billing address/i)).toBeInTheDocument();
   });
+  it("flags the billing address with the coral border only while empty", () => {
+    setup({ billingAddress: "" });
+    expect(screen.getByPlaceholderText(/Billing address/i).className).toContain("border-[#F37167]");
+  });
+  it("uses the neutral border once billing address is filled", () => {
+    setup({ billingAddress: "1 Main St, Town, ST 00000" });
+    const input = screen.getByPlaceholderText(/Billing address/i);
+    expect(input.className).toContain("border-[#C2BBD4]");
+    expect(input.className).not.toContain("border-[#F37167]");
+  });
 });
