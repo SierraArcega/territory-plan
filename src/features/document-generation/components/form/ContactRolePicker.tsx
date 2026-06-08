@@ -18,7 +18,7 @@ const NEW_CONTACT_FIELDS = ["salutation", "name", "title", "email", "phone"] as 
 interface Props { label: string; leaid: string; value: ContactRef | null; onChange: (c: ContactRef) => void; }
 
 export default function ContactRolePicker({ label, leaid, value, onChange }: Props) {
-  const { data } = useDistrictContacts(leaid);
+  const { data, isLoading } = useDistrictContacts(leaid);
   const createContact = useCreateContact();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -82,7 +82,13 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
         {open && (
           <div className="absolute left-0 top-9 z-10 max-h-48 w-full overflow-y-auto rounded border border-[#C2BBD4] bg-white shadow-lg">
             {filtered.length === 0 ? (
-              <div className="px-2 py-1 text-sm text-[#6E6390]">No matches</div>
+              <div className="px-2 py-1 text-sm text-[#6E6390]">
+                {isLoading
+                  ? "Loading contacts…"
+                  : contacts.length === 0
+                    ? "No contacts on file for this district — use ＋ Add new"
+                    : "No matches for your search"}
+              </div>
             ) : (
               filtered.map((c) => (
                 <button key={c.id} type="button" onMouseDown={(e) => e.preventDefault()}

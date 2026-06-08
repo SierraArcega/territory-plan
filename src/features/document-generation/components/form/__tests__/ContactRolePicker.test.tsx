@@ -3,20 +3,25 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ContactRolePicker from "../ContactRolePicker";
 
-const { mockMutateAsync } = vi.hoisted(() => ({ mockMutateAsync: vi.fn() }));
+const DEFAULT_CONTACTS = [
+  { id: 1, name: "Jane Smith", title: "Superintendent", email: "j@d.org", phone: "5" },
+  { id: 2, name: "Bob Jones", title: "CFO", email: "b@d.org", phone: "6" },
+];
+const { mockMutateAsync, contactsState } = vi.hoisted(() => ({
+  mockMutateAsync: vi.fn(),
+  contactsState: { value: [] as Array<Record<string, unknown>>, loading: false },
+}));
 vi.mock("@/features/document-generation/lib/queries", () => ({
-  useDistrictContacts: () => ({
-    data: { contacts: [
-      { id: 1, name: "Jane Smith", title: "Superintendent", email: "j@d.org", phone: "5" },
-      { id: 2, name: "Bob Jones", title: "CFO", email: "b@d.org", phone: "6" },
-    ] },
-    isLoading: false,
-  }),
+  useDistrictContacts: () => ({ data: { contacts: contactsState.value }, isLoading: contactsState.loading }),
 }));
 vi.mock("@/features/shared/lib/queries", () => ({
   useCreateContact: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
 }));
-beforeEach(() => mockMutateAsync.mockReset());
+beforeEach(() => {
+  mockMutateAsync.mockReset();
+  contactsState.value = [...DEFAULT_CONTACTS];
+  contactsState.loading = false;
+});
 
 function setup(onChange = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -45,6 +50,18 @@ describe("ContactRolePicker (combobox)", () => {
     fireEvent.change(screen.getByLabelText("Client contact"), { target: { value: "bob" } });
     expect(screen.getByText(/Bob Jones/)).toBeInTheDocument();
     expect(screen.queryByText(/Jane Smith/)).not.toBeInTheDocument();
+  });
+  it("shows all contacts on open with an empty query", () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: /browse contacts/i }));
+    expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
+    expect(screen.getByText(/Bob Jones/)).toBeInTheDocument();
+  });
+  it("shows a helpful empty state when the district has no contacts", () => {
+    contactsState.value = [];
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: /browse contacts/i }));
+    expect(screen.getByText(/No contacts on file/i)).toBeInTheDocument();
   });
   it("creating a new contact auto-selects it", async () => {
     mockMutateAsync.mockResolvedValue({ id: 9, name: "Mark Lee", salutation: "Mr.", title: "AP", email: "m@d.org", phone: "7" });
