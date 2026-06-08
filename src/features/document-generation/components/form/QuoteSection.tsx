@@ -68,7 +68,7 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm [&_td]:px-3 [&_td]:py-1.5 [&_th]:px-3 [&_th]:py-1.5">
           <thead>
             <tr className="border-b border-[#E2DEEC] text-xs uppercase tracking-wide text-[#6E6390]">
               <th className="text-left font-semibold whitespace-nowrap">Service</th>
