@@ -109,6 +109,8 @@ A contract has up to three contact roles: **client**, **signer**, **billing**.
 - **BOCES columns:** Product / Hourly rate / Hours / Total, plus a `fee_pct` field (default 10.6) producing a computed fee + grand total.
 - **Booking reference:** the opportunity's `netBookingAmount` is displayed next to the live order total as a **non-blocking reference with a mismatch warning** — reps catch when their built total is far from the deal size (mismatch is often legitimate, so it never blocks render).
 
+> **Implemented enhancements (post-preview review, 2026-06-08):** the SKU picker is a **combobox** (collapsed input + ▾ to browse / type to filter), not an always-visible list. Quote rows are **inline-editable** — quantity and discount % per row, plus service name + rate on custom rows — with a per-row remove (×). A **pricebook fiscal-year selector** (Auto / FY27 / FY26) replaced the hardcoded FY27: **Auto** derives the year from the contract start/end dates (`lib/fiscal-year.ts::resolveFiscalYear`, reusing the canonical `getCurrentFY`), falling back to FY27. `showPricing` toggle, min/max inputs, and a `sowType` selector remain deferred (safe defaults).
+
 ### Section 3 — Payment terms
 - `A — Standard` | `B — Customized` | `C — BOCES Standardized`.
 - Defaults to **A** (the opp's `paymentType` is free-text, not reliably mappable to A/B/C). Selecting the **BOCES Quote** doc-type forces **C**.
