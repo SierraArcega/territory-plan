@@ -26,8 +26,11 @@ export default function DocumentGeneratorDevPage() {
   const [open, setOpen] = useState(false);
 
   const leaid = (leaidOverride.trim() || sampleDistrict?.leaid || "").trim();
-  // District detail gives us the name + address to pre-fill billing.
-  const { data: detail } = useDistrictDetail(leaid || null);
+  // District detail gives us the name + address to pre-fill billing. Gate the modal
+  // on this resolving so the prefill is complete before the form seeds its state
+  // (the modal seeds once on open). Production entry points should likewise build a
+  // complete prefill before opening.
+  const { data: detail, isFetching: detailLoading } = useDistrictDetail(leaid || null);
   const companyName = detail?.district?.name ?? (leaidOverride.trim() ? "" : sampleDistrict?.name ?? "");
   const billingAddress = detail?.district ? formatDistrictAddress(detail.district) : "";
 
@@ -71,12 +74,12 @@ export default function DocumentGeneratorDevPage() {
       </label>
       <button
         onClick={() => setOpen(true)}
-        disabled={!leaid}
+        disabled={!leaid || detailLoading || !detail}
         className="rounded-lg bg-[#403770] px-4 py-2 text-white disabled:opacity-50"
       >
-        Open Generate Document
+        {leaid && (detailLoading || !detail) ? "Loading district…" : "Open Generate Document"}
       </button>
-      {open && leaid && <GenerateDocumentModal prefill={prefill} onClose={() => setOpen(false)} />}
+      {open && detail && <GenerateDocumentModal prefill={prefill} onClose={() => setOpen(false)} />}
     </div>
   );
 }
