@@ -1,4 +1,5 @@
 import { getCurrentFY } from "@/lib/fiscal-year";
+import { parseLocalDate } from "@/features/shared/lib/date-utils";
 import type { FiscalYear } from "@/features/document-generation/lib/pricebook";
 
 // Pricebook ships FY26 + FY27 only; anything outside that resolves to null so
@@ -8,11 +9,13 @@ const AVAILABLE: FiscalYear[] = ["FY26", "FY27"];
 function parseDate(s: string): Date | null {
   const t = s.trim();
   if (!t) return null;
-  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t); // ISO YYYY-MM-DD
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t); // US MM/DD/YYYY
-  if (m) return new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]));
-  return null;
+  // US MM/DD/YYYY (parseLocalDate only understands ISO).
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+  if (us) return new Date(Number(us[3]), Number(us[1]) - 1, Number(us[2]));
+  // ISO (incl. with time, e.g. opportunity dates "2026-07-01T00:00:00.000Z")
+  // via the shared local-midnight parser; invalid dates yield NaN → null.
+  const d = parseLocalDate(t);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /**

@@ -1,5 +1,6 @@
 // src/features/document-generation/lib/prefill.ts
 import type { DocType } from "./payload-types";
+import { splitFullName } from "./name";
 
 export interface OpportunityPrefill {
   districtLeaId: string | null;
@@ -38,12 +39,6 @@ export interface PrefillResult {
   sender: { first: string; last: string; title: string; email: string };
 }
 
-function splitName(full: string | null): { first: string; last: string } {
-  const parts = (full ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { first: "", last: "" };
-  return { first: parts[0], last: parts.slice(1).join(" ") };
-}
-
 /** Compose a one-line billing address from a district's location fields (skipping blanks). */
 export function formatDistrictAddress(d: DistrictAddressPrefill): string {
   const cityStateZip = [d.cityLocation, [d.stateAbbrev, d.zipLocation].filter(Boolean).join(" ").trim()]
@@ -58,7 +53,7 @@ export function buildPrefill(
   profile: ProfilePrefill,
   district?: DistrictAddressPrefill,
 ): PrefillResult {
-  const name = splitName(profile.fullName);
+  const name = splitFullName(profile.fullName);
   return {
     docType: opts.doc_type,
     districtLeaId: opp.districtLeaId ?? "",

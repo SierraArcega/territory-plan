@@ -17,7 +17,13 @@ interface Props {
 export default function DocumentPayloadForm({ value, onChange, onRender, bookingReference }: Props) {
   const patch = (p: Partial<DocFormState>) => onChange({ ...value, ...p });
   const setDocType = (docType: DocType) =>
-    onChange({ ...value, docType, paymentType: docType === "boces_quote" ? "C" : value.paymentType });
+    onChange({
+      ...value,
+      docType,
+      // BOCES forces type C; switching back to a contract drops the BOCES-only
+      // C back to the standard default so the contract doesn't carry a BOCES payment block.
+      paymentType: docType === "boces_quote" ? "C" : value.paymentType === "C" ? "A" : value.paymentType,
+    });
   const { isComplete, missing } = getCompleteness(value);
 
   return (

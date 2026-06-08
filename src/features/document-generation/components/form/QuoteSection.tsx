@@ -7,11 +7,10 @@ import { resolveFiscalYear } from "@/features/document-generation/lib/fiscal-yea
 import type { FiscalYearSelection } from "@/features/document-generation/lib/fiscal-year";
 import type { DocFormState, LineItemRow, OrderAdjustment } from "@/features/document-generation/lib/payload-types";
 import { LINE_UNITS } from "@/features/document-generation/lib/units";
+import { newRowId } from "@/features/document-generation/lib/ids";
+import { formatCurrency } from "@/features/shared/lib/format";
 
-function newRowId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-const usd = (n: number) => `$${n.toLocaleString("en-US")}`;
+const usd = (n: number) => formatCurrency(n);
 const num = (v: string) => (v === "" ? 0 : Number(v));
 
 const FY_OPTIONS: { value: FiscalYearSelection; label: string }[] = [

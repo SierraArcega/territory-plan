@@ -1,10 +1,7 @@
 "use client";
 import { X, Plus } from "lucide-react";
+import { newRowId } from "@/features/document-generation/lib/ids";
 import type { OrderAdjustment, AdjustmentType, AdjustmentMode } from "@/features/document-generation/lib/payload-types";
-
-function newId(): string {
-  return `adj-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 interface Props {
   adjustments: OrderAdjustment[];
@@ -16,7 +13,7 @@ export default function AdjustmentsSection({ adjustments, onChange }: Props) {
     onChange(adjustments.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   const remove = (id: string) => onChange(adjustments.filter((a) => a.id !== id));
   const add = () =>
-    onChange([...adjustments, { id: newId(), label: "", type: "discount", mode: "percent", value: 0 }]);
+    onChange([...adjustments, { id: newRowId("adj"), label: "", type: "discount", mode: "percent", value: 0 }]);
 
   return (
     <div className="space-y-2">

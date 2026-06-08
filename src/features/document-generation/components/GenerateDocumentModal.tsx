@@ -49,7 +49,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
     }
   }
 
-  const orderTotal = computeTotals(state.docType, state.lineItems, state.feePct).orderTotal;
+  const orderTotal = computeTotals(state.docType, state.lineItems, state.feePct, state.adjustments).orderTotal;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

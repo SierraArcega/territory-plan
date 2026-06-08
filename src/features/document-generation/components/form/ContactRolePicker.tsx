@@ -1,16 +1,14 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { useDistrictContacts } from "@/features/document-generation/lib/queries";
 import { useCreateContact } from "@/features/shared/lib/queries";
+import { useOutsideClick } from "@/features/shared/lib/use-outside-click";
+import { splitFullName } from "@/features/document-generation/lib/name";
 import type { ContactRef } from "@/features/document-generation/lib/payload-types";
 
-function splitName(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return { first: parts[0] ?? "", last: parts.slice(1).join(" ") };
-}
 function toRef(c: { id: number; name: string; salutation?: string | null; title?: string | null; email?: string | null; phone?: string | null }): ContactRef {
-  const { first, last } = splitName(c.name);
+  const { first, last } = splitFullName(c.name);
   return { contactId: c.id, salutation: c.salutation ?? null, firstName: first, lastName: last, title: c.title ?? null, email: c.email ?? null, phone: c.phone ?? null };
 }
 const NEW_CONTACT_FIELDS = ["salutation", "name", "title", "email", "phone"] as const;
@@ -27,18 +25,13 @@ export default function ContactRolePicker({ label, leaid, value, onChange }: Pro
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  const contacts = data?.contacts ?? [];
+  const contacts = useMemo(() => data?.contacts ?? [], [data]);
   const filtered = useMemo(
     () => contacts.filter((c) => `${c.name} ${c.title ?? ""}`.toLowerCase().includes(query.toLowerCase())),
     [contacts, query],
   );
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
+  useOutsideClick(ref, () => setOpen(false), open);
 
   const selectedLabel = value
     ? `${value.salutation ? value.salutation + " " : ""}${value.firstName} ${value.lastName}`.trim() + (value.title ? ` — ${value.title}` : "")

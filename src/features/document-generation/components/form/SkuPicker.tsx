@@ -1,14 +1,12 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { getProducts, getBocesProducts } from "@/features/document-generation/lib/pricebook";
 import type { FiscalYear } from "@/features/document-generation/lib/pricebook";
 import type { DocType, LineItemRow } from "@/features/document-generation/lib/payload-types";
 import { canonicalUnit } from "@/features/document-generation/lib/units";
-
-function newRowId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
+import { useOutsideClick } from "@/features/shared/lib/use-outside-click";
+import { newRowId } from "@/features/document-generation/lib/ids";
 
 interface Props { docType: DocType; fiscalYear: FiscalYear; onPick: (row: LineItemRow) => void; }
 
@@ -23,14 +21,7 @@ export default function SkuPicker({ docType, fiscalYear, onPick }: Props) {
   );
   const filtered = products.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
 
-  useEffect(() => {
-    if (!open) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [open]);
+  useOutsideClick(ref, () => setOpen(false), open);
 
   function select(p: (typeof products)[number]) {
     onPick({ id: newRowId("row"), sku: p.sku, service: p.name, description: p.description, count: 1, qty: 1, unit: canonicalUnit(p.unit), listRate: p.listRate, discountPct: 0 });

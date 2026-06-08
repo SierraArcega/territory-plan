@@ -50,4 +50,17 @@ describe("DocumentPayloadForm", () => {
     fireEvent.change(screen.getByLabelText("Document type"), { target: { value: "boces_quote" } });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ docType: "boces_quote", paymentType: "C" }));
   });
+
+  it("resets BOCES-only payment type C back to A when switching to Contract", () => {
+    const onChange = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const bocesState = { ...emptyFormState("boces_quote", "x"), paymentType: "C" as const };
+    render(
+      <QueryClientProvider client={qc}>
+        <DocumentPayloadForm value={bocesState} onChange={onChange} onRender={vi.fn()} bookingReference={null} />
+      </QueryClientProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Document type"), { target: { value: "contract" } });
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ docType: "contract", paymentType: "A" }));
+  });
 });

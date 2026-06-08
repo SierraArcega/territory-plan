@@ -19,6 +19,13 @@ describe("fiscalYearFromDate", () => {
     expect(fiscalYearFromDate("")).toBeNull();
     expect(fiscalYearFromDate("not a date")).toBeNull();
   });
+  it("handles ISO timestamps (opportunity dates) without falling back", () => {
+    expect(fiscalYearFromDate("2026-07-01T00:00:00.000Z")).toBe("FY27");
+    expect(fiscalYearFromDate("2025-08-01T12:34:56Z")).toBe("FY26");
+  });
+  it("rejects an out-of-range month instead of rolling it over", () => {
+    expect(fiscalYearFromDate("2026-13-01")).toBeNull();
+  });
 });
 
 describe("resolveFiscalYear", () => {

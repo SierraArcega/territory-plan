@@ -1,4 +1,5 @@
 "use client";
+import { formatCurrency } from "@/features/shared/lib/format";
 import type { RenderResult } from "@/features/document-generation/lib/payload-types";
 
 interface Props {
@@ -14,7 +15,7 @@ export default function ReviewStage({ result, orderTotal, onSend, onManual, onBa
     <div className="space-y-3">
       <a href={result.docUrl} target="_blank" rel="noreferrer"
         className="text-[#403770] underline whitespace-nowrap">Open the rendered document ↗</a>
-      <div className="text-sm">Order total: ${orderTotal.toLocaleString("en-US")}</div>
+      <div className="text-sm">Order total: {formatCurrency(orderTotal)}</div>
       {result.agreementUrl && (
         <a href={result.agreementUrl} target="_blank" rel="noreferrer" className="block text-sm text-[#403770] underline">
           BOCES agreement (MLSA) ↗
