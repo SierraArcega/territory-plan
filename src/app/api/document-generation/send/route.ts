@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       status: result.sent ? "sent" : "error",
       signatureRequestId: result.signatureRequestId ?? null,
       sendError: result.sent ? undefined : (result.sendError ?? "send failed"),
+      recipientEmail,
     });
   } catch (error) {
     console.error("Document send error:", error);

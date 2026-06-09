@@ -6,7 +6,7 @@ interface Props {
   result: RenderResult;
   orderTotal: number;
   docType: DocType;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
   onBack: () => void;
   busy?: boolean;
   sendState?: { status: "sent" | "error"; recipientEmail?: string; sendError?: string } | null;

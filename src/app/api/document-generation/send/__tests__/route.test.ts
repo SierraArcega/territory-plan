@@ -48,7 +48,7 @@ describe("POST /api/document-generation/send", () => {
       status: "sent", signatureRequestId: "sig_1", recipientEmail: "s@acme.org",
       companyName: "Acme ISD", districtLeaId: "0601234", ownerProfileId: "user-uuid", docId: "D",
     }) });
-    expect(await res.json()).toMatchObject({ status: "sent", signatureRequestId: "sig_1" });
+    expect(await res.json()).toMatchObject({ status: "sent", signatureRequestId: "sig_1", recipientEmail: "s@acme.org" });
   });
 
   it("writes an 'error' row (no signatureRequestId) when the script could not send", async () => {

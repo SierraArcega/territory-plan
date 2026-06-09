@@ -6,6 +6,7 @@ export interface SendResponse {
   status: "sent" | "error";
   signatureRequestId: string | null;
   sendError?: string;
+  recipientEmail?: string;
 }
 
 /** Calls the app's send route, which renders tagged + sends via Dropbox Sign. */

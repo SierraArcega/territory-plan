@@ -57,9 +57,8 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
     try {
       const payload = assemblePayload(state);
       const res = await sendForSignatureRequest(payload, state.districtLeaId);
-      const deal = payload.deal as Record<string, string>;
       setSendState(res.status === "sent"
-        ? { status: "sent", recipientEmail: deal.signer_email || deal.client_email }
+        ? { status: "sent", recipientEmail: res.recipientEmail }
         : { status: "error", sendError: res.sendError });
     } catch {
       setSendState({ status: "error", sendError: "Send request failed" });
