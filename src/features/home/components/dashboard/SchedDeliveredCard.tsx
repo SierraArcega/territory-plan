@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatCurrency, formatPercent } from "@/features/shared/lib/format";
-import { computeRange, takeRate, mergeMotionRows, type MotionRow, type RangeGeometry } from "@/features/home/lib/sched-delivered";
+import { computeRange, takeRate, utilization, deferred, mergeMotionRows, type MotionRow, type RangeGeometry } from "@/features/home/lib/sched-delivered";
 import type { ToplineSegment, OpenPipelineDetail } from "@/features/home/lib/topline";
 import { SEGMENT_COLORS, type SegmentKey } from "@/features/home/lib/segments";
 import type { Sparkline as SparklineData } from "@/features/home/lib/sparkline";
@@ -12,13 +12,13 @@ import RankPill from "./RankPill";
 import Sparkline from "./charts/Sparkline";
 import SparklineLegend from "./charts/SparklineLegend";
 
-// Range-bar palette (locked 2026-06-08). Take is a deeper plum slice that sits at
-// the left of the revenue fill, since take ⊂ revenue.
+// Range-bar palette (locked 2026-06-08). Mirrors the Revenue/Take Utilization
+// modal: plum fill, coral for the under-min / deferred treatment.
 const TRACK = "#EFEDF5";
 const REV = "#6E5FB0";
-const TAKE = "#3A2E73";
 const FLOOR_MARK = "#1F1A33";
 const OVERAGE = "#F37167";
+const DEFER = "#C77";
 const POP_WIDTH = 248;
 
 interface SchedDeliveredCardProps {
@@ -40,19 +40,22 @@ interface SchedDeliveredCardProps {
   onExpand?: () => void;
 }
 
-// The merged Sched + Delivered card: revenue headline, take + take-rate sub-line,
-// a $0 → ceiling range bar (revenue fill, take slice, floor marker), the revenue
-// sparkline, the revenue rank pill, and a hover/tap popover breaking revenue+take
-// down by sales motion. The whole card opens its drill-in modal via onExpand.
+// The merged Sched + Delivered card, framed as the modal frames it — utilization
+// of the won-contract budget: headline Util% (delivered ÷ max budget), a fill bar
+// across the min→max range, then Delivered / Deferred / Take. Coral UNDER MIN when
+// delivered is below the commitment floor. Hover/tap the bar for the by-motion
+// split; the whole card opens its Revenue Utilization drill-in via onExpand.
 export default function SchedDeliveredCard({
   label, labelTooltip, revenue, take, rank, totalReps, inRoster,
   revenueSegments, takeSegments, detail, sparkline, priorFyLabel, currentFyLabel, onExpand,
 }: SchedDeliveredCardProps) {
-  const yoyPct = sparkline?.yoy != null ? Math.round(sparkline.yoy * 100) : null;
+  const minCommit = detail?.minCommit ?? 0;
+  const maxBudget = detail?.maxBudget ?? 0;
+  const geo = computeRange({ revenue, take, floor: minCommit, ceiling: maxBudget });
+  const util = utilization(revenue, maxBudget);
+  const def = deferred(revenue, maxBudget);
+  const underMin = minCommit > 0 && revenue < minCommit;
   const rate = takeRate(revenue, take);
-  // Floor/ceiling come from the closed-won contracts (bookingsDetail) revenue is
-  // delivered against: Σ minimum_purchase_amount → floor, Σ maximum_budget → ceiling.
-  const geo = computeRange({ revenue, take, floor: detail?.minCommit ?? 0, ceiling: detail?.maxBudget ?? 0 });
   const motions = mergeMotionRows(revenueSegments, takeSegments);
 
   const hasSparkline = !!sparkline && sparkline.current.length >= 2;
@@ -62,21 +65,22 @@ export default function SchedDeliveredCard({
     ? `Your running revenue through the fiscal year — ${currentFyLabel} so far (solid, dot = today) vs the full ${priorFyLabel} for comparison (dashed).`
     : `Your running revenue through ${currentFyLabel} (the dot marks today).`;
 
-  const takeLine = (
-    <span className="whitespace-nowrap text-[11px] text-[#5C5378]">
-      <span className="font-semibold text-[#403770]">{formatCurrency(take, true)}</span> take
-      {rate != null && <span className="text-[#8A80A8]"> · {formatPercent(rate, 0)} take rate</span>}
+  const subLine = geo.hasRange ? (
+    <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-[#8A80A8]">
+      utilized of budget
+      {underMin && (
+        <span className="rounded-full bg-[#F37167]/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#F37167]">UNDER MIN</span>
+      )}
     </span>
-  );
+  ) : undefined;
 
   return (
     <StatCardShell
       label={label}
       labelTooltip={labelTooltip}
-      value={formatCurrency(revenue, true)}
-      deltaPct={yoyPct}
+      value={geo.hasRange && util != null ? formatPercent(util, 0) : "—"}
       priorFyLabel={priorFyLabel}
-      minMaxLine={takeLine}
+      minMaxLine={subLine}
       onExpand={onExpand}
       footerLeft={hasSparkline ? (
         <>
@@ -88,8 +92,16 @@ export default function SchedDeliveredCard({
       ) : null}
       footerRight={<RankPill rank={rank} totalReps={totalReps} inRoster={inRoster} />}
     >
-      {geo.hasRange && detail ? (
-        <RangeBar geo={geo} ceiling={detail.maxBudget} floor={detail.minCommit} motions={motions} totalRevenue={revenue} totalTake={take} />
+      {geo.hasRange ? (
+        <div className="flex flex-col gap-2.5">
+          <UtilBar geo={geo} minCommit={minCommit} maxBudget={maxBudget} motions={motions} totalRevenue={revenue} totalTake={take} />
+          <div className="border-t border-[#F1EEFA]" />
+          <div className="flex flex-col gap-1">
+            <KV label="Delivered rev" value={formatCurrency(revenue, true)} />
+            <KV label="Deferred" value={formatCurrency(def, true)} valueClass="text-[#C77]" />
+            <KV label="Take · rate" value={`${formatCurrency(take, true)}${rate != null ? ` · ${formatPercent(rate, 0)}` : ""}`} />
+          </div>
+        </div>
       ) : (
         <p className="whitespace-nowrap text-[11px] text-[#8A80A8]">No won contracts yet this year.</p>
       )}
@@ -97,17 +109,26 @@ export default function SchedDeliveredCard({
   );
 }
 
-// The $0 → ceiling bar plus the motion popover. The whole card is the click target
-// for the drill-in modal (StatCardShell onExpand), so the bar only adds the by-motion
-// popover: hover on desktop, tap on touch (stopPropagation so a tap reads the
-// breakdown without also firing the card's modal). Portal-rendered so the dashboard's
-// scroll/overflow containers don't clip it (same pattern as MetricLabel).
-function RangeBar({
-  geo, ceiling, floor, motions, totalRevenue, totalTake,
+function KV({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="flex justify-between text-[12px]">
+      <span className="whitespace-nowrap text-[#8A80A8]">{label}</span>
+      <span className={`whitespace-nowrap font-semibold tabular-nums ${valueClass ?? "text-[#403770]"}`}>{value}</span>
+    </div>
+  );
+}
+
+// The $0 → max-budget fill bar (delivered revenue) with the min-commit floor marker.
+// The whole card is the click target for the drill-in modal (StatCardShell onExpand),
+// so the bar only adds the by-motion popover: hover on desktop, tap on touch
+// (stopPropagation so a tap reads the breakdown without also firing the card's modal).
+// Portal-rendered so the dashboard's scroll/overflow containers don't clip it.
+function UtilBar({
+  geo, minCommit, maxBudget, motions, totalRevenue, totalTake,
 }: {
   geo: RangeGeometry;
-  ceiling: number;
-  floor: number;
+  minCommit: number;
+  maxBudget: number;
   motions: MotionRow[];
   totalRevenue: number;
   totalTake: number;
@@ -142,9 +163,8 @@ function RangeBar({
           open ? hide() : show();
         }}
       >
-        <div className="relative h-[14px] rounded-full" style={{ background: TRACK }}>
+        <div className="relative h-[12px] rounded-full" style={{ background: TRACK }}>
           <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${geo.revenuePct}%`, background: REV }} />
-          <div className="absolute inset-y-0 left-0 rounded-l-full" style={{ width: `${geo.takePct}%`, background: TAKE }} />
           <div className="absolute -inset-y-1 w-[2px]" style={{ left: `${geo.floorPct}%`, background: FLOOR_MARK }} />
           {geo.overage && <div className="absolute -inset-y-0.5 right-0 w-[3px] rounded" style={{ background: OVERAGE }} />}
         </div>
@@ -152,10 +172,8 @@ function RangeBar({
 
       <div className="flex justify-between text-[10px] text-[#8A80A8]">
         <span className="whitespace-nowrap">$0</span>
-        <span className="whitespace-nowrap">Budget {formatCurrency(ceiling, true)}</span>
-      </div>
-      <div className="whitespace-nowrap text-[10px] text-[#8A80A8]">
-        Floor <span className="font-semibold text-[#403770]">{formatCurrency(floor, true)}</span>
+        <span className="whitespace-nowrap">Min {formatCurrency(minCommit, true)}</span>
+        <span className="whitespace-nowrap">Max {formatCurrency(maxBudget, true)}</span>
       </div>
 
       {open && pos && typeof document !== "undefined" && createPortal(

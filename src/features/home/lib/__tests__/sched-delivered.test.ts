@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeRange, takeRate, mergeMotionRows } from "../sched-delivered";
+import { computeRange, takeRate, mergeMotionRows, utilization, deferred } from "../sched-delivered";
 
 describe("computeRange", () => {
   it("scales revenue/take/floor as a percent of the ceiling", () => {
@@ -79,5 +79,27 @@ describe("mergeMotionRows", () => {
   it("returns a null rate when take exists but revenue is zero", () => {
     const rows = mergeMotionRows([], [{ key: "new", label: "New biz", value: 40 }]);
     expect(rows).toEqual([{ key: "new", label: "New biz", revenue: 0, take: 40, rate: null }]);
+  });
+});
+
+describe("utilization", () => {
+  it("returns money / maxBudget", () => {
+    expect(utilization(748, 1100)).toBeCloseTo(0.68, 2);
+  });
+  it("returns null when there's no budget to measure against", () => {
+    expect(utilization(0, 0)).toBeNull();
+    expect(utilization(50, 0)).toBeNull();
+  });
+  it("can exceed 1 on overage", () => {
+    expect(utilization(1300, 1100)).toBeGreaterThan(1);
+  });
+});
+
+describe("deferred", () => {
+  it("returns the unspent budget", () => {
+    expect(deferred(748, 1100)).toBe(352);
+  });
+  it("never goes negative on overage", () => {
+    expect(deferred(1300, 1100)).toBe(0);
   });
 });

@@ -49,6 +49,20 @@ export function takeRate(revenue: number, take: number): number | null {
   return take / revenue;
 }
 
+// Utilization = how much of the contracted budget ceiling the money (delivered
+// revenue, or take) has consumed. Mirrors the Revenue/Take Utilization modal's UTL
+// column. Null when there's no budget to measure against. Can exceed 1 (overage).
+export function utilization(money: number, maxBudget: number): number | null {
+  if (!(maxBudget > 0)) return null;
+  return money / maxBudget;
+}
+
+// Deferred = the contracted budget not yet consumed by delivered money (never
+// negative; an overage shows as 0 deferred, not a negative).
+export function deferred(money: number, maxBudget: number): number {
+  return Math.max(0, maxBudget - money);
+}
+
 export interface MotionRow {
   key: string;
   label: string;

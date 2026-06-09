@@ -17,12 +17,18 @@ const base = {
 };
 
 describe("SchedDeliveredCard", () => {
-  it("shows the revenue headline, the take + take-rate line, and the ceiling", () => {
+  it("leads with utilization% and shows delivered, deferred, take rate, and the budget ceiling", () => {
     render(<SchedDeliveredCard {...base} />);
-    expect(screen.getByText("$748K")).toBeInTheDocument();
-    expect(screen.getByText("$224K")).toBeInTheDocument();
-    expect(screen.getByText(/30% take rate/)).toBeInTheDocument();
-    expect(screen.getByText(/Budget \$1\.1M/)).toBeInTheDocument();
+    expect(screen.getByText("68%")).toBeInTheDocument();          // util = 748 / 1100
+    expect(screen.getByText("$748K")).toBeInTheDocument();         // delivered rev
+    expect(screen.getByText("$352K")).toBeInTheDocument();         // deferred = 1100 − 748
+    expect(screen.getByText(/\$224K · 30%/)).toBeInTheDocument();  // take · rate
+    expect(screen.getByText(/Max \$1\.1M/)).toBeInTheDocument();   // budget ceiling
+  });
+
+  it("flags UNDER MIN when delivered is below the commitment floor", () => {
+    render(<SchedDeliveredCard {...base} revenue={88000} take={26000} />);
+    expect(screen.getByText("UNDER MIN")).toBeInTheDocument();
   });
 
   it("renders an empty-range note when there are no won contracts", () => {
