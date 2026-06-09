@@ -39,13 +39,10 @@ function buildJwt() {
   });
 }
 
-// Server-side only — called by the /api/document-generation/render route handler,
-// NOT used directly as a RenderClient. The client-side RenderClient
-// (appsScriptRenderClient) fetches that route; the route bridges to this. Hence the
-// flat (payload, tags) signature rather than the RenderClient (payload, opts) shape.
-/** Mints a service-account OAuth token (domain-wide delegation) and POSTs the
- *  payload to the deployed Apps Script web app, returning the doc URL. */
-export async function renderViaAppsScript(payload: DocPayload, tags: boolean): Promise<RenderResult> {
+/** Mints the service-account token, POSTs the JSON body to the renderer web app,
+ *  and returns the parsed JSON. Throws on token-mint failure or a non-OK HTTP status.
+ *  Callers own their own success/url validation and result mapping. */
+async function callRenderer(body: object): Promise<Record<string, unknown>> {
   const jwt = buildJwt();
   const { token } = await jwt.getAccessToken();
   if (!token) throw new Error("Failed to mint service-account access token");
@@ -53,14 +50,49 @@ export async function renderViaAppsScript(payload: DocPayload, tags: boolean): P
   const res = await fetch(requireEnv("GOOGLE_DOC_RENDER_URL"), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, tags }),
+    body: JSON.stringify(body),
     // Apps Script /exec 302-redirects to script.googleusercontent.com; follow it.
     redirect: "follow",
   });
   if (!res.ok) throw new Error(`Renderer returned HTTP ${res.status}`);
+  return (await res.json()) as Record<string, unknown>;
+}
 
-  const data = (await res.json()) as { success: boolean; url?: string; agreementUrl?: string; error?: string };
+// Server-side only — called by the /api/document-generation/render route handler,
+// NOT used directly as a RenderClient. The client-side RenderClient
+// (appsScriptRenderClient) fetches that route; the route bridges to this. Hence the
+// flat (payload, tags) signature rather than the RenderClient (payload, opts) shape.
+/** Mints a service-account OAuth token (domain-wide delegation) and POSTs the
+ *  payload to the deployed Apps Script web app, returning the doc URL. */
+export async function renderViaAppsScript(payload: DocPayload, tags: boolean): Promise<RenderResult> {
+  const data = (await callRenderer({ ...payload, tags })) as { success: boolean; url?: string; agreementUrl?: string; error?: string };
   if (!data.success || !data.url) throw new Error(`Renderer failed: ${data.error ?? "unknown error"}`);
 
   return data.agreementUrl ? { docUrl: data.url, agreementUrl: data.agreementUrl } : { docUrl: data.url };
+}
+
+export interface SendResult {
+  docUrl: string;
+  docId?: string;
+  sent: boolean;
+  signatureRequestId?: string;
+  sendError?: string;
+}
+
+/** Re-renders the payload with eSign tags ON and auto_send ON (mechanism A) and
+ *  returns the Dropbox Sign send result. Reuses buildJwt()/SCOPES from this file. */
+export async function sendForSignature(payload: DocPayload): Promise<SendResult> {
+  const data = (await callRenderer({ ...payload, tags: true, auto_send: true })) as {
+    success: boolean; url?: string; docId?: string;
+    sent?: boolean; signatureRequestId?: string; sendError?: string; error?: string;
+  };
+  if (!data.success || !data.url) throw new Error(`Send failed: ${data.error ?? "unknown error"}`);
+
+  return {
+    docUrl: data.url,
+    docId: data.docId,
+    sent: data.sent ?? false,
+    signatureRequestId: data.signatureRequestId,
+    sendError: data.sendError,
+  };
 }

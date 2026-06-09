@@ -112,3 +112,46 @@ describe("renderViaAppsScript", () => {
     expect(opts).not.toHaveProperty("keyFile");
   });
 });
+
+import { sendForSignature } from "../render-apps-script";
+
+describe("sendForSignature", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAccessToken.mockResolvedValue({ token: "tok-123" });
+    process.env.GOOGLE_DOC_RENDER_URL = "https://script.google.com/x/exec";
+    process.env.GOOGLE_DOC_RENDER_SA_EMAIL = "sa@proj.iam.gserviceaccount.com";
+    process.env.GOOGLE_DOC_RENDER_SA_KEY = "-----KEY-----";
+    process.env.GOOGLE_DOC_RENDER_SUBJECT = "rep@fullmindlearning.com";
+    delete process.env.GOOGLE_DOC_RENDER_KEY_FILE;
+  });
+
+  it("POSTs tags:true + auto_send:true and returns the send result", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ success: true, url: "https://docs.google.com/document/d/D/edit", docId: "D", sent: true, signatureRequestId: "sig_123" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sendForSignature({ doc_type: "contract" } as never);
+
+    expect(result).toEqual({ docUrl: "https://docs.google.com/document/d/D/edit", docId: "D", sent: true, signatureRequestId: "sig_123", sendError: undefined });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ doc_type: "contract", tags: true, auto_send: true });
+  });
+
+  it("returns sent:false + sendError when the script could not send", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ success: true, url: "u", docId: "D", sent: false, sendError: "domain not allowed" }),
+    }));
+    const r = await sendForSignature({ doc_type: "contract" } as never);
+    expect(r).toMatchObject({ docUrl: "u", sent: false, sendError: "domain not allowed" });
+  });
+
+  it("throws when the script reports success:false", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ success: false, error: "render boom" }),
+    }));
+    await expect(sendForSignature({ doc_type: "contract" } as never)).rejects.toThrow(/render boom/);
+  });
+});
