@@ -60,6 +60,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
           <ReviewStage
             result={result}
             orderTotal={orderTotal}
+            busy={busy}
             onSend={() => { /* delivery sub-project: Dropbox Sign */ }}
             onManual={() => { if (!busy) void render(false); }}
             onBack={() => setResult(null)}
@@ -68,7 +69,8 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
           <DocumentPayloadForm
             value={state}
             onChange={setState}
-            onRender={() => { if (!busy) void render(true); }}
+            busy={busy}
+            onRender={() => { if (!busy) void render(false); }}  // tags off until Dropbox Sign delivery (SP4) exists
             bookingReference={prefill.bookingReference}
           />
         )}

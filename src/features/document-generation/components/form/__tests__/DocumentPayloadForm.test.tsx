@@ -63,4 +63,26 @@ describe("DocumentPayloadForm", () => {
     fireEvent.change(screen.getByLabelText("Document type"), { target: { value: "contract" } });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ docType: "contract", paymentType: "A" }));
   });
+
+  it("shows generating label and disables button when busy=true", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <DocumentPayloadForm value={complete()} onChange={vi.fn()} onRender={vi.fn()} bookingReference={null} busy={true} />
+      </QueryClientProvider>,
+    );
+    const btn = screen.getByRole("button", { name: /Generating/i });
+    expect(btn).toBeDisabled();
+  });
+
+  it("shows normal label and is enabled when busy=false and form complete", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <DocumentPayloadForm value={complete()} onChange={vi.fn()} onRender={vi.fn()} bookingReference={null} busy={false} />
+      </QueryClientProvider>,
+    );
+    const btn = screen.getByRole("button", { name: /Render document →/i });
+    expect(btn).toBeEnabled();
+  });
 });

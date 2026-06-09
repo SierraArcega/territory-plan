@@ -12,9 +12,10 @@ interface Props {
   onChange: (next: DocFormState) => void;
   onRender: () => void;
   bookingReference: number | null;
+  busy?: boolean;
 }
 
-export default function DocumentPayloadForm({ value, onChange, onRender, bookingReference }: Props) {
+export default function DocumentPayloadForm({ value, onChange, onRender, bookingReference, busy }: Props) {
   const patch = (p: Partial<DocFormState>) => onChange({ ...value, ...p });
   const setDocType = (docType: DocType) =>
     onChange({
@@ -44,9 +45,9 @@ export default function DocumentPayloadForm({ value, onChange, onRender, booking
         <span className="text-xs text-[#6E6390]">
           {isComplete ? "All required fields complete ✓" : `Missing: ${missing.join(", ")}`}
         </span>
-        <button type="button" onClick={onRender} disabled={!isComplete}
+        <button type="button" onClick={onRender} disabled={!isComplete || busy}
           className="shrink-0 rounded-lg bg-[#403770] px-3 py-1 text-sm text-white disabled:opacity-50 whitespace-nowrap">
-          Render document →
+          {busy ? "Generating… (~15–20s)" : "Render document →"}
         </button>
       </div>
     </div>

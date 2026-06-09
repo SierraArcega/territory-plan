@@ -24,4 +24,16 @@ describe("ReviewStage", () => {
     render(<ReviewStage {...props()} />);
     expect(screen.getByRole("link", { name: /rendered document/i })).toHaveAttribute("href", "https://docs.google.com/document/d/X/edit");
   });
+
+  it("disables Open Google Doc button and shows generating label when busy=true", () => {
+    render(<ReviewStage {...props({ busy: true })} />);
+    const btn = screen.getByRole("button", { name: /Generating/i });
+    expect(btn).toBeDisabled();
+  });
+
+  it("shows normal label and is enabled for Open Google Doc when busy=false", () => {
+    render(<ReviewStage {...props({ busy: false })} />);
+    const btn = screen.getByRole("button", { name: /Open Google Doc \(manual\)/i });
+    expect(btn).toBeEnabled();
+  });
 });

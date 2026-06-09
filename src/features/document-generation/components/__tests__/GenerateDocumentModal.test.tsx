@@ -1,10 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GenerateDocumentModal from "../GenerateDocumentModal";
 
 vi.mock("../form/ContactRolePicker", () => ({ default: () => <div>picker</div> }));
 vi.mock("../form/SkuPicker", () => ({ default: () => <div>sku</div> }));
+// Make the form always appear complete so we can exercise the render path
+vi.mock("@/features/document-generation/lib/validation", () => ({
+  getCompleteness: () => ({ isComplete: true, missing: [] }),
+}));
 
 const completePrefill = {
   docType: "contract" as const, districtLeaId: "x", companyName: "Barstow", billingAddress: "1 Main St",
@@ -27,5 +31,16 @@ describe("GenerateDocumentModal", () => {
     const { renderClient } = setup();
     expect(renderClient).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Document type")).toBeInTheDocument();
+  });
+
+  it("calls renderClient with tags:false when the generate button is clicked", async () => {
+    const { renderClient } = setup();
+    const btn = screen.getByRole("button", { name: /Render document/i });
+    expect(btn).toBeEnabled();
+    await act(async () => { btn.click(); });
+    expect(renderClient).toHaveBeenCalledWith(
+      expect.anything(),
+      { tags: false },
+    );
   });
 });
