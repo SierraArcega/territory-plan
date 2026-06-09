@@ -47,8 +47,8 @@ export default function DocumentGeneratorDevPage() {
     maxAmt: null,
     bookingReference: 188000,
     sender: {
-      first: (profile?.fullName ?? "Rep").split(" ")[0],
-      last: "",
+      first: (profile?.fullName ?? "Rep").trim().split(/\s+/)[0],
+      last: (profile?.fullName ?? "").trim().split(/\s+/).slice(1).join(" "),
       title: profile?.jobTitle ?? "",
       email: profile?.email ?? "",
     },
