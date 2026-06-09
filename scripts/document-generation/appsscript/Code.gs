@@ -53,6 +53,12 @@ function generateFullContract(payload) {
     handlePaymentTerms(body, payload.payment);
     handleAppendedSections(doc, payload.sections, props);
 
+    // tags defaults to true (eSign-ready). tags:false strips the signature-page
+    // text tags for a clean, printable manual copy.
+    if (payload.tags === false) {
+      stripSignatureTextTags(body);
+    }
+
     // Second pass: catch any <<FIELD>> tokens in appended content (signature page, MSA, etc.)
     replaceMergeFields(body, payload);
     validateMergeFields(body);

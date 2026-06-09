@@ -225,3 +225,16 @@ function appendDocContent(targetDoc, sourceDocId, placeholderText, skipWidthNorm
   }
 }
 
+/**
+ * Removes Dropbox Sign text-tag tokens from the document body, leaving the
+ * surrounding signature lines intact. Used for the "manual / clean" render
+ * (tags:false). Token format per project_esign_approach: backslash-delimited,
+ * e.g. \s1\ (signature) and \d1\ (date).
+ * NOTE: confirm this pattern against the live signature-page doc before relying
+ * on it — adjust the regex here if the real tokens differ.
+ * @param {GoogleAppsScript.Document.Body} body
+ */
+function stripSignatureTextTags(body) {
+  body.replaceText('\\\\[a-zA-Z]+[0-9]*\\\\', '');
+}
+
