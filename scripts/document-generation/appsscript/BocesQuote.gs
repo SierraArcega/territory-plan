@@ -71,6 +71,15 @@ function replaceBocesMergeFields(body, payload) {
   }
 }
 
+/**
+ * Builds the "Anticipated Educator Need" table at the [BOCES_QUOTE_TABLE_INSERT]
+ * marker, then removes the marker. Columns: Product | Needed (count) | Hours |
+ * Hourly Rate | Total. Footer (Subtotal → Fee → order-level adjustments → TOTAL
+ * → savings) comes from the shared buildQuoteFooterRows helper; TOTAL uses the
+ * forwarded quote.order_total so order-level adjustments are reflected.
+ * @param {GoogleAppsScript.Document.Body} body
+ * @param {Object} quote  payload.quote ({ fee_pct, order_total, line_items, adjustments, savings })
+ */
 function buildBocesQuoteTable(body, quote) {
   var t = computeBocesQuoteTotals(quote.line_items, quote.fee_pct);
 
