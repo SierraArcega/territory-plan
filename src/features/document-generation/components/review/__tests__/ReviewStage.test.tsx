@@ -5,35 +5,41 @@ import ReviewStage from "../ReviewStage";
 const props = (over = {}) => ({
   result: { docUrl: "https://docs.google.com/document/d/X/edit" },
   orderTotal: 16500,
-  onSend: vi.fn(), onManual: vi.fn(), onBack: vi.fn(), ...over,
+  docType: "contract" as const,
+  onSend: vi.fn(), onBack: vi.fn(),
+  busy: false, sendState: null as null | { status: "sent" | "error"; recipientEmail?: string; sendError?: string },
+  ...over,
 });
 
 describe("ReviewStage", () => {
-  it("makes Send for signature the primary action", () => {
+  it("shows Send for signature for contracts", () => {
     render(<ReviewStage {...props()} />);
-    const send = screen.getByRole("button", { name: /Send for signature/i });
-    expect(send).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send for signature/i })).toBeEnabled();
   });
-  it("fires onManual for the Open Google Doc branch", () => {
+  it("hides Send for boces_quote (no eSign)", () => {
+    render(<ReviewStage {...props({ docType: "boces_quote" })} />);
+    expect(screen.queryByRole("button", { name: /Send for signature/i })).not.toBeInTheDocument();
+  });
+  it("disables Send while busy (guards double-submit)", () => {
+    render(<ReviewStage {...props({ busy: true })} />);
+    expect(screen.getByRole("button", { name: /Sending/i })).toBeDisabled();
+  });
+  it("fires onSend when clicked", () => {
     const p = props();
     render(<ReviewStage {...p} />);
-    screen.getByRole("button", { name: /Open Google Doc/i }).click();
-    expect(p.onManual).toHaveBeenCalled();
+    screen.getByRole("button", { name: /Send for signature/i }).click();
+    expect(p.onSend).toHaveBeenCalled();
+  });
+  it("shows the sent confirmation", () => {
+    render(<ReviewStage {...props({ sendState: { status: "sent", recipientEmail: "s@acme.org" } })} />);
+    expect(screen.getByText(/Sent/i)).toHaveTextContent("s@acme.org");
+  });
+  it("shows the send error", () => {
+    render(<ReviewStage {...props({ sendState: { status: "error", sendError: "domain not allowed" } })} />);
+    expect(screen.getByText(/domain not allowed/i)).toBeInTheDocument();
   });
   it("links to the rendered doc", () => {
     render(<ReviewStage {...props()} />);
     expect(screen.getByRole("link", { name: /rendered document/i })).toHaveAttribute("href", "https://docs.google.com/document/d/X/edit");
-  });
-
-  it("disables Open Google Doc button and shows generating label when busy=true", () => {
-    render(<ReviewStage {...props({ busy: true })} />);
-    const btn = screen.getByRole("button", { name: /Generating/i });
-    expect(btn).toBeDisabled();
-  });
-
-  it("shows normal label and is enabled for Open Google Doc when busy=false", () => {
-    render(<ReviewStage {...props({ busy: false })} />);
-    const btn = screen.getByRole("button", { name: /Open Google Doc \(manual\)/i });
-    expect(btn).toBeEnabled();
   });
 });
