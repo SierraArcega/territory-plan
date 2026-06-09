@@ -112,6 +112,11 @@ function testComputeBocesQuoteTotals() {
   var r2 = computeBocesQuoteTotals([{ product: 'X', rate: 100, qty: 1 }], undefined);
   if (r2.fee !== 10.6)             throw new Error('default fee: expected 10.6, got ' + r2.fee);
 
+  // count multiplies the line total: 2 × 10 × 100 = 2000, fee 10% = 200, total 2200
+  var c = computeBocesQuoteTotals([{ product: 'Tutoring', rate: 100, qty: 10, count: 2 }], 10);
+  if (c.subtotal !== 2000) throw new Error('count subtotal: ' + c.subtotal);
+  if (c.total    !== 2200) throw new Error('count total: ' + c.total);
+
   Logger.log('  ✅ testComputeBocesQuoteTotals passed');
 }
 

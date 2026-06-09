@@ -1,20 +1,22 @@
 /**
  * Computes the BOCES quote table totals from line items and a percentage fee.
  * Pure function — no Document dependency, unit-testable in the editor.
- * @param {Array<{product:string, rate:number, qty:number}>} lineItems
+ * @param {Array<{product:string, rate:number, qty:number, count?:number}>} lineItems
  * @param {number} [feePct=10.6]  Fee percentage applied to the line-item subtotal.
- * @returns {{rows:Array<{product:string,rate:number,qty:number,total:number}>,
+ * @returns {{rows:Array<{product:string,rate:number,qty:number,count:number,total:number}>,
  *           subtotal:number, feePct:number, fee:number, total:number}}
  */
 function computeBocesQuoteTotals(lineItems, feePct) {
   var pct = (feePct == null) ? 10.6 : feePct;
 
   var rows = lineItems.map(function(item) {
+    var count = (item.count == null) ? 1 : item.count;
     return {
       product: item.product,
       rate:    item.rate,
       qty:     item.qty,
-      total:   round2(item.rate * item.qty),
+      count:   count,
+      total:   round2(count * item.qty * item.rate),
     };
   });
 
@@ -69,13 +71,6 @@ function replaceBocesMergeFields(body, payload) {
   }
 }
 
-/**
- * Builds the "Anticipated Educator Need" table at the [BOCES_QUOTE_TABLE_INSERT]
- * marker, then removes the marker. Columns: Product, Hourly Rate, Hours, Total.
- * No discount column. Fee row shows the percentage; Total row shows subtotal+fee.
- * @param {GoogleAppsScript.Document.Body} body
- * @param {Object} quote  payload.quote ({ fee_pct, line_items })
- */
 function buildBocesQuoteTable(body, quote) {
   var t = computeBocesQuoteTotals(quote.line_items, quote.fee_pct);
 
@@ -85,22 +80,25 @@ function buildBocesQuoteTable(body, quote) {
     return;
   }
 
-  var headerRow = ['Product', 'Hourly Rate', 'Hours', 'Total'];
+  // Columns: Product | Needed | Hours | Hourly Rate | Total. (Needed = count.)
+  var headerRow = ['Product', 'Needed', 'Hours', 'Hourly Rate', 'Total'];
   var dataRows  = t.rows.map(function(r) {
-    return [r.product, formatCurrency(r.rate), String(r.qty), formatCurrency(r.total)];
+    return [r.product, String(r.count), String(r.qty), formatCurrency(r.rate), formatCurrency(r.total)];
   });
-  // The "Fee" and "Total" labels intentionally sit in the Hours column (index 2)
-  // with their values in the Total column (index 3) — matches the approved quote
-  // layout and the contract's TOTAL row convention in QuoteTable.gs.
-  // round2() on feePct strips any binary-float noise (e.g. 10.600000000000001).
-  var feeRow   = ['', '', 'Fee', round2(t.feePct) + ' %'];
-  var totalRow = ['', '', 'Total', formatCurrency(t.total)];
 
-  var allRows = [headerRow].concat(dataRows).concat([feeRow, totalRow]);
+  // Footer: Subtotal → Fee (extraRow) → adjustments → TOTAL (forwarded order_total) → savings.
+  var footerRows = buildQuoteFooterRows(headerRow.length, {
+    subtotal:    t.subtotal,
+    adjustments: quote.adjustments || [],
+    extraRows:   [['Fee (' + round2(t.feePct) + '%):', formatCurrency(t.fee)]],
+    orderTotal:  (quote.order_total != null) ? quote.order_total : t.total,
+    savings:     quote.savings || 0,
+  });
+
+  var allRows = [headerRow].concat(dataRows).concat(footerRows);
   var newTable = body.insertTable(markerIdx + 1, allRows);
 
-  // Proportional column widths scaled to the 540pt content area (8.5" − 0.5" margins).
-  var naturalWidths = [220, 110, 90, 120];
+  var naturalWidths = [200, 60, 70, 100, 110];
   var rawTotal = naturalWidths.reduce(function(s, w) { return s + w; }, 0);
   naturalWidths.forEach(function(w, i) {
     newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
@@ -108,16 +106,15 @@ function buildBocesQuoteTable(body, quote) {
 
   applyFullmindTableStyle(newTable);
 
-  // Bold the Fee and Total rows.
+  // Bold every footer row.
   var n = newTable.getNumRows();
-  [n - 2, n - 1].forEach(function(rowIdx) {
-    var row = newTable.getRow(rowIdx);
-    for (var c = 0; c < row.getNumCells(); c++) {
-      row.getCell(c).editAsText().setBold(true);
+  for (var fr = n - footerRows.length; fr < n; fr++) {
+    var frow = newTable.getRow(fr);
+    for (var fc = 0; fc < frow.getNumCells(); fc++) {
+      frow.getCell(fc).editAsText().setBold(true);
     }
-  });
+  }
 
-  // Remove the marker paragraph now that the table sits after it.
   body.getChild(markerIdx).removeFromParent();
 }
 
