@@ -89,7 +89,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
             value={state}
             onChange={setState}
             busy={busy}
-            onRender={() => { if (!busy) void render(false); }}  // tags off until Dropbox Sign delivery (SP4) exists
+            onRender={() => { if (!busy) void render(false); }}  // preview is always clean (tags off); "Send for signature" re-renders tagged + sends
             bookingReference={prefill.bookingReference}
           />
         )}
