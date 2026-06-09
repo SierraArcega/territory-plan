@@ -47,4 +47,29 @@ describe("PaymentSection", () => {
     fireEvent.click(screen.getByLabelText(/Invoice at time of signing/i));
     expect(onChange).toHaveBeenCalledWith({ invoiceDate: "" });
   });
+
+  it("renders the three Unused funds options", () => {
+    render_();
+    expect(screen.getByRole("option", { name: "Be credited" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Expire" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Be refunded" })).toBeInTheDocument();
+  });
+
+  it("defaults Unused funds to 'be credited'", () => {
+    render_();
+    const select = screen.getByLabelText("Unused funds") as HTMLSelectElement;
+    expect(select.value).toBe("be credited");
+  });
+
+  it("fires onChange with the selected unusedFunds value", () => {
+    const { onChange } = render_();
+    fireEvent.change(screen.getByLabelText("Unused funds"), { target: { value: "expire" } });
+    expect(onChange).toHaveBeenCalledWith({ unusedFunds: "expire" });
+  });
+
+  it("fires onChange with 'be refunded' when that option is selected", () => {
+    const { onChange } = render_();
+    fireEvent.change(screen.getByLabelText("Unused funds"), { target: { value: "be refunded" } });
+    expect(onChange).toHaveBeenCalledWith({ unusedFunds: "be refunded" });
+  });
 });

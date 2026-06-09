@@ -186,7 +186,7 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     paymentType: docType === "boces_quote" ? "C" : "A",
     payTerms: "",
     invoiceDate: "",
-    unusedFunds: "",
+    unusedFunds: "be credited",
     poRequired: false,
     poNumber: "",
     payPrePost: "",

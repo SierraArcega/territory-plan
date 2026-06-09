@@ -26,6 +26,16 @@ export default function PaymentSection({ state, onChange }: Props) {
       <input placeholder="Payment terms (e.g. Net 30)" value={state.payTerms}
         onChange={(e) => onChange({ payTerms: e.target.value })}
         className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+      <label className="flex flex-col gap-1">
+        <span className="text-xs uppercase tracking-wide text-[#6E6390]">Unused funds</span>
+        <select aria-label="Unused funds" value={state.unusedFunds}
+          onChange={(e) => onChange({ unusedFunds: e.target.value })}
+          className="rounded border border-[#C2BBD4] px-2 py-1">
+          <option value="be credited">Be credited</option>
+          <option value="expire">Expire</option>
+          <option value="be refunded">Be refunded</option>
+        </select>
+      </label>
       <div className="space-y-1">
         <div className="text-xs uppercase tracking-wide text-[#6E6390]">Invoice date</div>
         <label className="flex items-center gap-2 whitespace-nowrap">

@@ -10,7 +10,12 @@ function resolveRole(state: DocFormState, role: "signer" | "billing"): ContactRe
 
 const fullName = (c: ContactRef | null) => (c ? `${c.firstName} ${c.lastName}`.trim() : "");
 
-export function assemblePayload(state: DocFormState): DocPayload {
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+export function formatToday(d: Date): string {
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+export function assemblePayload(state: DocFormState, today: string = formatToday(new Date())): DocPayload {
   const totals = computeTotals(state.docType, state.lineItems, state.feePct, state.adjustments ?? []);
   const activeAdjustments = totals.adjustments
     .filter((a) => a.label.trim() !== "" && a.value !== 0)
@@ -45,7 +50,7 @@ export function assemblePayload(state: DocFormState): DocPayload {
         quote_number: state.quoteNumber,
         start_date: state.startDate,
         end_date: state.endDate,
-        today: "",
+        today,
       },
       quote: {
         fee_pct: state.feePct,
@@ -87,7 +92,7 @@ export function assemblePayload(state: DocFormState): DocPayload {
       sender_last: state.senderLast,
       sender_title: state.senderTitle,
       sender_email: state.senderEmail,
-      today: "",
+      today,
     },
     quote: {
       include: state.lineItems.length > 0,
