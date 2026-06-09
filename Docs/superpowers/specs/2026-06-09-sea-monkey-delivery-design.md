@@ -177,3 +177,11 @@ clean (`tags:false`) docs.
 - Branch-c (re-fire existing doc URL after tag verification).
 - Surfacing sent documents in a list / on opportunity & plan detail (SP3).
 - Per-rep Drive file ownership (needs "execute as accessing user" deployment).
+
+## Production setup (user-gated)
+
+1. Add `DROPBOX_SIGN_API_KEY` to Vercel (Production + Preview, Sensitive) — the SAME key set in the Apps Script `DROPBOX_SIGN_API_KEY` script property. Redeploy after saving.
+2. In the Dropbox Sign dashboard (API app / account settings), set the **callback URL** to `https://plan.fullmindlearning.com/api/webhooks/dropbox-sign`. For local testing, use an ngrok tunnel URL + `/api/webhooks/dropbox-sign` and the `NEXT_PUBLIC_SITE_URL` override per CLAUDE.md.
+3. Keep the Apps Script `DROPBOX_SIGN_TEST_MODE='1'` until a deliberate production cutover.
+4. Apply the `generated_documents` migration to the database (the migration SQL was authored in `prisma/migrations/<ts>_add_generated_documents/`; apply via the team's normal Supabase/Prisma process).
+5. Deploy the updated Apps Script: `cd scripts/document-generation/appsscript && npx clasp push -f && npx clasp deploy -i AKfycby0oFEDEj77XpMNNZaB9WpOVsHoUBeY1Nsa2nJbvU5J3nyfnTYSmvQHJgh9DdCtoTsy -d "SP4 signer_email recipient"`
