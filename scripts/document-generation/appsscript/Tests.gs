@@ -298,3 +298,43 @@ function testEscapeRegex() {
   });
   Logger.log('  ✅ testEscapeRegex passed');
 }
+
+function testBuildQuoteFooterRows() {
+  var rows = buildQuoteFooterRows(6, {
+    subtotal: 459845.94,
+    adjustments: [
+      { label: 'Early Signing Discount', type: 'discount', mode: 'percent', value: 10, amount: 45984.59 },
+    ],
+    extraRows: [],
+    orderTotal: 413861.35,
+    savings: 46430.39,
+  });
+  if (rows.length !== 4) throw new Error('expected 4 footer rows, got ' + rows.length);
+  if (rows[0][4] !== 'Subtotal:')   throw new Error('row0 label: ' + rows[0][4]);
+  if (rows[0][5] !== '$459,845.94') throw new Error('row0 value: ' + rows[0][5]);
+  if (rows[1][4] !== 'Early Signing Discount (10%):') throw new Error('row1 label: ' + rows[1][4]);
+  if (rows[1][5] !== '−$45,984.59') throw new Error('row1 value: ' + rows[1][5]);
+  if (rows[2][4] !== 'TOTAL:')      throw new Error('row2 label: ' + rows[2][4]);
+  if (rows[3][4] !== "You'll save:") throw new Error('row3 label: ' + rows[3][4]);
+
+  var noSave = buildQuoteFooterRows(6, { subtotal: 100, adjustments: [], extraRows: [], orderTotal: 100, savings: 0 });
+  if (noSave.length !== 2) throw new Error('expected 2 rows w/o savings, got ' + noSave.length);
+
+  var withFee = buildQuoteFooterRows(5, { subtotal: 2000, adjustments: [], extraRows: [['Fee (10%):', '$200.00']], orderTotal: 2200, savings: 0 });
+  if (withFee[1][3] !== 'Fee (10%):') throw new Error('fee row label: ' + withFee[1][3]);
+  Logger.log('testBuildQuoteFooterRows ✓');
+}
+
+function testFormatBillableSummary() {
+  if (formatBillableSummary(940, 40) !== 'Total billable: 940 days / 40 hours') throw new Error('both: ' + formatBillableSummary(940, 40));
+  if (formatBillableSummary(0, 40)   !== 'Total billable: 40 hours') throw new Error('hours only: ' + formatBillableSummary(0, 40));
+  if (formatBillableSummary(1, 0)    !== 'Total billable: 1 day') throw new Error('singular day: ' + formatBillableSummary(1, 0));
+  if (formatBillableSummary(0, 0)    !== '') throw new Error('empty: "' + formatBillableSummary(0, 0) + '"');
+  Logger.log('testFormatBillableSummary ✓');
+}
+
+function runFooterTests() {
+  testBuildQuoteFooterRows();
+  testFormatBillableSummary();
+  Logger.log('✅ runFooterTests passed');
+}
