@@ -7,6 +7,7 @@ import { useProfile } from "@/features/shared/lib/queries";
 import { useDistrictDetail } from "@/features/districts/lib/queries";
 import { formatDistrictAddress, type PrefillResult } from "@/features/document-generation/lib/prefill";
 import { appsScriptRenderClient } from "@/features/document-generation/lib/render-client";
+import DistrictPickerCombobox from "@/features/document-generation/components/DistrictPickerCombobox";
 
 interface DistrictsResp {
   districts: { leaid: string; name: string }[];
@@ -64,15 +65,16 @@ export default function DocumentGeneratorDevPage() {
           "loading a district…"
         )}
       </p>
-      <label className="flex max-w-md flex-col text-xs uppercase tracking-wide text-[#6E6390]">
-        Override district LEA ID (optional)
-        <input
-          value={leaidOverride}
-          onChange={(e) => setLeaidOverride(e.target.value)}
-          placeholder={sampleDistrict?.leaid ?? "e.g. 3620580"}
-          className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]"
-        />
-      </label>
+      <div className="max-w-md space-y-1">
+        <span className="block text-xs uppercase tracking-wide text-[#6E6390]">Find a district by name</span>
+        <DistrictPickerCombobox onSelect={(d) => setLeaidOverride(d.leaid)} />
+        {leaidOverride.trim() && (
+          <p className="text-xs text-[#6E6390]">
+            Selected LEA ID <strong className="text-[#403770]">{leaidOverride.trim()}</strong>
+            {detailLoading ? " — loading…" : detail?.district ? ` — ${detail.district.name}` : ""}
+          </p>
+        )}
+      </div>
       <button
         onClick={() => setOpen(true)}
         disabled={!leaid || detailLoading || !detail}
