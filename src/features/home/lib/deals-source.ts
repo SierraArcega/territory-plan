@@ -207,22 +207,42 @@ export async function fetchUtilizationSource(
   scope: DashboardScope,
 ): Promise<{ won: WonAccountAgg[]; doa: DoaAccountAgg[] }> {
   const [wonRows, doaRows] = await Promise.all([
+    // Min/max per account, deduped per contract chain (add-on opps carry the
+    // cumulative contract min/max, so a flat SUM double-counts them — same fix as
+    // the topline moneyDetail query). MAX per chain, then SUM across chains per
+    // district. Net stands in for both when a contract has neither min nor max.
     prisma.$queryRaw<RawWonAggRow[]>`
-      SELECT o.district_lea_id AS leaid,
-             MIN(o.district_name) AS account,
+      WITH won AS (
+        SELECT o.district_lea_id AS leaid,
+               o.district_name,
+               COALESCE(regexp_replace(o.name, '[\\s_]+Add[-_ ]?On[s]?(\\s*\\d+)?', '', 'gi'), o.id) AS chain_key,
+               CASE WHEN o.minimum_purchase_amount IS NULL AND o.maximum_budget IS NULL
+                    THEN o.net_booking_amount ELSE o.minimum_purchase_amount END AS eff_min,
+               CASE WHEN o.minimum_purchase_amount IS NULL AND o.maximum_budget IS NULL
+                    THEN o.net_booking_amount ELSE o.maximum_budget END AS eff_max
+        FROM opportunities o
+        WHERE o.school_yr = ${sy}
+          AND o.district_lea_id IS NOT NULL
+          ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
+          AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
+      ),
+      chains AS (
+        SELECT leaid, MIN(district_name) AS account, chain_key,
+               MAX(COALESCE(eff_min, 0)) AS chain_min,
+               MAX(COALESCE(eff_max, 0)) AS chain_max
+        FROM won GROUP BY leaid, chain_key
+      )
+      SELECT ch.leaid AS leaid,
+             MIN(ch.account) AS account,
              MAX(c.category) AS category,
-             COALESCE(SUM(COALESCE(o.minimum_purchase_amount, 0)), 0)::float AS "minCommit",
-             COALESCE(SUM(COALESCE(o.maximum_budget, 0)), 0)::float AS "maxBudget"
-      FROM opportunities o
+             COALESCE(SUM(ch.chain_min), 0)::float AS "minCommit",
+             COALESCE(SUM(ch.chain_max), 0)::float AS "maxBudget"
+      FROM chains ch
       LEFT JOIN (
         SELECT district_lea_id, (ARRAY_AGG(category ORDER BY bookings DESC, open_pipeline DESC))[1] AS category
         FROM district_opportunity_actuals WHERE school_yr = ${sy} GROUP BY district_lea_id
-      ) c ON c.district_lea_id = o.district_lea_id
-      WHERE o.school_yr = ${sy}
-        AND o.district_lea_id IS NOT NULL
-        ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
-        AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
-      GROUP BY o.district_lea_id`,
+      ) c ON c.district_lea_id = ch.leaid
+      GROUP BY ch.leaid`,
 
     prisma.$queryRaw<RawDoaAggRow[]>`
       SELECT district_lea_id AS leaid,
