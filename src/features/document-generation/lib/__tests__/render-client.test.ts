@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { stubRenderClient } from "../render-client";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { stubRenderClient, appsScriptRenderClient } from "../render-client";
 import { assemblePayload } from "../payload";
 import { emptyFormState } from "../payload-types";
 
@@ -24,5 +24,29 @@ describe("stubRenderClient", () => {
 
     const off = await stubRenderClient(assemblePayload(emptyFormState("boces_quote", "x")), { tags: true });
     expect(off.agreementUrl).toBeUndefined();
+  });
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("appsScriptRenderClient", () => {
+  it("POSTs payload+tags to the render route and returns the result", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ docUrl: "https://docs.google.com/document/d/REAL/edit" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await appsScriptRenderClient({ doc_type: "contract" } as never, { tags: true });
+
+    expect(result.docUrl).toBe("https://docs.google.com/document/d/REAL/edit");
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/document-generation/render");
+    expect(JSON.parse(opts.body)).toEqual({ payload: { doc_type: "contract" }, tags: true });
+  });
+
+  it("throws on a non-ok response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    await expect(appsScriptRenderClient({ doc_type: "contract" } as never, { tags: false })).rejects.toThrow();
   });
 });
