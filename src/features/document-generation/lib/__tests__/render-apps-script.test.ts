@@ -54,4 +54,9 @@ describe("renderViaAppsScript", () => {
     }));
     await expect(renderViaAppsScript({ doc_type: "contract" } as never, true)).rejects.toThrow(/boom/);
   });
+
+  it("throws when the HTTP response is not ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    await expect(renderViaAppsScript({ doc_type: "contract" } as never, false)).rejects.toThrow(/500/);
+  });
 });

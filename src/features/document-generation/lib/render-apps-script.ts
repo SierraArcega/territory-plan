@@ -16,6 +16,10 @@ function requireEnv(name: string): string {
   return v;
 }
 
+// Server-side only — called by the /api/document-generation/render route handler,
+// NOT used directly as a RenderClient. The client-side RenderClient
+// (appsScriptRenderClient) fetches that route; the route bridges to this. Hence the
+// flat (payload, tags) signature rather than the RenderClient (payload, opts) shape.
 /** Mints a service-account OAuth token (domain-wide delegation) and POSTs the
  *  payload to the deployed Apps Script web app, returning the doc URL. */
 export async function renderViaAppsScript(payload: DocPayload, tags: boolean): Promise<RenderResult> {
@@ -32,6 +36,7 @@ export async function renderViaAppsScript(payload: DocPayload, tags: boolean): P
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, tags }),
+    // Apps Script /exec 302-redirects to script.googleusercontent.com; follow it.
     redirect: "follow",
   });
   if (!res.ok) throw new Error(`Renderer returned HTTP ${res.status}`);
