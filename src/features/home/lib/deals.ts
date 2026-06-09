@@ -74,8 +74,17 @@ export interface DoaAccountAgg {
 // Merge each account's won-opp commitment floor/ceiling with its DOA delivered
 // revenue/take. Rows are keyed by district (leaid) and aggregated defensively in
 // case SQL returns more than one row per district (e.g. one per category). Sorted
-// by contracted size (max budget desc) so the biggest accounts lead; account name
-// breaks ties for a stable order.
+// by commitment size (min commit desc) so the biggest contracted accounts lead;
+// account name breaks ties for a stable order.
+// Contract-chain key for collapsing add-on opps into one row (they each carry the
+// cumulative contract min/max, so listing/summing them separately double-counts).
+// Strips the " Add-On N" suffix (mirrors the DOA matview + topline dedup); falls
+// back to the opp id so a NULL-named orphan stays its own singleton.
+const ADD_ON_RE = /[\s_]+add[-_ ]?on[s]?(\s*\d+)?/gi;
+export function chainKey(name: string | null, id: string): string {
+  return name == null ? id : name.replace(ADD_ON_RE, "");
+}
+
 export function buildUtilizationRows(
   won: WonAccountAgg[],
   doa: DoaAccountAgg[],
@@ -120,7 +129,7 @@ export function buildUtilizationRows(
       underMin: revenue < w.minCommit,
     });
   }
-  return rows.sort((a, b) => b.maxBudget - a.maxBudget || a.account.localeCompare(b.account));
+  return rows.sort((a, b) => b.minCommit - a.minCommit || a.account.localeCompare(b.account));
 }
 
 // ── Targets drill-in (district funnel) ────────────────────────────────────────
