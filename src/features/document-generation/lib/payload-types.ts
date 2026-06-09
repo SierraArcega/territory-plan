@@ -128,6 +128,7 @@ export interface BocesQuotePayload {
   deal: Record<string, string>;
   quote: {
     fee_pct: number;
+    order_total: number;
     line_items: Array<Record<string, string | number>>;
     billable_days: number;
     billable_hours: number;
@@ -185,7 +186,7 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     paymentType: docType === "boces_quote" ? "C" : "A",
     payTerms: "",
     invoiceDate: "",
-    unusedFunds: "",
+    unusedFunds: "be credited",
     poRequired: false,
     poNumber: "",
     payPrePost: "",

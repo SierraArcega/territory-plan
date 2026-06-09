@@ -30,6 +30,7 @@ function replaceMergeFields(body, payload) {
     '<<min_amt>>':        formatCurrency(q.min_amt),
     '<<max_amt>>':        formatCurrency(q.max_amt),
     '<<ORDER_TOTAL>>':    formatCurrency(q.order_total),
+    '<<BILLABLE_SUMMARY>>': formatBillableSummary(q.billable_days || 0, q.billable_hours || 0),
     '<<pay_terms>>':      p.pay_terms,
     '<<invoice_date>>':   p.invoice_date,
     '<<contract_end>>':   p.contract_end,

@@ -94,4 +94,41 @@ describe("QuoteSection", () => {
     expect(screen.getByText(/Order total: \$14,850/)).toBeInTheDocument();
     expect(screen.getByText(/You'll save/i)).toBeInTheDocument();
   });
+
+  it("renders min/max amount inputs for contract doc type", () => {
+    setup({}, null);
+    expect(screen.getByLabelText("Minimum purchase")).toBeInTheDocument();
+    expect(screen.getByLabelText("Maximum budget")).toBeInTheDocument();
+  });
+
+  it("does not render min/max inputs for boces_quote", () => {
+    const onChange = vi.fn();
+    render(<QuoteSection state={{ ...makeState(), docType: "boces_quote" }} bookingReference={null} onChange={onChange} />);
+    expect(screen.queryByLabelText("Minimum purchase")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Maximum budget")).not.toBeInTheDocument();
+  });
+
+  it("fires onChange with a parsed number when minAmt is entered", () => {
+    const { onChange } = setup({}, null);
+    fireEvent.change(screen.getByLabelText("Minimum purchase"), { target: { value: "5000" } });
+    expect(onChange).toHaveBeenCalledWith({ minAmt: 5000 });
+  });
+
+  it("fires onChange with null when minAmt is cleared", () => {
+    const { onChange } = setup({ minAmt: 5000 }, null);
+    fireEvent.change(screen.getByLabelText("Minimum purchase"), { target: { value: "" } });
+    expect(onChange).toHaveBeenCalledWith({ minAmt: null });
+  });
+
+  it("fires onChange with a parsed number when maxAmt is entered", () => {
+    const { onChange } = setup({}, null);
+    fireEvent.change(screen.getByLabelText("Maximum budget"), { target: { value: "20000" } });
+    expect(onChange).toHaveBeenCalledWith({ maxAmt: 20000 });
+  });
+
+  it("fires onChange with null when maxAmt is cleared", () => {
+    const { onChange } = setup({ maxAmt: 20000 }, null);
+    fireEvent.change(screen.getByLabelText("Maximum budget"), { target: { value: "" } });
+    expect(onChange).toHaveBeenCalledWith({ maxAmt: null });
+  });
 });

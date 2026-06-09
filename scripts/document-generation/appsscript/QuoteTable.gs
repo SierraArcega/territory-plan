@@ -16,9 +16,12 @@ function handleQuoteSection(body, quote) {
 }
 
 /**
- * Builds the quote table from scratch at the position of the placeholder table
- * (identified by containing '[QUOTE_ROW_1_SERVICE]'), then removes the placeholder.
- * Gives full column control — no hidden columns needed.
+ * Builds the quote table from scratch at the placeholder table (identified by
+ * '[QUOTE_ROW_1_SERVICE]'), then removes the placeholder. Columns:
+ * Service | Needed | Per | Unit | Rate | Total. Rate (net rate) is shown only
+ * when show_pricing. Description is folded into the Service cell. The footer
+ * (Subtotal → adjustments → TOTAL → savings) comes from the shared
+ * buildQuoteFooterRows helper.
  * @param {GoogleAppsScript.Document.Body} body
  * @param {Object} quote  payload.quote
  */
@@ -26,21 +29,16 @@ function buildQuoteTableFromScratch(body, quote) {
   var items     = quote.line_items;
   var showPrice = quote.show_pricing;
 
-  // Determine if all items share the same unit (pure deal type)
-  var allUnits = items.map(function(i) { return i.unit; });
-  var uniqueUnits = allUnits.filter(function(v, i, a) { return a.indexOf(v) === i; });
-  var pureUnit = uniqueUnits.length === 1 ? uniqueUnits[0] : null;
-
-  // Build active column list
+  // Approved layout: Service | Needed | Per | Unit | Rate | Total.
+  // Rate = net_rate (post per-line discount); shown only when pricing is shown.
+  // Description is folded into the Service cell (second line) to save width.
   var cols = [
-    { key: 'service',      label: 'Service',     include: true },
-    { key: 'description',  label: 'Description', include: true },
-    { key: 'qty',          label: pureUnit === 'days' ? 'Days' : pureUnit === 'hrs' ? 'Hours' : pureUnit === 'sessions' ? 'Sessions' : 'Qty', include: true },
-    { key: 'unit',         label: 'Unit',        include: pureUnit === null },
-    { key: 'list_rate',    label: pureUnit === 'days' ? 'List $/day' : pureUnit === 'hrs' ? 'List $/hr' : 'List Rate', include: showPrice },
-    { key: 'discount_pct', label: 'Disc%',       include: showPrice },
-    { key: 'net_rate',     label: pureUnit === 'days' ? 'Net $/day' : pureUnit === 'hrs' ? 'Net $/hr' : 'Net Rate',   include: true },
-    { key: 'total',        label: 'Total',       include: true },
+    { key: 'service',  label: 'Service', include: true },
+    { key: 'count',    label: 'Needed',  include: true },
+    { key: 'qty',      label: 'Per',     include: true },
+    { key: 'unit',     label: 'Unit',    include: true },
+    { key: 'net_rate', label: 'Rate',    include: showPrice },
+    { key: 'total',    label: 'Total',   include: true },
   ].filter(function(c) { return c.include; });
 
   // Find placeholder table (contains '[QUOTE_ROW_1_SERVICE]')
@@ -60,53 +58,62 @@ function buildQuoteTableFromScratch(body, quote) {
     return;
   }
 
-  // Build row data
   var headerRow = cols.map(function(c) { return c.label; });
   var dataRows  = items.map(function(item) {
     return cols.map(function(col) {
-      if (col.key === 'list_rate')    return formatCurrency(item.list_rate);
-      if (col.key === 'discount_pct') return item.discount_pct > 0 ? item.discount_pct + '%' : '—';
-      if (col.key === 'net_rate')     return formatCurrency(item.net_rate);
-      if (col.key === 'total')        return formatCurrency(item.total);
-      if (col.key === 'qty')          return String(item.qty);
-      return String(item[col.key] != null ? item[col.key] : '');
+      if (col.key === 'service') {
+        return item.description ? item.service + '\n' + item.description : item.service;
+      }
+      if (col.key === 'count')    return String(item.count != null ? item.count : 1);
+      if (col.key === 'qty')      return String(item.qty);
+      if (col.key === 'unit')     return String(item.unit != null ? item.unit : '');
+      if (col.key === 'net_rate') return formatCurrency(item.net_rate);
+      if (col.key === 'total')    return formatCurrency(item.total);
+      return '';
     });
   });
 
-  var totalRow = cols.map(function() { return ''; });
-  totalRow[cols.length - 2] = 'TOTAL:';
-  totalRow[cols.length - 1] = formatCurrency(quote.order_total);
+  // Shared footer: Subtotal (= sum of line totals) → adjustments → TOTAL → savings.
+  var subtotal = 0;
+  items.forEach(function(it) { subtotal += Number(it.total) || 0; });
+  subtotal = round2(subtotal);
+  var footerRows = buildQuoteFooterRows(cols.length, {
+    subtotal:    subtotal,
+    adjustments: quote.adjustments || [],
+    extraRows:   [],
+    orderTotal:  quote.order_total,
+    savings:     quote.savings || 0,
+  });
 
-  // Insert table after placeholder, remove placeholder
-  var newTable = body.insertTable(tableIdx + 1, [headerRow].concat(dataRows).concat([totalRow]));
+  var newTable = body.insertTable(tableIdx + 1, [headerRow].concat(dataRows).concat(footerRows));
 
-  // Set proportional column widths scaled to page width (540pt = 8.5" - 0.5" margins)
-  var naturalWidths = { service: 110, description: 100, qty: 40, unit: 40,
-                        list_rate: 60, discount_pct: 38, net_rate: 60, total: 92 };
-  var rawWidths  = cols.map(function(c) { return naturalWidths[c.key] || 60; });
-  var rawTotal   = rawWidths.reduce(function(s, w) { return s + w; }, 0);
+  // Proportional column widths scaled to 540pt (8.5" − 0.5" margins each side).
+  var naturalWidths = { service: 200, count: 55, qty: 50, unit: 55, net_rate: 80, total: 100 };
+  var rawWidths = cols.map(function(c) { return naturalWidths[c.key] || 60; });
+  var rawTotal  = rawWidths.reduce(function(s, w) { return s + w; }, 0);
   rawWidths.forEach(function(w, i) {
     newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
   });
 
-  // Apply standard Fullmind table style (plum header, alternating rows)
   applyFullmindTableStyle(newTable);
 
-  // Quote tables are multi-column — reduce padding and font size so content fits
+  // Multi-column: reduce padding + font so content fits.
   var numRows = newTable.getNumRows();
   for (var r = 0; r < numRows; r++) {
-    var row = newTable.getRow(r);
-    for (var c = 0; c < row.getNumCells(); c++) {
-      var cell = row.getCell(c);
+    var trow = newTable.getRow(r);
+    for (var c = 0; c < trow.getNumCells(); c++) {
+      var cell = trow.getCell(c);
       cell.setPaddingLeft(5).setPaddingRight(5);
       cell.editAsText().setFontSize(9);
     }
   }
 
-  // Bold the total row (applyFullmindTableStyle doesn't bold data rows)
-  var lastRow = newTable.getRow(newTable.getNumRows() - 1);
-  for (var c = 0; c < lastRow.getNumCells(); c++) {
-    lastRow.getCell(c).editAsText().setBold(true);
+  // Bold every footer row (subtotal/adjustments/total/savings).
+  for (var fr = numRows - footerRows.length; fr < numRows; fr++) {
+    var frow = newTable.getRow(fr);
+    for (var fc = 0; fc < frow.getNumCells(); fc++) {
+      frow.getCell(fc).editAsText().setBold(true);
+    }
   }
 
   placeholderTable.removeFromParent();

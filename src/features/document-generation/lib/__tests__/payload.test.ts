@@ -1,6 +1,6 @@
 // src/features/document-generation/lib/__tests__/payload.test.ts
 import { describe, it, expect } from "vitest";
-import { assemblePayload } from "../payload";
+import { assemblePayload, formatToday } from "../payload";
 import { emptyFormState } from "../payload-types";
 import type { ContactRef } from "../payload-types";
 
@@ -87,5 +87,86 @@ describe("assemblePayload — adjustments", () => {
     expect(p.quote.adjustments[0].label).toBe("Early Signing");
     expect(typeof p.quote.savings).toBe("number");
     expect(typeof p.quote.gross_subtotal).toBe("number");
+  });
+});
+
+describe("assemblePayload — BOCES order_total", () => {
+  it("forwards the computed order_total on the BOCES quote payload", () => {
+    const state = emptyFormState("boces_quote", "0600001");
+    state.companyName = "Test BOCES";
+    state.feePct = 10;
+    state.lineItems = [
+      { id: "r1", count: 2, sku: "BOC27-1", service: "Tutoring", description: "",
+        qty: 10, unit: "Hour", listRate: 100, discountPct: 0 },
+    ];
+    const payload = assemblePayload(state);
+    if (payload.doc_type !== "boces_quote") throw new Error("expected boces_quote");
+    // subtotal = 2 * 10 * 100 = 2000; fee 10% = 200; order_total = 2200
+    expect(payload.quote.order_total).toBe(2200);
+  });
+});
+
+describe("assemblePayload — BOCES unit forwarding", () => {
+  it("forwards unit from line item into boces quote line_items", () => {
+    const state = emptyFormState("boces_quote", "0600001");
+    state.companyName = "Test BOCES";
+    state.feePct = 10;
+    state.lineItems = [
+      { id: "r1", count: 2, sku: "BOC27-1", service: "Tutoring", description: "",
+        qty: 10, unit: "Hour", listRate: 100, discountPct: 0 },
+    ];
+    const payload = assemblePayload(state);
+    if (payload.doc_type !== "boces_quote") throw new Error("expected boces_quote");
+    expect(payload.quote.line_items[0].unit).toBe("Hour");
+  });
+
+  it("defaults to empty string when unit is absent from line item", () => {
+    const state = emptyFormState("boces_quote", "0600001");
+    state.companyName = "Test BOCES";
+    state.feePct = 10;
+    // unit intentionally omitted to test fallback
+    state.lineItems = [
+      { id: "r2", count: 1, sku: "BOC27-2", service: "Homebound", description: "",
+        qty: 5, unit: "" as unknown as string, listRate: 80, discountPct: 0 },
+    ];
+    const payload = assemblePayload(state);
+    if (payload.doc_type !== "boces_quote") throw new Error("expected boces_quote");
+    expect(payload.quote.line_items[0].unit).toBe("");
+  });
+});
+
+describe("formatToday", () => {
+  it("formats a Date into a readable string (month is 0-indexed)", () => {
+    expect(formatToday(new Date(2026, 5, 9))).toBe("June 9, 2026");
+  });
+  it("handles January (month 0) correctly", () => {
+    expect(formatToday(new Date(2026, 0, 1))).toBe("January 1, 2026");
+  });
+  it("handles December (month 11) correctly", () => {
+    expect(formatToday(new Date(2026, 11, 31))).toBe("December 31, 2026");
+  });
+});
+
+describe("assemblePayload — deal.today injection", () => {
+  it("uses the injected today string in a contract payload", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    const p = assemblePayload(s, "June 9, 2026") as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.today).toBe("June 9, 2026");
+  });
+
+  it("uses the injected today string in a boces_quote payload", () => {
+    const s = emptyFormState("boces_quote", "x");
+    s.clientContact = jane;
+    const p = assemblePayload(s, "June 9, 2026") as Extract<ReturnType<typeof assemblePayload>, { doc_type: "boces_quote" }>;
+    expect(p.deal.today).toBe("June 9, 2026");
+  });
+
+  it("uses a non-empty string for deal.today when no second arg is passed", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.today).not.toBe("");
+    expect(p.deal.today).toMatch(/^\w+ \d{1,2}, \d{4}$/);
   });
 });

@@ -8,9 +8,10 @@ interface Props {
   onSend: () => void;   // Dropbox Sign (default) — placeholder until delivery sub-project
   onManual: () => void; // re-render tag-free + open doc
   onBack: () => void;
+  busy?: boolean;
 }
 
-export default function ReviewStage({ result, orderTotal, onSend, onManual, onBack }: Props) {
+export default function ReviewStage({ result, orderTotal, onSend, onManual, onBack, busy }: Props) {
   return (
     <div className="space-y-3">
       <a href={result.docUrl} target="_blank" rel="noreferrer"
@@ -24,8 +25,10 @@ export default function ReviewStage({ result, orderTotal, onSend, onManual, onBa
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={onSend}
           className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white whitespace-nowrap">Send for signature</button>
-        <button type="button" onClick={onManual}
-          className="rounded-lg bg-[#EFEDF5] px-3 py-1 text-sm whitespace-nowrap">Open Google Doc (manual)</button>
+        <button type="button" onClick={onManual} disabled={busy}
+          className="rounded-lg bg-[#EFEDF5] px-3 py-1 text-sm whitespace-nowrap disabled:opacity-50">
+          {busy ? "Generating…" : "Open Google Doc (manual)"}
+        </button>
         <button type="button" onClick={onBack}
           className="rounded-lg border border-[#C2BBD4] px-3 py-1 text-sm whitespace-nowrap">← Back to edit</button>
       </div>

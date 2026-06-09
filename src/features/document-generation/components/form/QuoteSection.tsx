@@ -134,6 +134,23 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
         )}
       </div>
 
+      {!isBoces && (
+        <div className="flex flex-wrap gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Minimum purchase ($)</span>
+            <input type="number" aria-label="Minimum purchase" value={state.minAmt ?? ""}
+              onChange={(e) => onChange({ minAmt: e.target.value === "" ? null : Number(e.target.value) })}
+              className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Maximum budget ($)</span>
+            <input type="number" aria-label="Maximum budget" value={state.maxAmt ?? ""}
+              onChange={(e) => onChange({ maxAmt: e.target.value === "" ? null : Number(e.target.value) })}
+              className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          </label>
+        </div>
+      )}
+
       <AdjustmentsSection
         adjustments={state.adjustments ?? []}
         onChange={(a: OrderAdjustment[]) => onChange({ adjustments: a })}

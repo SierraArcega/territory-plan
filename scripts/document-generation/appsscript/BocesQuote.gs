@@ -1,20 +1,23 @@
 /**
  * Computes the BOCES quote table totals from line items and a percentage fee.
  * Pure function — no Document dependency, unit-testable in the editor.
- * @param {Array<{product:string, rate:number, qty:number}>} lineItems
+ * @param {Array<{product:string, rate:number, qty:number, count?:number, unit?:string}>} lineItems
  * @param {number} [feePct=10.6]  Fee percentage applied to the line-item subtotal.
- * @returns {{rows:Array<{product:string,rate:number,qty:number,total:number}>,
+ * @returns {{rows:Array<{product:string,rate:number,qty:number,count:number,unit:string,total:number}>,
  *           subtotal:number, feePct:number, fee:number, total:number}}
  */
 function computeBocesQuoteTotals(lineItems, feePct) {
   var pct = (feePct == null) ? 10.6 : feePct;
 
   var rows = lineItems.map(function(item) {
+    var count = (item.count == null) ? 1 : item.count;
     return {
       product: item.product,
       rate:    item.rate,
       qty:     item.qty,
-      total:   round2(item.rate * item.qty),
+      count:   count,
+      unit:    item.unit != null ? item.unit : '',
+      total:   round2(count * item.qty * item.rate),
     };
   });
 
@@ -50,6 +53,9 @@ function replaceBocesMergeFields(body, payload) {
     '<<start_date>>':     d.start_date,
     '<<end_date>>':       d.end_date,
     '<<today>>':          d.today,
+    '<<BILLABLE_SUMMARY>>': formatBillableSummary(
+      (payload.quote && payload.quote.billable_days)  || 0,
+      (payload.quote && payload.quote.billable_hours) || 0),
     // BOCES payment-terms block (baked-in terms, filled per deal). Field
     // semantics mirror the contract's replaceMergeFields.
     '<<pay_terms>>':      p.pay_terms,
@@ -71,10 +77,12 @@ function replaceBocesMergeFields(body, payload) {
 
 /**
  * Builds the "Anticipated Educator Need" table at the [BOCES_QUOTE_TABLE_INSERT]
- * marker, then removes the marker. Columns: Product, Hourly Rate, Hours, Total.
- * No discount column. Fee row shows the percentage; Total row shows subtotal+fee.
+ * marker, then removes the marker. Columns: Product | Needed (count) | Per (qty) |
+ * Unit | Rate | Total. Footer (Subtotal → Fee → order-level adjustments → TOTAL
+ * → savings) comes from the shared buildQuoteFooterRows helper; TOTAL uses the
+ * forwarded quote.order_total so order-level adjustments are reflected.
  * @param {GoogleAppsScript.Document.Body} body
- * @param {Object} quote  payload.quote ({ fee_pct, line_items })
+ * @param {Object} quote  payload.quote ({ fee_pct, order_total, line_items, adjustments, savings })
  */
 function buildBocesQuoteTable(body, quote) {
   var t = computeBocesQuoteTotals(quote.line_items, quote.fee_pct);
@@ -85,22 +93,25 @@ function buildBocesQuoteTable(body, quote) {
     return;
   }
 
-  var headerRow = ['Product', 'Hourly Rate', 'Hours', 'Total'];
+  // Columns mirror the contract table: Product | Needed | Per | Unit | Rate | Total.
+  var headerRow = ['Product', 'Needed', 'Per', 'Unit', 'Rate', 'Total'];
   var dataRows  = t.rows.map(function(r) {
-    return [r.product, formatCurrency(r.rate), String(r.qty), formatCurrency(r.total)];
+    return [r.product, String(r.count), String(r.qty), String(r.unit || ''), formatCurrency(r.rate), formatCurrency(r.total)];
   });
-  // The "Fee" and "Total" labels intentionally sit in the Hours column (index 2)
-  // with their values in the Total column (index 3) — matches the approved quote
-  // layout and the contract's TOTAL row convention in QuoteTable.gs.
-  // round2() on feePct strips any binary-float noise (e.g. 10.600000000000001).
-  var feeRow   = ['', '', 'Fee', round2(t.feePct) + ' %'];
-  var totalRow = ['', '', 'Total', formatCurrency(t.total)];
 
-  var allRows = [headerRow].concat(dataRows).concat([feeRow, totalRow]);
+  // Footer: Subtotal → Fee (extraRow) → adjustments → TOTAL (forwarded order_total) → savings.
+  var footerRows = buildQuoteFooterRows(headerRow.length, {
+    subtotal:    t.subtotal,
+    adjustments: quote.adjustments || [],
+    extraRows:   [['Fee (' + round2(t.feePct) + '%):', formatCurrency(t.fee)]],
+    orderTotal:  (quote.order_total != null) ? quote.order_total : t.total,
+    savings:     quote.savings || 0,
+  });
+
+  var allRows = [headerRow].concat(dataRows).concat(footerRows);
   var newTable = body.insertTable(markerIdx + 1, allRows);
 
-  // Proportional column widths scaled to the 540pt content area (8.5" − 0.5" margins).
-  var naturalWidths = [220, 110, 90, 120];
+  var naturalWidths = [200, 55, 50, 55, 80, 100];
   var rawTotal = naturalWidths.reduce(function(s, w) { return s + w; }, 0);
   naturalWidths.forEach(function(w, i) {
     newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
@@ -108,16 +119,15 @@ function buildBocesQuoteTable(body, quote) {
 
   applyFullmindTableStyle(newTable);
 
-  // Bold the Fee and Total rows.
+  // Bold every footer row.
   var n = newTable.getNumRows();
-  [n - 2, n - 1].forEach(function(rowIdx) {
-    var row = newTable.getRow(rowIdx);
-    for (var c = 0; c < row.getNumCells(); c++) {
-      row.getCell(c).editAsText().setBold(true);
+  for (var fr = n - footerRows.length; fr < n; fr++) {
+    var frow = newTable.getRow(fr);
+    for (var fc = 0; fc < frow.getNumCells(); fc++) {
+      frow.getCell(fc).editAsText().setBold(true);
     }
-  });
+  }
 
-  // Remove the marker paragraph now that the table sits after it.
   body.getChild(markerIdx).removeFromParent();
 }
 

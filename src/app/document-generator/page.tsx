@@ -6,6 +6,7 @@ import GenerateDocumentModal from "@/features/document-generation/components/Gen
 import { useProfile } from "@/features/shared/lib/queries";
 import { useDistrictDetail } from "@/features/districts/lib/queries";
 import { formatDistrictAddress, type PrefillResult } from "@/features/document-generation/lib/prefill";
+import { appsScriptRenderClient } from "@/features/document-generation/lib/render-client";
 
 interface DistrictsResp {
   districts: { leaid: string; name: string }[];
@@ -46,8 +47,8 @@ export default function DocumentGeneratorDevPage() {
     maxAmt: null,
     bookingReference: 188000,
     sender: {
-      first: (profile?.fullName ?? "Rep").split(" ")[0],
-      last: "",
+      first: (profile?.fullName ?? "Rep").trim().split(/\s+/)[0],
+      last: (profile?.fullName ?? "").trim().split(/\s+/).slice(1).join(" "),
       title: profile?.jobTitle ?? "",
       email: profile?.email ?? "",
     },
@@ -79,7 +80,9 @@ export default function DocumentGeneratorDevPage() {
       >
         {leaid && (detailLoading || !detail) ? "Loading district…" : "Open Generate Document"}
       </button>
-      {open && detail && <GenerateDocumentModal prefill={prefill} onClose={() => setOpen(false)} />}
+      {open && detail && (
+        <GenerateDocumentModal prefill={prefill} onClose={() => setOpen(false)} renderClient={appsScriptRenderClient} />
+      )}
     </div>
   );
 }
