@@ -16,6 +16,29 @@ function requireEnv(name: string): string {
   return v;
 }
 
+/** Builds the service-account JWT from whichever credential source is configured.
+ *
+ *  - Local dev: set `GOOGLE_DOC_RENDER_KEY_FILE` to the path of the downloaded
+ *    service-account JSON. No multi-line PEM wrangling required.
+ *  - Production (Vercel): set `GOOGLE_DOC_RENDER_SA_EMAIL` + `GOOGLE_DOC_RENDER_SA_KEY`
+ *    as inline env vars. KEY_FILE takes precedence if both are present.
+ */
+function buildJwt() {
+  const subject = requireEnv("GOOGLE_DOC_RENDER_SUBJECT");
+  const keyFile = process.env.GOOGLE_DOC_RENDER_KEY_FILE;
+  if (keyFile) {
+    // Local-dev convenience: point at the downloaded service-account JSON.
+    return new google.auth.JWT({ keyFile, subject, scopes: SCOPES });
+  }
+  // Production (e.g. Vercel): inline credentials from env.
+  return new google.auth.JWT({
+    email: requireEnv("GOOGLE_DOC_RENDER_SA_EMAIL"),
+    key: requireEnv("GOOGLE_DOC_RENDER_SA_KEY").replace(/\\n/g, "\n"),
+    subject,
+    scopes: SCOPES,
+  });
+}
+
 // Server-side only — called by the /api/document-generation/render route handler,
 // NOT used directly as a RenderClient. The client-side RenderClient
 // (appsScriptRenderClient) fetches that route; the route bridges to this. Hence the
@@ -23,12 +46,7 @@ function requireEnv(name: string): string {
 /** Mints a service-account OAuth token (domain-wide delegation) and POSTs the
  *  payload to the deployed Apps Script web app, returning the doc URL. */
 export async function renderViaAppsScript(payload: DocPayload, tags: boolean): Promise<RenderResult> {
-  const jwt = new google.auth.JWT({
-    email: requireEnv("GOOGLE_DOC_RENDER_SA_EMAIL"),
-    key: requireEnv("GOOGLE_DOC_RENDER_SA_KEY").replace(/\\n/g, "\n"),
-    subject: requireEnv("GOOGLE_DOC_RENDER_SUBJECT"),
-    scopes: SCOPES,
-  });
+  const jwt = buildJwt();
   const { token } = await jwt.getAccessToken();
   if (!token) throw new Error("Failed to mint service-account access token");
 
