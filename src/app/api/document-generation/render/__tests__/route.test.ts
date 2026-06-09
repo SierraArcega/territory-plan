@@ -44,6 +44,13 @@ describe("POST /api/document-generation/render", () => {
     expect(res.status).toBe(400);
   });
 
+  it("defaults tags to true when omitted", async () => {
+    mockGetUser.mockResolvedValue({ id: "u1" } as never);
+    mockRenderViaAppsScript.mockResolvedValue({ docUrl: "https://docs.google.com/document/d/REAL/edit" });
+    await POST(req({ payload: { doc_type: "contract" } }));
+    expect(mockRenderViaAppsScript).toHaveBeenCalledWith({ doc_type: "contract" }, true);
+  });
+
   it("500s when the renderer throws", async () => {
     mockGetUser.mockResolvedValue({ id: "u1" } as never);
     mockRenderViaAppsScript.mockRejectedValue(new Error("boom"));

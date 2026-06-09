@@ -17,7 +17,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing payload" }, { status: 400 });
     }
 
-    const result = await renderViaAppsScript(body.payload, body.tags === true);
+    // Default to tags:true (eSign-ready) when absent, matching the Apps Script default.
+    const result = await renderViaAppsScript(body.payload, body.tags !== false);
     return NextResponse.json(result);
   } catch (error) {
     console.error("Document render error:", error);
