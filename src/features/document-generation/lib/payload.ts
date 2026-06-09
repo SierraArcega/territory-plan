@@ -50,7 +50,7 @@ export function assemblePayload(state: DocFormState): DocPayload {
       quote: {
         fee_pct: state.feePct,
         order_total: totals.orderTotal,
-        line_items: totals.lines.map((l) => ({ sku: l.sku ?? "", product: l.service, rate: l.listRate, qty: l.qty, count: l.count ?? 1 })),
+        line_items: totals.lines.map((l) => ({ sku: l.sku ?? "", product: l.service, rate: l.listRate, qty: l.qty, count: l.count ?? 1, unit: l.unit ?? "" })),
         billable_days: totals.billableDays,
         billable_hours: totals.billableHours,
         adjustments: activeAdjustments,

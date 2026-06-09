@@ -105,3 +105,32 @@ describe("assemblePayload — BOCES order_total", () => {
     expect(payload.quote.order_total).toBe(2200);
   });
 });
+
+describe("assemblePayload — BOCES unit forwarding", () => {
+  it("forwards unit from line item into boces quote line_items", () => {
+    const state = emptyFormState("boces_quote", "0600001");
+    state.companyName = "Test BOCES";
+    state.feePct = 10;
+    state.lineItems = [
+      { id: "r1", count: 2, sku: "BOC27-1", service: "Tutoring", description: "",
+        qty: 10, unit: "Hour", listRate: 100, discountPct: 0 },
+    ];
+    const payload = assemblePayload(state);
+    if (payload.doc_type !== "boces_quote") throw new Error("expected boces_quote");
+    expect(payload.quote.line_items[0].unit).toBe("Hour");
+  });
+
+  it("defaults to empty string when unit is absent from line item", () => {
+    const state = emptyFormState("boces_quote", "0600001");
+    state.companyName = "Test BOCES";
+    state.feePct = 10;
+    // unit intentionally omitted to test fallback
+    state.lineItems = [
+      { id: "r2", count: 1, sku: "BOC27-2", service: "Homebound", description: "",
+        qty: 5, unit: "" as unknown as string, listRate: 80, discountPct: 0 },
+    ];
+    const payload = assemblePayload(state);
+    if (payload.doc_type !== "boces_quote") throw new Error("expected boces_quote");
+    expect(payload.quote.line_items[0].unit).toBe("");
+  });
+});

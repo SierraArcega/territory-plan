@@ -238,8 +238,8 @@ var PAYLOAD_BOCES_QUOTE = {
   quote: {
     fee_pct: 10.6,
     line_items: [
-      { sku: 'BOC27-HB11', product: 'Homebound 1:1',              rate: 53.06, qty: 250, count: 1 },
-      { sku: 'BOC27-SWD',  product: 'Students with Disabilities', rate: 21.23, qty: 100, count: 1 },
+      { sku: 'BOC27-HB11', product: 'Homebound 1:1',              rate: 53.06, qty: 250, count: 1, unit: 'Hour' },
+      { sku: 'BOC27-SWD',  product: 'Students with Disabilities', rate: 21.23, qty: 100, count: 1, unit: 'Hour' },
     ],
     order_total:    17019.13,
     billable_days:  0,

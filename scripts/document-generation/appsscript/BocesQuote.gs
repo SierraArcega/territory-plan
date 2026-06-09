@@ -1,9 +1,9 @@
 /**
  * Computes the BOCES quote table totals from line items and a percentage fee.
  * Pure function — no Document dependency, unit-testable in the editor.
- * @param {Array<{product:string, rate:number, qty:number, count?:number}>} lineItems
+ * @param {Array<{product:string, rate:number, qty:number, count?:number, unit?:string}>} lineItems
  * @param {number} [feePct=10.6]  Fee percentage applied to the line-item subtotal.
- * @returns {{rows:Array<{product:string,rate:number,qty:number,count:number,total:number}>,
+ * @returns {{rows:Array<{product:string,rate:number,qty:number,count:number,unit:string,total:number}>,
  *           subtotal:number, feePct:number, fee:number, total:number}}
  */
 function computeBocesQuoteTotals(lineItems, feePct) {
@@ -16,6 +16,7 @@ function computeBocesQuoteTotals(lineItems, feePct) {
       rate:    item.rate,
       qty:     item.qty,
       count:   count,
+      unit:    item.unit != null ? item.unit : '',
       total:   round2(count * item.qty * item.rate),
     };
   });
@@ -76,8 +77,8 @@ function replaceBocesMergeFields(body, payload) {
 
 /**
  * Builds the "Anticipated Educator Need" table at the [BOCES_QUOTE_TABLE_INSERT]
- * marker, then removes the marker. Columns: Product | Needed (count) | Hours |
- * Hourly Rate | Total. Footer (Subtotal → Fee → order-level adjustments → TOTAL
+ * marker, then removes the marker. Columns: Product | Needed (count) | Per (qty) |
+ * Unit | Rate | Total. Footer (Subtotal → Fee → order-level adjustments → TOTAL
  * → savings) comes from the shared buildQuoteFooterRows helper; TOTAL uses the
  * forwarded quote.order_total so order-level adjustments are reflected.
  * @param {GoogleAppsScript.Document.Body} body
@@ -92,10 +93,10 @@ function buildBocesQuoteTable(body, quote) {
     return;
   }
 
-  // Columns: Product | Needed | Hours | Hourly Rate | Total. (Needed = count.)
-  var headerRow = ['Product', 'Needed', 'Hours', 'Hourly Rate', 'Total'];
+  // Columns mirror the contract table: Product | Needed | Per | Unit | Rate | Total.
+  var headerRow = ['Product', 'Needed', 'Per', 'Unit', 'Rate', 'Total'];
   var dataRows  = t.rows.map(function(r) {
-    return [r.product, String(r.count), String(r.qty), formatCurrency(r.rate), formatCurrency(r.total)];
+    return [r.product, String(r.count), String(r.qty), String(r.unit || ''), formatCurrency(r.rate), formatCurrency(r.total)];
   });
 
   // Footer: Subtotal → Fee (extraRow) → adjustments → TOTAL (forwarded order_total) → savings.
@@ -110,7 +111,7 @@ function buildBocesQuoteTable(body, quote) {
   var allRows = [headerRow].concat(dataRows).concat(footerRows);
   var newTable = body.insertTable(markerIdx + 1, allRows);
 
-  var naturalWidths = [200, 60, 70, 100, 110];
+  var naturalWidths = [200, 55, 50, 55, 80, 100];
   var rawTotal = naturalWidths.reduce(function(s, w) { return s + w; }, 0);
   naturalWidths.forEach(function(w, i) {
     newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
