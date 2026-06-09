@@ -2156,3 +2156,38 @@ model AgencyDistrictMap {
   @@index([leaid])
   @@map("agency_district_maps")
 }
+
+enum SignatureStatus {
+  sent
+  viewed
+  signed
+  declined
+  canceled
+  error
+
+  @@map("signature_status")
+}
+
+/// One row per "Send for signature" attempt. Keyed by signatureRequestId so the
+/// Dropbox Sign webhook can advance status. Scalar district/owner refs (no FK) — audit table.
+model GeneratedDocument {
+  id                 Int             @id @default(autoincrement())
+  docType            String          @map("doc_type") @db.Text
+  docUrl             String          @map("doc_url") @db.Text
+  docId              String          @map("doc_id") @db.Text
+  signatureRequestId String?         @unique @map("signature_request_id") @db.Text
+  recipientEmail     String          @map("recipient_email") @db.Text
+  companyName        String          @map("company_name") @db.Text
+  status             SignatureStatus @default(sent)
+  errorMessage       String?         @map("error_message") @db.Text
+  districtLeaId      String?         @map("district_lea_id") @db.VarChar(7)
+  ownerProfileId     String          @map("owner_profile_id") @db.Uuid
+  opportunityId      String?         @map("opportunity_id") @db.Text
+  sentAt             DateTime?       @map("sent_at") @db.Timestamptz
+  signedAt           DateTime?       @map("signed_at") @db.Timestamptz
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([ownerProfileId])
+  @@map("generated_documents")
+}
