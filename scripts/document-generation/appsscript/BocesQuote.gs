@@ -52,6 +52,9 @@ function replaceBocesMergeFields(body, payload) {
     '<<start_date>>':     d.start_date,
     '<<end_date>>':       d.end_date,
     '<<today>>':          d.today,
+    '<<BILLABLE_SUMMARY>>': formatBillableSummary(
+      (payload.quote && payload.quote.billable_days)  || 0,
+      (payload.quote && payload.quote.billable_hours) || 0),
     // BOCES payment-terms block (baked-in terms, filled per deal). Field
     // semantics mirror the contract's replaceMergeFields.
     '<<pay_terms>>':      p.pay_terms,
