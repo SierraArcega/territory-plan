@@ -136,14 +136,14 @@ describe("assemblePayload — BOCES unit forwarding", () => {
 });
 
 describe("formatToday", () => {
-  it("formats a Date into a readable string (month is 0-indexed)", () => {
-    expect(formatToday(new Date(2026, 5, 9))).toBe("June 9, 2026");
+  it("formats a Date as zero-padded MM/DD/YYYY (month is 0-indexed)", () => {
+    expect(formatToday(new Date(2026, 5, 9))).toBe("06/09/2026");
   });
-  it("handles January (month 0) correctly", () => {
-    expect(formatToday(new Date(2026, 0, 1))).toBe("January 1, 2026");
+  it("zero-pads single-digit month and day (January)", () => {
+    expect(formatToday(new Date(2026, 0, 1))).toBe("01/01/2026");
   });
   it("handles December (month 11) correctly", () => {
-    expect(formatToday(new Date(2026, 11, 31))).toBe("December 31, 2026");
+    expect(formatToday(new Date(2026, 11, 31))).toBe("12/31/2026");
   });
 });
 
@@ -182,6 +182,6 @@ describe("assemblePayload — deal.today injection", () => {
     s.clientContact = jane;
     const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
     expect(p.deal.today).not.toBe("");
-    expect(p.deal.today).toMatch(/^\w+ \d{1,2}, \d{4}$/);
+    expect(p.deal.today).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   });
 });
