@@ -88,6 +88,7 @@ export function assemblePayload(state: DocFormState, today: string = formatToday
       signer_first: signer?.firstName ?? "",
       signer_last: signer?.lastName ?? "",
       signer_title: signer?.title ?? "",
+      signer_email: signer?.email ?? "",
       sender_first: state.senderFirst,
       sender_last: state.senderLast,
       sender_title: state.senderTitle,

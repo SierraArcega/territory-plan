@@ -83,7 +83,7 @@ function generateFullContract(payload) {
             'title':                     docName,
             'subject':                   'Please sign your Fullmind contract',
             'message':                   'Please review and sign your Fullmind agreement for the ' + payload.deal.school_year + ' school year.',
-            'signers[0][email_address]': payload.deal.client_email,
+            'signers[0][email_address]': payload.deal.signer_email || payload.deal.client_email,
             'signers[0][name]':          signerName,
             'use_text_tags':             '1',
             'hide_text_tags':            '1',

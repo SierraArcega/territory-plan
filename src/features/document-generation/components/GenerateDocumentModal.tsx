@@ -8,6 +8,7 @@ import { assemblePayload } from "@/features/document-generation/lib/payload";
 import { computeTotals } from "@/features/document-generation/lib/quote";
 import { stubRenderClient } from "@/features/document-generation/lib/render-client";
 import type { PrefillResult } from "@/features/document-generation/lib/prefill";
+import { sendForSignatureRequest } from "@/features/document-generation/lib/send-client";
 
 interface Props {
   prefill: PrefillResult;
@@ -37,6 +38,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   const [state, setState] = useState<DocFormState>(() => seedState(prefill));
   const [result, setResult] = useState<RenderResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sendState, setSendState] = useState<{ status: "sent" | "error"; recipientEmail?: string; sendError?: string } | null>(null);
 
   async function render(tags: boolean): Promise<RenderResult> {
     setBusy(true);
@@ -44,6 +46,22 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
       const res = await renderClient(assemblePayload(state), { tags });
       setResult(res);
       return res;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSend() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const payload = assemblePayload(state);
+      const res = await sendForSignatureRequest(payload, state.districtLeaId);
+      setSendState(res.status === "sent"
+        ? { status: "sent", recipientEmail: res.recipientEmail }
+        : { status: "error", sendError: res.sendError });
+    } catch {
+      setSendState({ status: "error", sendError: "Send request failed" });
     } finally {
       setBusy(false);
     }
@@ -60,17 +78,18 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
           <ReviewStage
             result={result}
             orderTotal={orderTotal}
+            docType={state.docType}
             busy={busy}
-            onSend={() => { /* delivery sub-project: Dropbox Sign */ }}
-            onManual={() => { if (!busy) void render(false); }}
-            onBack={() => setResult(null)}
+            sendState={sendState}
+            onSend={handleSend}
+            onBack={() => { setResult(null); setSendState(null); }}
           />
         ) : (
           <DocumentPayloadForm
             value={state}
             onChange={setState}
             busy={busy}
-            onRender={() => { if (!busy) void render(false); }}  // tags off until Dropbox Sign delivery (SP4) exists
+            onRender={() => { if (!busy) void render(false); }}  // preview is always clean (tags off); "Send for signature" re-renders tagged + sends
             bookingReference={prefill.bookingReference}
           />
         )}
