@@ -56,9 +56,9 @@ describe("ToplineStatStrip", () => {
     });
     render(<ToplineStatStrip fy={2026} repScope="me" />);
     expect(screen.getByText("Sched + Delivered")).toBeInTheDocument();
-    expect(screen.getByText("68%")).toBeInTheDocument(); // util = 748 / 1100 from bookingsDetail
-    expect(screen.getByText("$748K")).toBeInTheDocument();
-    expect(screen.getByText(/\$224K · 30%/)).toBeInTheDocument();
+    expect(screen.getByText("68%")).toBeInTheDocument(); // % of max budget = 748 / 1100 from bookingsDetail
+    expect(screen.getByText("$748K")).toBeInTheDocument(); // delivered headline
+    expect(screen.getByText("$224K")).toBeInTheDocument(); // take
     // The two standalone labels are gone — merged into one card.
     expect(screen.queryByText("Sched + Delivered Rev.")).not.toBeInTheDocument();
     expect(screen.queryByText("Sched + Delivered Take")).not.toBeInTheDocument();

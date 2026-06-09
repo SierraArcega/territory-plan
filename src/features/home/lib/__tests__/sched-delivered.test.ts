@@ -96,10 +96,10 @@ describe("utilization", () => {
 });
 
 describe("deferred", () => {
-  it("returns the unspent budget", () => {
-    expect(deferred(748, 1100)).toBe(352);
+  it("returns the commitment not yet delivered", () => {
+    expect(deferred(88, 650)).toBe(562); // 650 floor − 88 delivered
   });
-  it("never goes negative on overage", () => {
-    expect(deferred(1300, 1100)).toBe(0);
+  it("is 0 once delivered clears the commitment", () => {
+    expect(deferred(748, 650)).toBe(0);
   });
 });

@@ -17,18 +17,20 @@ const base = {
 };
 
 describe("SchedDeliveredCard", () => {
-  it("leads with utilization% and shows delivered, deferred, take rate, and the budget ceiling", () => {
+  it("shows delivered headline, % of min and % of max, take, and margin", () => {
     render(<SchedDeliveredCard {...base} />);
-    expect(screen.getByText("68%")).toBeInTheDocument();          // util = 748 / 1100
-    expect(screen.getByText("$748K")).toBeInTheDocument();         // delivered rev
-    expect(screen.getByText("$352K")).toBeInTheDocument();         // deferred = 1100 − 748
-    expect(screen.getByText(/\$224K · 30%/)).toBeInTheDocument();  // take · rate
-    expect(screen.getByText(/Max \$1\.1M/)).toBeInTheDocument();   // budget ceiling
+    expect(screen.getByText("$748K")).toBeInTheDocument();        // delivered rev (headline)
+    expect(screen.getByText("115%")).toBeInTheDocument();         // of min commit = 748 / 650
+    expect(screen.getByText("68%")).toBeInTheDocument();          // of max budget = 748 / 1100
+    expect(screen.getByText("$224K")).toBeInTheDocument();        // take
+    expect(screen.getByText("30%")).toBeInTheDocument();          // margin = take / revenue
+    expect(screen.getByText(/Max \$1\.1M/)).toBeInTheDocument();  // budget ceiling
   });
 
-  it("flags UNDER MIN when delivered is below the commitment floor", () => {
+  it("flags UNDER MIN and defers the gap to the floor when delivered is below the min", () => {
     render(<SchedDeliveredCard {...base} revenue={88000} take={26000} />);
     expect(screen.getByText("UNDER MIN")).toBeInTheDocument();
+    expect(screen.getByText("$562K")).toBeInTheDocument(); // deferred = 650 − 88 (still owed to floor)
   });
 
   it("renders an empty-range note when there are no won contracts", () => {

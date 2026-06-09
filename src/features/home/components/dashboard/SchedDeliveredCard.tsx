@@ -18,7 +18,6 @@ const TRACK = "#EFEDF5";
 const REV = "#6E5FB0";
 const FLOOR_MARK = "#1F1A33";
 const OVERAGE = "#F37167";
-const DEFER = "#C77";
 const POP_WIDTH = 248;
 
 interface SchedDeliveredCardProps {
@@ -41,10 +40,11 @@ interface SchedDeliveredCardProps {
 }
 
 // The merged Sched + Delivered card, framed as the modal frames it — utilization
-// of the won-contract budget: headline Util% (delivered ÷ max budget), a fill bar
-// across the min→max range, then Delivered / Deferred / Take. Coral UNDER MIN when
-// delivered is below the commitment floor. Hover/tap the bar for the by-motion
-// split; the whole card opens its Revenue Utilization drill-in via onExpand.
+// of the won-contract budget. Headline is delivered revenue; below it the same
+// revenue read two ways (% of min commit, % of max budget), a fill bar across the
+// min→max range, then Deferred / Take / Margin. Coral UNDER MIN when delivered is
+// below the commitment floor. Hover/tap the bar for the by-motion split; the whole
+// card opens its Revenue Utilization drill-in via onExpand.
 export default function SchedDeliveredCard({
   label, labelTooltip, revenue, take, rank, totalReps, inRoster,
   revenueSegments, takeSegments, detail, sparkline, priorFyLabel, currentFyLabel, onExpand,
@@ -52,10 +52,13 @@ export default function SchedDeliveredCard({
   const minCommit = detail?.minCommit ?? 0;
   const maxBudget = detail?.maxBudget ?? 0;
   const geo = computeRange({ revenue, take, floor: minCommit, ceiling: maxBudget });
-  const util = utilization(revenue, maxBudget);
-  const def = deferred(revenue, maxBudget);
+  // Two readings of the same delivered revenue: progress past the commitment floor
+  // (% of min) and consumption of the budget ceiling (% of max). Both via utilization().
+  const ofMin = utilization(revenue, minCommit);
+  const ofMax = utilization(revenue, maxBudget);
+  const def = deferred(revenue, minCommit); // revenue still owed to reach the floor
   const underMin = minCommit > 0 && revenue < minCommit;
-  const rate = takeRate(revenue, take);
+  const margin = takeRate(revenue, take); // take ÷ revenue
   const motions = mergeMotionRows(revenueSegments, takeSegments);
 
   const hasSparkline = !!sparkline && sparkline.current.length >= 2;
@@ -67,7 +70,7 @@ export default function SchedDeliveredCard({
 
   const subLine = geo.hasRange ? (
     <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-[#8A80A8]">
-      utilized of budget
+      delivered
       {underMin && (
         <span className="rounded-full bg-[#F37167]/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#F37167]">UNDER MIN</span>
       )}
@@ -78,7 +81,7 @@ export default function SchedDeliveredCard({
     <StatCardShell
       label={label}
       labelTooltip={labelTooltip}
-      value={geo.hasRange && util != null ? formatPercent(util, 0) : "—"}
+      value={geo.hasRange ? formatCurrency(revenue, true) : "—"}
       priorFyLabel={priorFyLabel}
       minMaxLine={subLine}
       onExpand={onExpand}
@@ -94,18 +97,34 @@ export default function SchedDeliveredCard({
     >
       {geo.hasRange ? (
         <div className="flex flex-col gap-2.5">
+          <div className="flex gap-6">
+            <PctStat pct={ofMin} label="of min commit" color={underMin ? "#F37167" : undefined} />
+            <PctStat pct={ofMax} label="of max budget" />
+          </div>
           <UtilBar geo={geo} minCommit={minCommit} maxBudget={maxBudget} motions={motions} totalRevenue={revenue} totalTake={take} />
           <div className="border-t border-[#F1EEFA]" />
           <div className="flex flex-col gap-1">
-            <KV label="Delivered rev" value={formatCurrency(revenue, true)} />
             <KV label="Deferred" value={formatCurrency(def, true)} valueClass="text-[#C77]" />
-            <KV label="Take · rate" value={`${formatCurrency(take, true)}${rate != null ? ` · ${formatPercent(rate, 0)}` : ""}`} />
+            <KV label="Take" value={formatCurrency(take, true)} />
+            <KV label="Margin" value={margin != null ? formatPercent(margin, 0) : "—"} />
           </div>
         </div>
       ) : (
         <p className="whitespace-nowrap text-[11px] text-[#8A80A8]">No won contracts yet this year.</p>
       )}
     </StatCardShell>
+  );
+}
+
+// A bold percentage with a small caption — the two utilization readings.
+function PctStat({ pct, label, color }: { pct: number | null; label: string; color?: string }) {
+  return (
+    <div>
+      <div className="text-xl font-bold leading-none tabular-nums" style={{ color: color ?? "#403770" }}>
+        {pct != null ? formatPercent(pct, 0) : "—"}
+      </div>
+      <div className="mt-0.5 whitespace-nowrap text-[10px] text-[#8A80A8]">{label}</div>
+    </div>
   );
 }
 

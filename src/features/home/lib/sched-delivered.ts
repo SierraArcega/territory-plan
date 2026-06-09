@@ -57,10 +57,12 @@ export function utilization(money: number, maxBudget: number): number | null {
   return money / maxBudget;
 }
 
-// Deferred = the contracted budget not yet consumed by delivered money (never
-// negative; an overage shows as 0 deferred, not a negative).
-export function deferred(money: number, maxBudget: number): number {
-  return Math.max(0, maxBudget - money);
+// Deferred = the committed amount not yet delivered (commitment − delivered, never
+// negative). On this card the commitment is the contract floor (Σ min purchase), so
+// deferred is the revenue still owed to reach the minimum — it hits 0 once cleared.
+// Mirrors the Revenue Utilization modal (Deferred = Min commit at $0 delivered).
+export function deferred(money: number, commitment: number): number {
+  return Math.max(0, commitment - money);
 }
 
 export interface MotionRow {
