@@ -147,6 +147,21 @@ describe("formatToday", () => {
   });
 });
 
+describe("assemblePayload — deal.signer_email", () => {
+  it("emits signer_email from signerContact when signer differs from client", () => {
+    const signer: ContactRef = {
+      contactId: 2, salutation: "Mr.", firstName: "Bob", lastName: "Jones",
+      title: "CFO", email: "signer@d.org", phone: "556",
+    };
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.signerSameAsClient = false;
+    s.signerContact = signer;
+    const p = assemblePayload(s, "June 9, 2026") as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.signer_email).toBe("signer@d.org");
+  });
+});
+
 describe("assemblePayload — deal.today injection", () => {
   it("uses the injected today string in a contract payload", () => {
     const s = emptyFormState("contract", "x");
