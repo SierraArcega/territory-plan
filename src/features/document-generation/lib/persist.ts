@@ -21,6 +21,8 @@ function toDate(s: string | undefined): Date | null {
 
 export function promotedFields(payload: DocPayload): PromotedFields {
   const deal = payload.deal;
+  // quote/payment are required by the payload types but arrive from an untrusted
+  // request body — treat as optional at runtime rather than throwing post-send.
   const quote = payload.quote as { order_total?: number } | undefined;
   const payment = payload.payment as { type?: string | boolean } | undefined;
   return {
@@ -54,8 +56,6 @@ export async function upsertBocesRender(input: BocesRenderInput): Promise<void> 
   const fields = {
     docUrl: input.docUrl,
     docId: input.docId,
-    // quote/payment are required by the payload types but arrive from an untrusted
-    // request body — treat as optional at runtime rather than throwing post-send.
     payload: input.payload as unknown as Prisma.InputJsonValue,
     ...promoted,
     ...(input.districtLeaId ? { districtLeaId: input.districtLeaId } : {}),
