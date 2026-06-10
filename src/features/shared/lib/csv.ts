@@ -23,7 +23,11 @@ export function rowsToCsv(
 }
 
 export interface ParsedCsv {
-  /** Header row, trimmed (BOM stripped from the first cell). */
+  /**
+   * Header row, trimmed (BOM stripped from the first cell). Empty header
+   * names are dropped (their columns are skipped); duplicate names are
+   * deduped with a numeric suffix ("Phone Number", "Phone Number (2)").
+   */
   headers: string[];
   /** One object per data row, keyed by header. Missing cells are "". */
   rows: Array<Record<string, string>>;
@@ -33,7 +37,9 @@ export interface ParsedCsv {
  * RFC-4180-style CSV parse (the read-side twin of rowsToCsv): quoted fields,
  * escaped quotes (""), commas and newlines inside quotes, CRLF/CR/LF line
  * endings. The first record is the header row; fully-empty records are
- * skipped; extra cells beyond the header are dropped.
+ * skipped; extra cells beyond the header are dropped. Marketing exports
+ * routinely ship empty and repeated header names — empty ones are skipped,
+ * repeats are suffixed so no column silently clobbers another.
  */
 export function parseCsv(text: string): ParsedCsv {
   const records: string[][] = [];
@@ -86,11 +92,29 @@ export function parseCsv(text: string): ParsedCsv {
   const nonEmpty = records.filter((r) => r.some((cell) => cell.trim() !== ""));
   if (nonEmpty.length === 0) return { headers: [], rows: [] };
 
-  const headers = nonEmpty[0].map((h) => h.trim());
+  // Per-column keys: null = skipped (empty header name); duplicates get a
+  // " (2)" / " (3)" suffix, bumped past any literal "Name (2)" header.
+  const rawHeaders = nonEmpty[0].map((h) => h.trim());
+  const counts = new Map<string, number>();
+  const taken = new Set(rawHeaders.filter(Boolean));
+  const keys: Array<string | null> = rawHeaders.map((h) => {
+    if (!h) return null;
+    const count = (counts.get(h) ?? 0) + 1;
+    counts.set(h, count);
+    if (count === 1) return h;
+    let n = count;
+    let key = `${h} (${n})`;
+    while (taken.has(key)) key = `${h} (${++n})`;
+    taken.add(key);
+    return key;
+  });
+
+  const headers = keys.filter((k): k is string => k !== null);
   const rows = nonEmpty.slice(1).map((cells) => {
     const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = (cells[idx] ?? "").trim();
+    keys.forEach((key, idx) => {
+      if (key === null) return;
+      row[key] = (cells[idx] ?? "").trim();
     });
     return row;
   });

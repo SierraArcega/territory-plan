@@ -102,6 +102,29 @@ describe("parseCsv", () => {
     expect(out.rows[1]).toEqual({ a: "1", b: "2", c: "3" });
   });
 
+  it("skips columns with an empty header name", () => {
+    const out = parseCsv("name,,email\nKaren,dropped,k@x.org\n");
+    expect(out.headers).toEqual(["name", "email"]);
+    expect(out.rows[0]).toEqual({ name: "Karen", email: "k@x.org" });
+    expect(Object.keys(out.rows[0])).not.toContain("");
+  });
+
+  it("dedupes duplicate header names with a numeric suffix so both columns survive", () => {
+    const out = parseCsv("Phone Number,City,Phone Number\n(956) 464-1650,Donna,(956) 464-9999\n");
+    expect(out.headers).toEqual(["Phone Number", "City", "Phone Number (2)"]);
+    expect(out.rows[0]).toEqual({
+      "Phone Number": "(956) 464-1650",
+      City: "Donna",
+      "Phone Number (2)": "(956) 464-9999",
+    });
+  });
+
+  it("bumps the dedupe suffix past a literal 'Name (2)' header", () => {
+    const out = parseCsv("a,a,a (2)\n1,2,3\n");
+    expect(out.headers).toEqual(["a", "a (3)", "a (2)"]);
+    expect(out.rows[0]).toEqual({ a: "1", "a (3)": "2", "a (2)": "3" });
+  });
+
   it("strips a UTF-8 BOM from the first header", () => {
     const out = parseCsv("﻿name\nKaren\n");
     expect(out.headers).toEqual(["name"]);
