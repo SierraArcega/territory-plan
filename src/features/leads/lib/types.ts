@@ -93,6 +93,14 @@ export interface EngagementTimelineItem {
   notes: string | null;
   outcome: string | null;
   outcomeType: string | null;
+  rating: number | null;
+  /** Points this activity carried toward the lead score. */
+  points: number;
+  mixmaxSequenceName: string | null;
+  mixmaxSequenceStep: number | null;
+  mixmaxSequenceTotal: number | null;
+  mixmaxOpenCount: number | null;
+  mixmaxClickCount: number | null;
   source: string;
   createdByUserId: string | null;
   attribution: TimelineAttribution;

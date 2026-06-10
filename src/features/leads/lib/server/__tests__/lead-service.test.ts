@@ -456,6 +456,29 @@ describe("logEngagement", () => {
     expect(db.lead.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { score: { increment: 25 } } }),
     );
+    // …and records what THIS activity carried for the timeline readout.
+    expect(db.activity.create.mock.calls[0][0].data.metadata).toEqual({
+      leadPoints: 25,
+    });
+  });
+
+  it("persists outcome fields structurally and omits metadata at 0 points", async () => {
+    await logEngagement(
+      "lead-1",
+      {
+        type: "cold_call",
+        title: "Connected",
+        points: 0,
+        rating: 4,
+        outcomeType: "positive_progress",
+      },
+      USER_ID,
+      asDb(db),
+    );
+    const data = db.activity.create.mock.calls[0][0].data;
+    expect(data.rating).toBe(4);
+    expect(data.outcomeType).toBe("positive_progress");
+    expect(data.metadata).toBeUndefined();
   });
 
   it("applies an optional resulting status transition in the same flow", async () => {

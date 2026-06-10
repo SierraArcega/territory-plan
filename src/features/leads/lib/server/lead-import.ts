@@ -502,6 +502,11 @@ export async function applyActivityImport(
           startDate: occurredAt,
           status: "completed",
           createdByUserId: userId,
+          // Mirror logEngagement: record the points the row carried so the
+          // timeline can render "+N pts" (lead score remains the total).
+          ...(resolution.points !== 0
+            ? { metadata: { leadPoints: resolution.points } }
+            : {}),
           contacts: { create: [{ contactId }] },
           districts: { create: [{ districtLeaid: resolution.district!.leaid }] },
           ...(resolution.school

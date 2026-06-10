@@ -17,6 +17,7 @@ import {
 } from "@/features/leads/lib/queries";
 import {
   LEAD_TRANSITIONS,
+  OUTCOME_PILLS,
   STATUS_CONFIG,
   STATUS_ORDER,
   UNQUAL_REASONS,
@@ -37,15 +38,6 @@ const ACT_CHOICES: Array<{ key: string; type: string; label: string; Icon: Lucid
   { key: "email", type: "email", label: "Email", Icon: Mail },
   { key: "meeting", type: "discovery_call", label: "Meeting", Icon: Calendar },
 ];
-
-// Meetings-category outcome pills — labels/keys from outcome-types.ts, colors
-// plum-tuned per the design handoff (leadsData.js OUTCOME_PILLS).
-const OUTCOME_PILLS = [
-  { key: "positive_progress", label: "Moved Forward", icon: "🚀", color: "#56792F", bg: "#EFF5F0" },
-  { key: "neutral", label: "Good Chat", icon: "💬", color: "#4D7285", bg: "#EEF5F8" },
-  { key: "negative", label: "Went Cold", icon: "❄️", color: "#8A80A8", bg: "#F3F2F6" },
-  { key: "follow_up_needed", label: "Follow Up", icon: "📌", color: "#C25A52", bg: "#FEF2F1" },
-] as const;
 
 const SECTION_LABEL =
   "mb-2 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]";

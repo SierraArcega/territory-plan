@@ -162,6 +162,16 @@ export const SEQUENCES = [
   "General BDR Sequence",
 ] as const;
 
+// Meetings-category outcome pills — labels/keys from outcome-types.ts, colors
+// plum-tuned per the design handoff (leadsData.js OUTCOME_PILLS). Shared by
+// the Outcome modal (picker) and the activity timeline (readout).
+export const OUTCOME_PILLS = [
+  { key: "positive_progress", label: "Moved Forward", icon: "🚀", color: "#56792F", bg: "#EFF5F0" },
+  { key: "neutral", label: "Good Chat", icon: "💬", color: "#4D7285", bg: "#EEF5F8" },
+  { key: "negative", label: "Went Cold", icon: "❄️", color: "#8A80A8", bg: "#F3F2F6" },
+  { key: "follow_up_needed", label: "Follow Up", icon: "📌", color: "#C25A52", bg: "#FEF2F1" },
+] as const;
+
 /**
  * Lifecycle copy written by the server when a Sales Qualified transition
  * advances the Stage 0 opp. Declared here (client-safe) and imported by

@@ -1,20 +1,27 @@
 "use client";
 
 // Lead activity timeline — the merged feed for the detail panel: the lead's
-// own lifecycle events (system feel, Zap icon) plus shared engagement
-// activities touching its contact / school / district. Rows follow the
-// HistoryRow pattern from the design handoff (LeadBits.jsx): a 28px icon
-// tile, a 13px plum text line, an fmtRel timestamp, and — only when the
-// source is non-obvious — a linkage chip (LinkageChip). The exported
-// TimelineList renders any pre-fetched item array, so the record panels
-// (ContactRecord / SchoolRecord / DistrictRecord) reuse the exact rows.
+// own lifecycle events (system feel, Zap icon, flat rows) plus shared
+// engagement activities touching its contact / school / district. Engagement
+// rows follow the activity-card treatment from the design handoff
+// (LeadActivity.jsx): a source-colored icon badge, a bordered white card with
+// type label + title (+ LinkageChip when the source is non-obvious), the
+// Mixmax sequence badge / open-click stats when the sync populated them, the
+// logged outcome pill + star rating, the notes box, and a right-aligned
+// "+N pts" when the activity carried points. The exported TimelineList
+// renders any pre-fetched item array, so the record panels (ContactRecord /
+// SchoolRecord / DistrictRecord) reuse the exact rows.
 
 import type { LucideIcon } from "lucide-react";
 import { Calendar, Gift, Mail, Phone, Target, Users, Zap } from "lucide-react";
 import { fmtRel } from "@/features/shared/lib/date-utils";
 import { ACTIVITY_TYPE_LABELS, type ActivityType } from "@/features/activities/types";
 import { useLeadTimelineQuery } from "@/features/leads/lib/queries";
-import { STATUS_CONFIG, OPP_ADVANCED_MESSAGE } from "@/features/leads/lib/status-config";
+import {
+  OUTCOME_PILLS,
+  STATUS_CONFIG,
+  OPP_ADVANCED_MESSAGE,
+} from "@/features/leads/lib/status-config";
 import type {
   LeadStatus,
   LeadTimelineItem,
@@ -39,6 +46,16 @@ const ENGAGEMENT_ICONS: Partial<Record<ActivityType, LucideIcon>> = {
   professional_development: Users,
   course: Users,
   gift_drop: Gift,
+};
+
+// Source-colored badge palette — mirrors SOURCE_CONFIG in
+// features/activities/components/ActivityTimelineItem.tsx (manual plum-tuned
+// to the handoff's steel).
+const SOURCE_BADGES: Record<string, { bg: string; name: string }> = {
+  gmail_sync: { bg: "#EA4335", name: "Gmail" },
+  calendar_sync: { bg: "#4285F4", name: "Calendar" },
+  slack_sync: { bg: "#4A154B", name: "Slack" },
+  manual: { bg: "#6EA3BE", name: "Logged manually" },
 };
 
 // ---- Lifecycle copy -----------------------------------------------------------
@@ -84,6 +101,134 @@ export function lifecycleText(item: LifecycleTimelineItem): string {
 
 // ---- Rows --------------------------------------------------------------------
 
+/** Lifecycle (system) row — flat HistoryRow styling, unchanged by design. */
+function LifecycleRow({
+  item,
+  first,
+  now,
+}: {
+  item: LifecycleTimelineItem;
+  first: boolean;
+  now?: Date;
+}) {
+  return (
+    <div
+      className={`flex gap-3 py-[11px] ${first ? "" : "border-t border-[#EFEDF5]"}`}
+      data-testid="timeline-lifecycle"
+    >
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#E2DEEC]"
+        style={{ background: "#EFEDF5", color: "#6E6390" }}
+      >
+        <Zap size={14} aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-semibold leading-[1.35] text-[#403770]">
+          {lifecycleText(item)}
+        </div>
+        <div className="mt-0.5 text-[11px] text-[#A69DC0]">{fmtRel(item.ts, now)}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Engagement row — the prototype's bordered activity card (LeadActivity.jsx). */
+function EngagementRow({ item, now }: { item: EngagementTimelineItem; now?: Date }) {
+  const Icon: LucideIcon = ENGAGEMENT_ICONS[item.type as ActivityType] ?? Target;
+  const badge = SOURCE_BADGES[item.source] ?? SOURCE_BADGES.manual;
+  const outcome = item.outcomeType
+    ? OUTCOME_PILLS.find((o) => o.key === item.outcomeType)
+    : undefined;
+  const rating =
+    item.rating != null && item.rating >= 1 && item.rating <= 5 ? item.rating : 0;
+  const opens = item.mixmaxOpenCount ?? 0;
+  const clicks = item.mixmaxClickCount ?? 0;
+  return (
+    <div className="flex gap-3 py-[5px]" data-testid="timeline-engagement">
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white"
+        style={{ background: badge.bg }}
+        title={badge.name}
+      >
+        <Icon size={14} aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 rounded-lg border border-[#E2DEEC] bg-white px-[11px] py-[9px]">
+        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+          <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.05em] text-[#A69DC0]">
+            {ACTIVITY_TYPE_LABELS[item.type as ActivityType] ?? "Activity"}
+          </span>
+          <span className="min-w-0 text-[13px] font-semibold leading-[1.35] text-[#403770] [overflow-wrap:anywhere]">
+            {item.title}
+          </span>
+          <LinkageChip attribution={item.attribution} name={item.attributionName} />
+        </div>
+
+        {/* Mixmax sequence badge (sync-populated; rendered only when real) */}
+        {item.mixmaxSequenceName && (
+          <div className="mt-[5px]">
+            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-[#FFF3F0] px-2 py-px text-[10px] font-semibold text-[#FF6B4A]">
+              {item.mixmaxSequenceStep != null && item.mixmaxSequenceTotal != null
+                ? `Step ${item.mixmaxSequenceStep}/${item.mixmaxSequenceTotal}`
+                : "Sequence"}
+              {" · "}
+              {item.mixmaxSequenceName}
+            </span>
+          </div>
+        )}
+
+        {/* Logged outcome pill + star rating */}
+        {(outcome || rating > 0) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            {outcome && (
+              <span
+                className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[9px] py-0.5 text-[11px] font-semibold"
+                style={{ background: outcome.bg, color: outcome.color }}
+              >
+                <span aria-hidden>{outcome.icon}</span>
+                {outcome.label}
+              </span>
+            )}
+            {rating > 0 && (
+              <span
+                className="text-[11px] tracking-[1px] text-[#D4A84B]"
+                aria-label={`Rated ${rating} of 5`}
+              >
+                {"★".repeat(rating)}
+                <span className="text-[#E2DEEC]">{"★".repeat(5 - rating)}</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Notes */}
+        {item.notes && (
+          <div className="mt-[7px] rounded-[7px] border border-[#EDEAF4] bg-[#FAF8FC] px-[9px] py-[7px] text-xs leading-[1.45] text-[#5C5277]">
+            {item.notes}
+          </div>
+        )}
+
+        {/* Detail line: time + engagement stats + points */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-[#A69DC0]">
+          <span className="whitespace-nowrap">{fmtRel(item.ts, now)}</span>
+          {(opens > 0 || clicks > 0) && (
+            <>
+              <span aria-hidden>·</span>
+              {opens > 0 && <span className="whitespace-nowrap">Opened {opens}x</span>}
+              {opens > 0 && clicks > 0 && <span aria-hidden>·</span>}
+              {clicks > 0 && <span className="whitespace-nowrap">Clicked {clicks}x</span>}
+            </>
+          )}
+          {item.points > 0 && (
+            <span className="ml-auto whitespace-nowrap font-bold tabular-nums text-[#56792F]">
+              +{item.points} pts
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TimelineRow({
   item,
   first,
@@ -93,51 +238,10 @@ function TimelineRow({
   first: boolean;
   now?: Date;
 }) {
-  const sys = item.itemType === "lifecycle";
-  const Icon: LucideIcon = sys
-    ? Zap
-    : (ENGAGEMENT_ICONS[(item as EngagementTimelineItem).type as ActivityType] ?? Target);
-  return (
-    <div
-      className={`flex gap-3 py-[11px] ${first ? "" : "border-t border-[#EFEDF5]"}`}
-      data-testid={sys ? "timeline-lifecycle" : "timeline-engagement"}
-    >
-      <span
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#E2DEEC]"
-        style={
-          sys
-            ? { background: "#EFEDF5", color: "#6E6390" }
-            : { background: "#FFFCFA", color: "#6EA3BE" }
-        }
-      >
-        <Icon size={14} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        {sys ? (
-          <div className="text-[13px] font-semibold leading-[1.35] text-[#403770]">
-            {lifecycleText(item)}
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-              <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.05em] text-[#A69DC0]">
-                {ACTIVITY_TYPE_LABELS[item.type as ActivityType] ?? "Activity"}
-              </span>
-              <span className="min-w-0 text-[13px] font-medium leading-[1.35] text-[#403770] [overflow-wrap:anywhere]">
-                {item.title}
-              </span>
-              <LinkageChip attribution={item.attribution} name={item.attributionName} />
-            </div>
-            {item.notes && (
-              <div className="mt-[7px] rounded-[7px] border border-[#EDEAF4] bg-[#FAF8FC] px-[9px] py-[7px] text-xs leading-[1.45] text-[#5C5277]">
-                {item.notes}
-              </div>
-            )}
-          </>
-        )}
-        <div className="mt-0.5 text-[11px] text-[#A69DC0]">{fmtRel(item.ts, now)}</div>
-      </div>
-    </div>
+  return item.itemType === "lifecycle" ? (
+    <LifecycleRow item={item} first={first} now={now} />
+  ) : (
+    <EngagementRow item={item} now={now} />
   );
 }
 

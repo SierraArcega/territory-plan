@@ -226,6 +226,12 @@ describe("applyActivityImport — dry/wet parity on the same fixture", () => {
       create: [{ ncessch: "061248006448" }],
     });
 
+    // Points the row carried land in metadata for the timeline's "+N pts";
+    // 0-point rows write no metadata.
+    expect(activityCreates[0].metadata).toEqual({ leadPoints: 12 });
+    expect(activityCreates[1].metadata).toEqual({ leadPoints: 40 });
+    expect(activityCreates[2].metadata).toBeUndefined();
+
     // Score increment lands on the active lead only
     expect(db.lead.update).toHaveBeenCalledTimes(1);
     expect(db.lead.update).toHaveBeenCalledWith({

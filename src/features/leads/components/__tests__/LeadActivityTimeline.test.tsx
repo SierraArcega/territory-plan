@@ -19,6 +19,13 @@ function engagement(
     notes: null,
     outcome: null,
     outcomeType: null,
+    rating: null,
+    points: 0,
+    mixmaxSequenceName: null,
+    mixmaxSequenceStep: null,
+    mixmaxSequenceTotal: null,
+    mixmaxOpenCount: null,
+    mixmaxClickCount: null,
     source: "manual",
     createdByUserId: null,
     attribution: "own_contact",
@@ -86,6 +93,63 @@ describe("TimelineList attribution → chip mapping", () => {
       />,
     );
     expect(screen.getByText("School-wide")).toBeInTheDocument();
+  });
+});
+
+describe("TimelineList engagement card readouts", () => {
+  it("renders the logged outcome pill with the star-rating readout", () => {
+    render(
+      <TimelineList
+        items={[engagement({ outcomeType: "positive_progress", rating: 4 })]}
+        now={NOW}
+      />,
+    );
+    const pill = screen.getByText("Moved Forward");
+    expect(pill.closest("span")).toHaveStyle({ background: "#EFF5F0", color: "#56792F" });
+    expect(screen.getByLabelText("Rated 4 of 5")).toHaveTextContent("★★★★★");
+  });
+
+  it("omits the outcome row when nothing was logged", () => {
+    render(<TimelineList items={[engagement()]} now={NOW} />);
+    expect(screen.queryByText("Moved Forward")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Rated/)).not.toBeInTheDocument();
+  });
+
+  it("shows a right-aligned +N pts only when the activity carried points", () => {
+    const { rerender } = render(
+      <TimelineList items={[engagement({ points: 12 })]} now={NOW} />,
+    );
+    expect(screen.getByText("+12 pts")).toBeInTheDocument();
+    rerender(<TimelineList items={[engagement({ points: 0 })]} now={NOW} />);
+    expect(screen.queryByText(/pts/)).not.toBeInTheDocument();
+  });
+
+  it("renders Mixmax sequence badge and open/click stats only when populated", () => {
+    render(
+      <TimelineList
+        items={[
+          engagement({
+            mixmaxSequenceName: "Superintendent — Special Ed",
+            mixmaxSequenceStep: 2,
+            mixmaxSequenceTotal: 5,
+            mixmaxOpenCount: 3,
+            mixmaxClickCount: 1,
+          }),
+        ]}
+        now={NOW}
+      />,
+    );
+    expect(
+      screen.getByText("Step 2/5 · Superintendent — Special Ed"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Opened 3x")).toBeInTheDocument();
+    expect(screen.getByText("Clicked 1x")).toBeInTheDocument();
+  });
+
+  it("never fabricates Mixmax stats on plain activities", () => {
+    render(<TimelineList items={[engagement()]} now={NOW} />);
+    expect(screen.queryByText(/Opened/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sequence/)).not.toBeInTheDocument();
   });
 });
 

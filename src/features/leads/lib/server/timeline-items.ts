@@ -23,6 +23,16 @@ export const ENGAGEMENT_ACTIVITY_SELECT = {
   notes: true,
   outcome: true,
   outcomeType: true,
+  rating: true,
+  // metadata.leadPoints = points this activity carried (logEngagement/import).
+  metadata: true,
+  // Mixmax enrichment — populated historically by the (now removed) Mixmax
+  // sync; rendered only when present.
+  mixmaxSequenceName: true,
+  mixmaxSequenceStep: true,
+  mixmaxSequenceTotal: true,
+  mixmaxOpenCount: true,
+  mixmaxClickCount: true,
   source: true,
   startDate: true,
   createdAt: true,
@@ -44,11 +54,28 @@ export interface EngagementItem {
   notes: string | null;
   outcome: string | null;
   outcomeType: string | null;
+  rating: number | null;
+  /** Points this activity carried toward the lead score (metadata.leadPoints). */
+  points: number;
+  mixmaxSequenceName: string | null;
+  mixmaxSequenceStep: number | null;
+  mixmaxSequenceTotal: number | null;
+  mixmaxOpenCount: number | null;
+  mixmaxClickCount: number | null;
   source: string;
   createdByUserId: string | null;
   attribution: TimelineAttribution;
   attributionName: string | null;
   ts: string;
+}
+
+/** metadata.leadPoints, defensively parsed (metadata is a free-form jsonb). */
+function leadPoints(metadata: Prisma.JsonValue | null): number {
+  if (metadata == null || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return 0;
+  }
+  const v = (metadata as Record<string, unknown>).leadPoints;
+  return typeof v === "number" && Number.isInteger(v) ? v : 0;
 }
 
 /**
@@ -83,6 +110,13 @@ export function toEngagementItem(
     notes: activity.notes,
     outcome: activity.outcome,
     outcomeType: activity.outcomeType,
+    rating: activity.rating,
+    points: leadPoints(activity.metadata),
+    mixmaxSequenceName: activity.mixmaxSequenceName,
+    mixmaxSequenceStep: activity.mixmaxSequenceStep,
+    mixmaxSequenceTotal: activity.mixmaxSequenceTotal,
+    mixmaxOpenCount: activity.mixmaxOpenCount,
+    mixmaxClickCount: activity.mixmaxClickCount,
     source: activity.source,
     createdByUserId: activity.createdByUserId,
     attribution,

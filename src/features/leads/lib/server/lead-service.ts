@@ -551,6 +551,10 @@ export async function logEngagement(
         outcome: input.outcome?.trim() || null,
         outcomeType: input.outcomeType || null,
         rating: input.rating ?? null,
+        // The lead score increment stays the source of truth for totals;
+        // metadata.leadPoints records what THIS activity carried so the
+        // timeline can render "+N pts" (activities have no points column).
+        ...(points !== 0 ? { metadata: { leadPoints: points } } : {}),
         contacts: { create: [{ contactId: lead.contactId }] },
         districts: { create: [{ districtLeaid: lead.leaid }] },
         ...(lead.schoolNcessch
