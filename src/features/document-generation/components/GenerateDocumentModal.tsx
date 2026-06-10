@@ -53,7 +53,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   async function doRender(tags: boolean): Promise<RenderResult> {
     setBusy(true);
     try {
-      const res = await renderClient(assemblePayload(state), { tags });
+      const res = await renderClient(assemblePayload(state), { tags, districtLeaId: state.districtLeaId });
       setResult(res);
       return res;
     } finally {

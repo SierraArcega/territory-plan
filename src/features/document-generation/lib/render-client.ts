@@ -5,7 +5,7 @@ export const appsScriptRenderClient: RenderClient = async (payload, opts) => {
   const res = await fetch("/api/document-generation/render", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payload, tags: opts.tags }),
+    body: JSON.stringify({ payload, tags: opts.tags, districtLeaId: opts.districtLeaId }),
   });
   if (!res.ok) throw new Error(`Render failed: HTTP ${res.status}`);
   return (await res.json()) as Awaited<ReturnType<RenderClient>>;
