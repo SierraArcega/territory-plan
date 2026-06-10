@@ -54,6 +54,7 @@ describe("POST /api/document-generation/send", () => {
     expect(body.id).toBe(1);
     expect(body.signatureRequestId).toBe("sig_1");
     expect(body.recipientEmail).toBe("s@acme.org");
+    expect(body.docUrl).toBe("https://docs.google.com/d/D/edit");
   });
 
   it("writes an 'error' row (no signatureRequestId) when the script could not send", async () => {
