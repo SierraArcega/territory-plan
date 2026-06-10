@@ -87,7 +87,8 @@ function generateFullContract(payload) {
           'files[0]':                  pdfBlob,
         };
         // CC the sender + any rep-entered emails so they receive the executed copy.
-        // Dropbox Sign rejects a CC that duplicates a signer, so the signer is excluded.
+        // Dropbox Sign rejects a CC that duplicates a signer, so the signer is
+        // excluded; duplicate CC addresses are collapsed case-insensitively.
         var signerEmail = String(payload.deal.signer_email || payload.deal.client_email || '').trim().toLowerCase();
         var ccCandidates = [String(payload.deal.sender_email || '')]
           .concat(String(payload.deal.cc_emails || '').split(','));
