@@ -155,6 +155,28 @@ existing error handling: `result.sendError` → `/send` route → `error` status
 (versioned `/exec` deployment — push alone does not go live). Safe to deploy
 while `DROPBOX_SIGN_TEST_MODE='1'`.
 
+## Addendum (2026-06-10): PO number input for all payment types
+
+The payment-terms section of both doc templates always renders a PO row
+("If the PO number is known at the time of signing, please include it here:
+`<<po_number>>`"), but the form's PO number input only renders for payment
+type C, and `payload.ts` blanks `po_number` for types A/B — so under A/B the
+doc slot can never be filled. Fix (folded into this branch per brainstorm
+2026-06-10):
+
+- **`PaymentSection.tsx`**: move the existing "PO number" input out of the
+  type-C-only block to directly under the "PO required" checkbox, always
+  rendered, placeholder "PO number (if known)". Type-C block keeps BOCES name
+  and pre/post. Same `poNumber` state field — no state/type changes.
+- **`payload.ts`**: emit `po_number: state.poNumber` unconditionally (drop the
+  type-C gate). `boces_name`/`pay_prepost` stay C-gated.
+- **No Apps Script changes** — both templates already map `<<po_number>>` with
+  an `|| ''` fallback.
+- **Optional, no validation** — free text, matching the doc's "if known"
+  phrasing.
+- **Tests**: payload emits `po_number` for type A; input visible on type A and
+  forwards the `{ poNumber }` patch.
+
 ## Out of scope
 
 - Persisting CC addresses on `GeneratedDocument`
