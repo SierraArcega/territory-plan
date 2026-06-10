@@ -16,7 +16,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
 import { useToast } from "@/features/shared/components/Toast";
-import type { Lead, LeadsResponse, LeadStatus } from "./types";
+import type {
+  ContactRecordResponse,
+  DistrictRecordResponse,
+  Lead,
+  LeadsResponse,
+  LeadStatus,
+  LeadTimelineResponse,
+  SchoolRecordResponse,
+} from "./types";
 
 /** Server page cap (MAX_PAGE_SIZE in /api/leads). */
 export const LEADS_FETCH_LIMIT = 200;
@@ -29,6 +37,9 @@ export const leadKeys = {
   all: ["leads"] as const,
   lists: () => ["leads", "list"] as const,
   list: (scope: LeadScope) => ["leads", "list", scope] as const,
+  timeline: (leadId: string) => ["leads", "timeline", leadId] as const,
+  record: (type: "contact" | "school" | "district", id: string) =>
+    ["leads", "record", type, id] as const,
 };
 
 export function useLeadsQuery(scope: LeadScope) {
@@ -39,6 +50,45 @@ export function useLeadsQuery(scope: LeadScope) {
         // No ownerId param = the server defaults to the current user ("mine").
         `${API_BASE}/leads?limit=${LEADS_FETCH_LIMIT}${scope === "team" ? "&ownerId=all" : ""}`,
       ),
+    staleTime: 30 * 1000,
+  });
+}
+
+// ---- Timeline & record panels ------------------------------------------------
+
+/** Merged lifecycle + engagement feed for the lead detail panel. */
+export function useLeadTimelineQuery(leadId: string) {
+  return useQuery({
+    queryKey: leadKeys.timeline(leadId),
+    queryFn: () =>
+      fetchJson<LeadTimelineResponse>(`${API_BASE}/leads/${leadId}/timeline`),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useContactRecordQuery(contactId: number) {
+  return useQuery({
+    queryKey: leadKeys.record("contact", String(contactId)),
+    queryFn: () =>
+      fetchJson<ContactRecordResponse>(`${API_BASE}/leads/records/contact/${contactId}`),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useSchoolRecordQuery(ncessch: string) {
+  return useQuery({
+    queryKey: leadKeys.record("school", ncessch),
+    queryFn: () =>
+      fetchJson<SchoolRecordResponse>(`${API_BASE}/leads/records/school/${ncessch}`),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useDistrictRecordQuery(leaid: string) {
+  return useQuery({
+    queryKey: leadKeys.record("district", leaid),
+    queryFn: () =>
+      fetchJson<DistrictRecordResponse>(`${API_BASE}/leads/records/district/${leaid}`),
     staleTime: 30 * 1000,
   });
 }

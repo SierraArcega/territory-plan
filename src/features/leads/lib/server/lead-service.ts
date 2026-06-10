@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ServiceError, type DbClient } from "@/features/shared/lib/service-error";
 import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
+import { OPP_ADVANCED_MESSAGE } from "@/features/leads/lib/status-config";
 
 /**
  * Lead mutation core (BDR pipeline). All lifecycle side-effects — accepting,
@@ -53,7 +54,8 @@ export const LEAD_OPP_STAGE_MEETING_BOOKED = "0 - Meeting Booked";
 export const LEAD_OPP_STAGE_DISCOVERY = "1 - Discovery";
 /** Written to opportunities.lead_source so lead-created opps are identifiable. */
 export const LEAD_CREATED_OPP_SOURCE = "Lead Pipeline";
-export const OPP_ADVANCED_MESSAGE = "Opportunity advanced to Stage 1 · Discovery";
+// Shared with the client toast — single source of truth in status-config.
+export { OPP_ADVANCED_MESSAGE };
 const CLOSED_OPP_STAGES = ["Closed Won", "Closed Lost"];
 
 // ---- Shared include / serializer -------------------------------------------

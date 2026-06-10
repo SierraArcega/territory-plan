@@ -71,3 +71,99 @@ export interface LeadsResponse {
   leads: Lead[];
   total: number;
 }
+
+// ---- Timeline (mirror lib/server/timeline-items.ts) -------------------------
+
+export type TimelineAttribution = "own_contact" | "other_contact" | "district_wide";
+
+export interface LifecycleTimelineItem {
+  itemType: "lifecycle";
+  id: string;
+  kind: string;
+  payload: Record<string, unknown> | null;
+  actorId: string | null;
+  ts: string;
+}
+
+export interface EngagementTimelineItem {
+  itemType: "engagement";
+  id: string;
+  type: string;
+  title: string;
+  notes: string | null;
+  outcome: string | null;
+  outcomeType: string | null;
+  source: string;
+  createdByUserId: string | null;
+  attribution: TimelineAttribution;
+  /** Chip label override (contact name, "School-wide", …). */
+  attributionName: string | null;
+  ts: string;
+}
+
+export type LeadTimelineItem = LifecycleTimelineItem | EngagementTimelineItem;
+
+export interface LeadTimelineResponse {
+  items: LeadTimelineItem[];
+}
+
+// ---- Record panels (mirror /api/leads/records/* responses) -----------------
+
+export interface RecordLeadSummary {
+  id: string;
+  status: LeadStatus;
+  score: number;
+  leadType: string | null;
+  unqualifiedReason?: string | null;
+  contactName?: string | null;
+}
+
+export interface RecordContactSummary {
+  id: number;
+  name: string;
+  title: string | null;
+  schoolName?: string | null;
+  leadStatus: LeadStatus | null;
+  activityCount: number;
+}
+
+export interface RecordSchoolSummary {
+  ncessch: string;
+  name: string;
+  level: string | null;
+  contactCount: number;
+  activityCount: number;
+}
+
+export interface ContactRecordResponse {
+  contact: LeadContact;
+  school: LeadSchool | null;
+  district: LeadDistrict | null;
+  lead: RecordLeadSummary | null;
+  stats: { activities: number; points: number };
+  items: EngagementTimelineItem[];
+}
+
+export interface SchoolRecordResponse {
+  school: { ncessch: string; name: string; level: string | null };
+  district: LeadDistrict | null;
+  stats: { contacts: number; activities: number; points: number };
+  contacts: RecordContactSummary[];
+  items: EngagementTimelineItem[];
+}
+
+export interface DistrictRecordResponse {
+  district: LeadDistrict;
+  stats: { schools: number; contacts: number; leads: number; points: number };
+  schools: RecordSchoolSummary[];
+  contacts: RecordContactSummary[];
+  leads: RecordLeadSummary[];
+  items: EngagementTimelineItem[];
+}
+
+// ---- Record-panel navigation stack ------------------------------------------
+
+export type RecordRef =
+  | { type: "contact"; id: number; label: string }
+  | { type: "school"; id: string; label: string }
+  | { type: "district"; id: string; label: string };

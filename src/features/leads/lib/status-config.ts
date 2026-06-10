@@ -147,6 +147,13 @@ export const SEQUENCES = [
   "General BDR Sequence",
 ] as const;
 
+/**
+ * Lifecycle copy written by the server when a Sales Qualified transition
+ * advances the Stage 0 opp. Declared here (client-safe) and imported by
+ * lib/server/lead-service.ts so the toast and the lead_event can't drift.
+ */
+export const OPP_ADVANCED_MESSAGE = "Opportunity advanced to Stage 1 · Discovery";
+
 // ---- Opportunity stages ----------------------------------------------------
 // Entering "Meeting Scheduled" creates a Stage 0 opportunity (the lead-to-opp
 // handoff). Stage 0 is the earliest pipeline stage; the opp advances from here.
@@ -216,6 +223,19 @@ export const OPP_STAGES: readonly OppStageConfig[] = [
     definition: "Deal signed and booked as revenue.",
   },
 ];
+
+/**
+ * Resolve a real opportunity stage string ("0 - Meeting Booked",
+ * "1 - Discovery", …) to its display config by the leading stage number.
+ * Returns null for closed/unnumbered stages — render the raw string then.
+ */
+export function oppStageFromString(
+  stage: string | null | undefined,
+): OppStageConfig | null {
+  const m = stage?.match(/^(\d+)/);
+  if (!m) return null;
+  return OPP_STAGES.find((s) => s.n === Number(m[1])) ?? null;
+}
 
 /** Compact money formatting for opp pills: $75K / $4.5K / $800. */
 export function fmtMoney(n: number | null | undefined): string {
