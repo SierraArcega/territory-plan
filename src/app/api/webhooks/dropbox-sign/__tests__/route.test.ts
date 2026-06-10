@@ -32,6 +32,7 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     vi.clearAllMocks();
     process.env.DROPBOX_SIGN_API_KEY = API_KEY;
     mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockFindUnique.mockResolvedValue(null);
   });
 
   it("advances status and returns the magic ack string", async () => {

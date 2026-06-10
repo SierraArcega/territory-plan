@@ -59,6 +59,12 @@ export async function POST(request: Request) {
 
       // Archive the executed PDF on signed events. Strictly best-effort: any failure
       // logs and leaves the columns null — Dropbox Sign must always get the ack.
+      // signed + all_signed both map here and can arrive concurrently: both can pass the
+      // findUnique guard and double-upload; the second row update overwrites — DB stays
+      // correct, the spare Drive file is harmless at current volume. Likewise the archive
+      // is awaited before the ack (adds seconds; Dropbox Sign retries slow acks and the
+      // guard absorbs the retry) — switch to next/server after() if volume ever makes
+      // retries noisy.
       if (status === "signed") {
         try {
           const row = await prisma.generatedDocument.findUnique({
