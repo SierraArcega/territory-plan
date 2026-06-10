@@ -40,8 +40,10 @@ export function getCompleteness(state: DocFormState): Completeness {
   if (!state.startDate.trim()) missing.push("Start date");
   if (!state.endDate.trim()) missing.push("End date");
   if (state.docType === "boces_quote" && !state.quoteNumber.trim()) missing.push("Quote number");
-  for (const email of parseCcEmails(state.ccEmails)) {
-    if (!EMAIL_RE.test(email)) missing.push(`Invalid CC email: ${email}`);
+  if (state.docType === "contract") {
+    for (const email of parseCcEmails(state.ccEmails)) {
+      if (!EMAIL_RE.test(email)) missing.push(`Invalid CC email: ${email}`);
+    }
   }
   return { isComplete: missing.length === 0, missing };
 }

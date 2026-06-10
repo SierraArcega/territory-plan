@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import GenerateDocumentModal from "../GenerateDocumentModal";
 
@@ -44,6 +44,14 @@ function setup(renderClient = vi.fn().mockResolvedValue({ docUrl: "https://docs.
 }
 
 describe("GenerateDocumentModal", () => {
+  beforeEach(() => {
+    mockUseGeneratedDocumentStatus.mockReturnValue({
+      data: undefined,
+      errorUpdateCount: 0,
+      pollTimedOut: false,
+    });
+  });
+
   it("mounts on the form stage with the doc-type selector and has not rendered yet", () => {
     const { renderClient } = setup();
     expect(renderClient).not.toHaveBeenCalled();
@@ -111,12 +119,5 @@ describe("GenerateDocumentModal", () => {
     await act(async () => { sendBtn.click(); });
 
     expect(screen.getByText(/Send accepted — awaiting confirmation/i)).toBeInTheDocument();
-
-    // Reset mock to default for subsequent tests
-    mockUseGeneratedDocumentStatus.mockReturnValue({
-      data: undefined,
-      errorUpdateCount: 0,
-      pollTimedOut: false,
-    });
   });
 });

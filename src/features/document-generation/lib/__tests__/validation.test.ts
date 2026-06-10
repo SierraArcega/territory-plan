@@ -79,4 +79,9 @@ describe("getCompleteness — ccEmails", () => {
     s.ccEmails = "";
     expect(getCompleteness(s).missing.filter((m) => m.startsWith("Invalid CC"))).toEqual([]);
   });
+  it("ignores invalid CC tokens for BOCES quotes (field is hidden)", () => {
+    const s = emptyFormState("boces_quote", "0601234");
+    s.ccEmails = "not-an-email";
+    expect(getCompleteness(s).missing.filter((m) => m.startsWith("Invalid CC"))).toEqual([]);
+  });
 });
