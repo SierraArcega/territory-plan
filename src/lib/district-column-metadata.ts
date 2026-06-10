@@ -3809,6 +3809,9 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "news_match_queue",
     "opportunity_snapshots",
     "report_drafts",
+    // Doc-gen signature-request audit trail — internal lifecycle state, not a
+    // rep-facing query target (the planned monitoring view reads it directly).
+    "generated_documents",
     // RFP feed: rfps is registered in TABLE_REGISTRY (Phase 3). The other two
     // are backend-only — agency_district_maps is admin triage state,
     // rfp_ingest_runs is sync telemetry. Neither belongs in rep-facing queries.
