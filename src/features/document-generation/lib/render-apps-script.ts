@@ -23,7 +23,7 @@ function requireEnv(name: string): string {
  *  - Production (Vercel): set `GOOGLE_DOC_RENDER_SA_EMAIL` + `GOOGLE_DOC_RENDER_SA_KEY`
  *    as inline env vars. KEY_FILE takes precedence if both are present.
  */
-function buildJwt() {
+export function buildJwt() {
   const subject = requireEnv("GOOGLE_DOC_RENDER_SUBJECT");
   const keyFile = process.env.GOOGLE_DOC_RENDER_KEY_FILE;
   if (keyFile) {
