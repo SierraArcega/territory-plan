@@ -7,11 +7,13 @@
 // client-side over the scope-fetched leads (see lib/queries.ts for the
 // rationale); board and table share one sorts[] source of truth.
 //
-// Integration points for the follow-up tracks:
-//   • `selected` (lead id) + `onSelectLead` — L5 mounts LeadDetailPanel in the
-//     marked slot below; the id is deep-linked via #lead=<id>.
-//   • `modal` ("add" | "bulk" | null) — header buttons already set it; L8/L9
-//     render AddLeadModal / BulkUploadModal in the marked slot.
+// Panels (L5–L7) mount at the bottom: LeadDetailPanel against `selectedLead`,
+// and the record-panel stack (`recordStack`) above it with a breadcrumb trail.
+//
+// Integration points for the follow-up tracks (L8/L9):
+//   • `modal` — header buttons set "add" / "bulk"; the detail panel sets
+//     "outcome" / "disqualify" / "link_opp" / "schedule_meeting". The marked
+//     slot below renders the matching modal once L8/L9 land (nothing today).
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -50,13 +52,26 @@ import {
 } from "@/features/leads/lib/queries";
 import { slaState } from "@/features/leads/lib/sla";
 import { STATUS_CONFIG } from "@/features/leads/lib/status-config";
-import type { Lead, LeadStatus } from "@/features/leads/lib/types";
+import type { Lead, LeadStatus, RecordRef } from "@/features/leads/lib/types";
 import LeadsBoard, { type BoardLayout } from "./board/LeadsBoard";
 import LeadsTable from "./LeadsTable";
 import StatTile from "./bits/StatTile";
+import LeadDetailPanel from "./panels/LeadDetailPanel";
+import ContactRecordPanel from "./panels/ContactRecordPanel";
+import SchoolRecordPanel from "./panels/SchoolRecordPanel";
+import DistrictRecordPanel from "./panels/DistrictRecordPanel";
+import type { BreadcrumbItem } from "./panels/RecordPanelShell";
 
 type ViewMode = "board" | "table";
-type LeadModal = "add" | "bulk" | null;
+/** "add"/"bulk" open from the header; the rest are detail-panel modal slots (L8). */
+type LeadModal =
+  | "add"
+  | "bulk"
+  | "outcome"
+  | "disqualify"
+  | "link_opp"
+  | "schedule_meeting"
+  | null;
 
 const LEAD_HASH_RE = /lead=([\w-]+)/;
 
@@ -80,8 +95,12 @@ export default function LeadsView() {
   const [sorts, setSorts] = useState<ColumnSort[]>([]);
   // Selected lead id — restored from the #lead=<id> deep link on first render.
   const [selected, setSelected] = useState<string | null>(() => readLeadHash());
-  // Modal stub state — L8 (Add MQL) / L9 (Bulk upload) render against this.
+  // Modal stub state — L8 (Add MQL / Outcome / Disqualify / Link opp /
+  // Schedule meeting) and L9 (Bulk upload) render against this.
   const [modal, setModal] = useState<LeadModal>(null);
+  // Record-panel navigation stack (Contact / School / District) — stacks above
+  // the lead detail panel; labels are captured at push time for breadcrumbs.
+  const [recordStack, setRecordStack] = useState<RecordRef[]>([]);
 
   const { data: profile } = useProfile();
   const { data, isLoading, isError, refetch } = useLeadsQuery(scope);
@@ -149,6 +168,45 @@ export default function LeadsView() {
 
   // ---- Actions ------------------------------------------------------------------
   const onSelectLead = (lead: Lead) => setSelected(lead.id);
+
+  // Close the panel (and any record stack riding on it) in one update pass.
+  const closePanel = () => {
+    setSelected(null);
+    setRecordStack([]);
+  };
+
+  // ---- Record-panel stack -----------------------------------------------------
+  const pushRecord = (ref: RecordRef) => setRecordStack((s) => [...s, ref]);
+  const popRecord = () => setRecordStack((s) => s.slice(0, -1));
+  const closeRecords = () => setRecordStack([]);
+  /** Jump from a record panel back to a lead in the pipeline. */
+  const openLeadFromRecord = (leadId: string) => {
+    setRecordStack([]);
+    setSelected(leadId);
+  };
+  const recordTop = recordStack[recordStack.length - 1] ?? null;
+
+  // Breadcrumb trail: lead root + each visited record level; the current
+  // (last) level is not clickable, earlier ones jump back to that depth.
+  const trail: BreadcrumbItem[] = [
+    ...(selectedLead
+      ? [
+          {
+            kind: "lead" as const,
+            label: selectedLead.contact?.name ?? "Lead",
+            onClick: closeRecords,
+          },
+        ]
+      : []),
+    ...recordStack.map((r, i) => ({
+      kind: r.type,
+      label: r.label,
+      onClick:
+        i === recordStack.length - 1
+          ? null
+          : () => setRecordStack((s) => s.slice(0, i + 1)),
+    })),
+  ];
 
   // Drag-to-restage: optimistic PATCH { status }; the mutation rolls back and
   // toasts on error (422 illegal transition, 400 missing disqualify reason).
@@ -421,12 +479,60 @@ export default function LeadsView() {
         )}
       </div>
 
-      {/* L5 integration slot: LeadDetailPanel mounts here against
-          `selectedLead` / `setSelected(null)` (close). */}
-      {selectedLead && null}
+      {/* Lead detail panel (L5) — Esc is owned by the record stack while one
+          is open. */}
+      {selectedLead && (
+        <LeadDetailPanel
+          key={selectedLead.id}
+          lead={selectedLead}
+          currentUserId={profile?.id ?? null}
+          onClose={closePanel}
+          escDisabled={recordStack.length > 0}
+          onOpenRecord={pushRecord}
+          onLogOutcome={() => setModal("outcome")}
+          onDisqualify={() => setModal("disqualify")}
+          onLinkOpportunity={() => setModal("link_opp")}
+          onScheduleMeeting={() => setModal("schedule_meeting")}
+        />
+      )}
 
-      {/* L8/L9 integration slot: AddLeadModal ("add") and BulkUploadModal
-          ("bulk") render here against `modal` / `setModal(null)` (close). */}
+      {/* Record panels (L7) — only the top of the stack is mounted; Back/Esc
+          pops one level, Close clears the stack (the lead panel stays). */}
+      {recordTop?.type === "contact" && (
+        <ContactRecordPanel
+          contactId={recordTop.id}
+          trail={trail}
+          onBack={popRecord}
+          onClose={closeRecords}
+          onOpenRecord={pushRecord}
+          onOpenLead={openLeadFromRecord}
+        />
+      )}
+      {recordTop?.type === "school" && (
+        <SchoolRecordPanel
+          ncessch={recordTop.id}
+          trail={trail}
+          onBack={popRecord}
+          onClose={closeRecords}
+          onOpenRecord={pushRecord}
+        />
+      )}
+      {recordTop?.type === "district" && (
+        <DistrictRecordPanel
+          leaid={recordTop.id}
+          trail={trail}
+          onBack={popRecord}
+          onClose={closeRecords}
+          onOpenRecord={pushRecord}
+          onOpenLead={openLeadFromRecord}
+        />
+      )}
+
+      {/* L8/L9 integration slot: AddLeadModal ("add"), BulkUploadModal
+          ("bulk"), OutcomeModal ("outcome"), DisqualifyModal ("disqualify"),
+          LinkOpportunityModal ("link_opp") and ScheduleMeetingModal
+          ("schedule_meeting") render here against `modal` / `setModal(null)`
+          (close) + `selectedLead`. Nothing renders until those tasks land. */}
       {modal && null}
     </div>
   );

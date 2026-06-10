@@ -12,11 +12,19 @@ vi.mock("@/features/leads/lib/queries", async (importOriginal) => {
     ...actual,
     useLeadsQuery: (scope: string) => useLeadsQueryMock(scope),
     useUpdateLeadMutation: () => ({ mutate: mutateMock }),
+    useLeadTimelineQuery: () => ({ data: { items: [] }, isLoading: false, isError: false }),
+    useContactRecordQuery: () => ({ data: undefined, isLoading: true, isError: false }),
+    useSchoolRecordQuery: () => ({ data: undefined, isLoading: true, isError: false }),
+    useDistrictRecordQuery: () => ({ data: undefined, isLoading: true, isError: false }),
   };
 });
 
 vi.mock("@/features/shared/lib/queries", () => ({
   useProfile: () => ({ data: { id: "u1", fullName: "Alex Rivera" } }),
+  useUsers: () => ({
+    data: [{ id: "u1", fullName: "Alex Rivera", avatarUrl: null, email: "a@x.com", jobTitle: null }],
+    isLoading: false,
+  }),
 }));
 
 import LeadsView from "../LeadsView";
