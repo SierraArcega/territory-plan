@@ -203,12 +203,12 @@ describe("assemblePayload — deal.cc_emails", () => {
 });
 
 describe("assemblePayload — payment.po_number", () => {
-  it("emits po_number for non-C payment types (doc slot always exists)", () => {
-    const s = emptyFormState("contract", "x");
+  it("emits po_number on the boces_quote payload too (shared payment record)", () => {
+    const s = emptyFormState("boces_quote", "x");
     s.clientContact = jane;
     s.paymentType = "A";
     s.poNumber = "PO-123";
-    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "boces_quote" }>;
     expect(p.payment.po_number).toBe("PO-123");
   });
 });
