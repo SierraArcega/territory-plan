@@ -97,9 +97,10 @@ describe("GET /api/home/dashboard/deals", () => {
     const body = await (await GET(req("fy=2026&metric=rev"))).json();
     expect(body.metric).toBe("rev");
     expect(body.rows).toHaveLength(2);
-    // sorted by max budget desc → Small ISD (300) first
-    expect(body.rows[0].account).toBe("Small ISD");
-    expect(body.rows[0]).toMatchObject({ revenue: 40, deferred: 40, underMin: true });
+    // sorted by min commit desc → Big ISD (100) first
+    expect(body.rows[0].account).toBe("Big ISD");
+    expect(body.rows[0]).toMatchObject({ revenue: 120, deferred: 0, underMin: false });
+    expect(body.rows[1].account).toBe("Small ISD");
     expect(body.totals).toMatchObject({ count: 2, revenue: 160, maxBudget: 500, deferred: 40 });
     expect(body.totals.utilPct).toBeCloseTo(160 / 500, 6);
   });

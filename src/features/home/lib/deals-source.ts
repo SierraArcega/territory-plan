@@ -15,6 +15,7 @@ import { districtSegment } from "./targets";
 import { PIPELINE_STAGES, classifyTier } from "./pipeline";
 import { fetchStageBenchmarks } from "./pipeline-source";
 import type { PipelineDealRow, BookingDealRow, WonAccountAgg, DoaAccountAgg, TargetDistrictAgg } from "./deals";
+import { chainKey } from "./deals";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -50,8 +51,37 @@ async function activityByOpp(oppIds: string[]): Promise<Map<string, OppActivity>
   return out;
 }
 
+// Group raw deal rows by contract chain (add-on opps collapse with their parent).
+function groupByChain<T extends { name: string | null; oppId: string }>(rows: T[]): T[][] {
+  const m = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = chainKey(r.name, r.oppId);
+    const g = m.get(k);
+    if (g) g.push(r);
+    else m.set(k, [r]);
+  }
+  return [...m.values()];
+}
+
+// Merge the per-opp activity across a chain: most-recent past touch (+ its note) and
+// the nearest future touch, so a collapsed contract row shows the whole chain's timing.
+function mergeChainActivity(
+  oppIds: string[],
+  activity: Map<string, OppActivity>,
+): { last: { date: Date; note: string | null } | null; next: { date: Date } | null } {
+  let last: { date: Date; note: string | null } | null = null;
+  let next: { date: Date } | null = null;
+  for (const id of oppIds) {
+    const a = activity.get(id);
+    if (a?.last && (!last || a.last.date > last.date)) last = a.last;
+    if (a?.next && (!next || a.next.date < next.date)) next = a.next;
+  }
+  return { last, next };
+}
+
 interface RawPipelineRow {
   oppId: string;
+  name: string | null;
   account: string | null;
   state: string | null;
   owner: string | null;
@@ -73,6 +103,7 @@ export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Pro
   const rowsP = prisma.$queryRaw<RawPipelineRow[]>`
     SELECT * FROM (
       SELECT o.id AS "oppId",
+             o.name AS name,
              o.district_name AS account,
              o.state,
              o.sales_rep_name AS owner,
@@ -105,28 +136,36 @@ export async function fetchPipelineDeals(sy: string, scope: DashboardScope): Pro
   const [rows, benchmarks] = await Promise.all([rowsP, fetchStageBenchmarks()]);
   const activity = await activityByOpp(rows.map((r) => r.oppId));
 
-  return rows.map((r) => {
-    const act = activity.get(r.oppId);
-    return {
-      account: r.account ?? "—",
-      state: r.state,
-      stageName: r.stagePrefix == null ? "—" : STAGE_NAME.get(r.stagePrefix) ?? "—",
-      source: toSegment(r.category),
-      committed: r.committed,
-      maxBudget: r.maxBudget,
-      closeDate: r.closeDate ? r.closeDate.toISOString() : null,
-      owner: r.owner,
-      lastActivity: act?.last ? act.last.date.toISOString() : null,
-      lastNote: act?.last?.note ?? null,
-      nextActivity: act?.next ? act.next.date.toISOString() : null,
-      tier: r.stagePrefix == null ? "on" : classifyTier(r.daysInStage, r.stagePrefix, benchmarks.get(r.stagePrefix)),
-      overdue: r.overdueClose,
-    };
-  });
+  // Collapse add-on opps into one contract row: committed (net) SUMS across the
+  // chain, the budget ceiling is the cumulative MAX, and the largest open opp is the
+  // representative for stage/age/owner. Then order by committed value, biggest first.
+  return groupByChain(rows)
+    .map((chain) => {
+      const rep = chain.reduce((a, b) => (b.committed > a.committed ? b : a));
+      const act = mergeChainActivity(chain.map((r) => r.oppId), activity);
+      const closeDate = chain.reduce<Date | null>((d, r) => (r.closeDate && (!d || r.closeDate > d) ? r.closeDate : d), null);
+      return {
+        account: rep.account ?? "—",
+        state: rep.state,
+        stageName: rep.stagePrefix == null ? "—" : STAGE_NAME.get(rep.stagePrefix) ?? "—",
+        source: toSegment(rep.category),
+        committed: chain.reduce((s, r) => s + r.committed, 0),
+        maxBudget: Math.max(...chain.map((r) => r.maxBudget)),
+        closeDate: closeDate ? closeDate.toISOString() : null,
+        owner: rep.owner,
+        lastActivity: act.last ? act.last.date.toISOString() : null,
+        lastNote: act.last?.note ?? null,
+        nextActivity: act.next ? act.next.date.toISOString() : null,
+        tier: rep.stagePrefix == null ? "on" : classifyTier(rep.daysInStage, rep.stagePrefix, benchmarks.get(rep.stagePrefix)),
+        overdue: rep.overdueClose,
+      } satisfies PipelineDealRow;
+    })
+    .sort((a, b) => b.committed - a.committed);
 }
 
 interface RawBookingRow {
   oppId: string;
+  name: string | null;
   account: string | null;
   owner: string | null;
   product: string | null;
@@ -145,6 +184,7 @@ interface RawBookingRow {
 export async function fetchBookingDeals(sy: string, scope: DashboardScope): Promise<BookingDealRow[]> {
   const rows = await prisma.$queryRaw<RawBookingRow[]>`
     SELECT o.id AS "oppId",
+           o.name AS name,
            o.district_name AS account,
            o.sales_rep_name AS owner,
            o.contract_type AS product,
@@ -166,22 +206,30 @@ export async function fetchBookingDeals(sy: string, scope: DashboardScope): Prom
 
   const activity = await activityByOpp(rows.map((r) => r.oppId));
 
-  return rows.map((r) => {
-    const act = activity.get(r.oppId);
-    return {
-      account: r.account ?? "—",
-      product: r.product,
-      source: toSegment(r.category),
-      amount: r.amount,
-      minCommit: r.minCommit,
-      maxBudget: r.maxBudget,
-      closedDate: r.closedDate ? r.closedDate.toISOString() : null,
-      owner: r.owner,
-      lastActivity: act?.last ? act.last.date.toISOString() : null,
-      lastNote: act?.last?.note ?? null,
-      nextActivity: act?.next ? act.next.date.toISOString() : null,
-    };
-  });
+  // Collapse add-on opps into one contract row: amount (net booking) SUMS across the
+  // chain (add-ons are incremental), while min commit / max budget are the cumulative
+  // MAX. The largest-commitment opp is the representative for product/owner. Ordered
+  // by min commit, biggest contracted accounts first.
+  return groupByChain(rows)
+    .map((chain) => {
+      const rep = chain.reduce((a, b) => (b.minCommit > a.minCommit ? b : a));
+      const act = mergeChainActivity(chain.map((r) => r.oppId), activity);
+      const closedDate = chain.reduce<Date | null>((d, r) => (r.closedDate && (!d || r.closedDate > d) ? r.closedDate : d), null);
+      return {
+        account: rep.account ?? "—",
+        product: rep.product,
+        source: toSegment(rep.category),
+        amount: chain.reduce((s, r) => s + r.amount, 0),
+        minCommit: Math.max(...chain.map((r) => r.minCommit)),
+        maxBudget: Math.max(...chain.map((r) => r.maxBudget)),
+        closedDate: closedDate ? closedDate.toISOString() : null,
+        owner: rep.owner,
+        lastActivity: act.last ? act.last.date.toISOString() : null,
+        lastNote: act.last?.note ?? null,
+        nextActivity: act.next ? act.next.date.toISOString() : null,
+      } satisfies BookingDealRow;
+    })
+    .sort((a, b) => b.minCommit - a.minCommit || b.amount - a.amount);
 }
 
 interface RawWonAggRow {
@@ -207,22 +255,42 @@ export async function fetchUtilizationSource(
   scope: DashboardScope,
 ): Promise<{ won: WonAccountAgg[]; doa: DoaAccountAgg[] }> {
   const [wonRows, doaRows] = await Promise.all([
+    // Min/max per account, deduped per contract chain (add-on opps carry the
+    // cumulative contract min/max, so a flat SUM double-counts them — same fix as
+    // the topline moneyDetail query). MAX per chain, then SUM across chains per
+    // district. Net stands in for both when a contract has neither min nor max.
     prisma.$queryRaw<RawWonAggRow[]>`
-      SELECT o.district_lea_id AS leaid,
-             MIN(o.district_name) AS account,
+      WITH won AS (
+        SELECT o.district_lea_id AS leaid,
+               o.district_name,
+               COALESCE(regexp_replace(o.name, '[\\s_]+Add[-_ ]?On[s]?(\\s*\\d+)?', '', 'gi'), o.id) AS chain_key,
+               CASE WHEN o.minimum_purchase_amount IS NULL AND o.maximum_budget IS NULL
+                    THEN o.net_booking_amount ELSE o.minimum_purchase_amount END AS eff_min,
+               CASE WHEN o.minimum_purchase_amount IS NULL AND o.maximum_budget IS NULL
+                    THEN o.net_booking_amount ELSE o.maximum_budget END AS eff_max
+        FROM opportunities o
+        WHERE o.school_yr = ${sy}
+          AND o.district_lea_id IS NOT NULL
+          ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
+          AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
+      ),
+      chains AS (
+        SELECT leaid, MIN(district_name) AS account, chain_key,
+               MAX(COALESCE(eff_min, 0)) AS chain_min,
+               MAX(COALESCE(eff_max, 0)) AS chain_max
+        FROM won GROUP BY leaid, chain_key
+      )
+      SELECT ch.leaid AS leaid,
+             MIN(ch.account) AS account,
              MAX(c.category) AS category,
-             COALESCE(SUM(COALESCE(o.minimum_purchase_amount, 0)), 0)::float AS "minCommit",
-             COALESCE(SUM(COALESCE(o.maximum_budget, 0)), 0)::float AS "maxBudget"
-      FROM opportunities o
+             COALESCE(SUM(ch.chain_min), 0)::float AS "minCommit",
+             COALESCE(SUM(ch.chain_max), 0)::float AS "maxBudget"
+      FROM chains ch
       LEFT JOIN (
         SELECT district_lea_id, (ARRAY_AGG(category ORDER BY bookings DESC, open_pipeline DESC))[1] AS category
         FROM district_opportunity_actuals WHERE school_yr = ${sy} GROUP BY district_lea_id
-      ) c ON c.district_lea_id = o.district_lea_id
-      WHERE o.school_yr = ${sy}
-        AND o.district_lea_id IS NOT NULL
-        ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
-        AND ${stagePrefixSql(Prisma.sql`o.stage`)} >= 6
-      GROUP BY o.district_lea_id`,
+      ) c ON c.district_lea_id = ch.leaid
+      GROUP BY ch.leaid`,
 
     prisma.$queryRaw<RawDoaAggRow[]>`
       SELECT district_lea_id AS leaid,

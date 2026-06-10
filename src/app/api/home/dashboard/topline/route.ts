@@ -59,18 +59,43 @@ export async function GET(request: Request) {
   // (prefix 0-5) back the Open Pipeline card; closed-won (prefix ≥6) back the
   // Bookings card. Stage bucketing matches the Pipeline tab + trajectory via the
   // shared helper.
+  //
+  // Per-CONTRACT min/max, deduped like the DOA matview: add-on opps carry the
+  // cumulative min/max of the whole contract, so a flat SUM double-counts EK12
+  // chains. chain_key strips the " Add-On N" suffix (falling back to the opp id)
+  // so we MAX the cumulative value per contract, then SUM across contracts. When a
+  // contract has neither a min nor a max but does have a net booking, net stands in
+  // for both. Counts stay row-level (deals / distinct accounts in the band).
   const moneyDetail = (stageCond: Prisma.Sql) =>
     prisma.$queryRaw<{ minCommit: number; maxBudget: number; oppCount: number; accountCount: number }[]>`
+      WITH won AS (
+        SELECT
+          o.id,
+          o.district_name,
+          COALESCE(regexp_replace(o.name, '[\\s_]+Add[-_ ]?On[s]?(\\s*\\d+)?', '', 'gi'), o.id) AS chain_key,
+          CASE WHEN o.minimum_purchase_amount IS NULL AND o.maximum_budget IS NULL
+               THEN o.net_booking_amount ELSE o.minimum_purchase_amount END AS eff_min,
+          CASE WHEN o.minimum_purchase_amount IS NULL AND o.maximum_budget IS NULL
+               THEN o.net_booking_amount ELSE o.maximum_budget END AS eff_max
+        FROM opportunities o
+        WHERE o.school_yr = ${schoolYr}
+          ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
+          AND o.net_booking_amount IS NOT NULL
+          AND ${stageCond}
+      ),
+      chains AS (
+        SELECT chain_key,
+               MAX(COALESCE(eff_min, 0)) AS chain_min,
+               MAX(COALESCE(eff_max, 0)) AS chain_max
+        FROM won
+        GROUP BY chain_key
+      )
       SELECT
-        COALESCE(SUM(COALESCE(o.minimum_purchase_amount, 0)), 0)::float AS "minCommit",
-        COALESCE(SUM(COALESCE(o.maximum_budget, 0)), 0)::float AS "maxBudget",
-        COUNT(*)::int AS "oppCount",
-        COUNT(DISTINCT o.district_name)::int AS "accountCount"
-      FROM opportunities o
-      WHERE o.school_yr = ${schoolYr}
-        ${emailFilterSql(scope, Prisma.sql`o.sales_rep_email`)}
-        AND o.net_booking_amount IS NOT NULL
-        AND ${stageCond}
+        COALESCE(SUM(chain_min), 0)::float AS "minCommit",
+        COALESCE(SUM(chain_max), 0)::float AS "maxBudget",
+        (SELECT COUNT(*) FROM won)::int AS "oppCount",
+        (SELECT COUNT(DISTINCT district_name) FROM won)::int AS "accountCount"
+      FROM chains
     `;
   const [openDetailRows, bookingsDetailRows] = await Promise.all([
     moneyDetail(Prisma.sql`${stagePrefixSql(Prisma.sql`o.stage`)} BETWEEN 0 AND 5`),

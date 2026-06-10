@@ -3,6 +3,7 @@ import {
   buildUtilizationRows,
   buildDealTotals,
   buildTargetDetailRows,
+  chainKey,
   type WonAccountAgg,
   type DoaAccountAgg,
   type PipelineDealRow,
@@ -94,16 +95,38 @@ describe("buildUtilizationRows", () => {
     expect(rows[0]).toMatchObject({ minCommit: 100, maxBudget: 150, revenue: 50, take: 15 });
   });
 
-  it("sorts by contracted size (max budget desc), tie-broken by account name", () => {
+  it("sorts by commitment size (min commit desc), tie-broken by account name", () => {
     const rows = buildUtilizationRows(
       [
-        won({ leaid: "1", account: "Small", maxBudget: 100 }),
-        won({ leaid: "2", account: "Big", maxBudget: 900 }),
-        won({ leaid: "3", account: "Apex", maxBudget: 100 }),
+        won({ leaid: "1", account: "Small", minCommit: 100 }),
+        won({ leaid: "2", account: "Big", minCommit: 900 }),
+        won({ leaid: "3", account: "Apex", minCommit: 100 }),
       ],
       [],
     );
     expect(rows.map((r) => r.account)).toEqual(["Big", "Apex", "Small"]);
+  });
+});
+
+describe("chainKey", () => {
+  it("strips the ' Add-On N' suffix so add-ons share their contract's key", () => {
+    const base = "Aldine ISD_Tier 1_Renewal_FY26";
+    expect(chainKey(base, "id1")).toBe(base);
+    expect(chainKey("Aldine ISD_Tier 1_Renewal Add-On 3_FY26", "id2")).toBe(base);
+    expect(chainKey("Aldine ISD_Tier 1_Renewal Add-On_FY26", "id3")).toBe(base);
+  });
+
+  it("matches add-on variants case-insensitively (AddOn / Add On / Add-on)", () => {
+    expect(chainKey("Marshall County Schools_Renewal Add On4_Tier1_FY26", "x")).toBe("Marshall County Schools_Renewal_Tier1_FY26");
+    expect(chainKey("Acton-Boxborough_New Business AddOn_FY26", "x")).toBe("Acton-Boxborough_New Business_FY26");
+  });
+
+  it("falls back to the opp id when the name is null", () => {
+    expect(chainKey(null, "opp-123")).toBe("opp-123");
+  });
+
+  it("leaves a non-add-on name untouched", () => {
+    expect(chainKey("Browning SPED VS", "x")).toBe("Browning SPED VS");
   });
 });
 
