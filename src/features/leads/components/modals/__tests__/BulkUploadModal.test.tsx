@@ -52,6 +52,7 @@ const ACTIVITY_PLAN: ActivityImportPlan = {
       school: null,
       district: { leaid: "0802940", name: "Mesa Valley USD 51", willCreate: false },
       viaNces: false,
+      viaName: false,
       leadId: "lead-1",
       points: 40,
     },
@@ -64,6 +65,7 @@ const ACTIVITY_PLAN: ActivityImportPlan = {
       school: { ncessch: "020009000234", name: "Galena Interior Learning Academy" },
       district: { leaid: "0200090", name: "Galena City School District", willCreate: true },
       viaNces: true,
+      viaName: false,
       leadId: null,
       points: 40,
     },
@@ -76,6 +78,7 @@ const ACTIVITY_PLAN: ActivityImportPlan = {
       school: null,
       district: null,
       viaNces: false,
+      viaName: false,
       leadId: null,
       points: 12,
     },
@@ -101,6 +104,7 @@ const LEAD_PLAN: LeadImportPlan = {
       school: null,
       district: { leaid: "2000360", name: "Reno County USD 313", willCreate: false },
       viaNces: false,
+      viaName: true,
       assignedBdrId: "me-1",
       leadType: "inbound",
     },
@@ -113,6 +117,7 @@ const LEAD_PLAN: LeadImportPlan = {
       school: null,
       district: { leaid: "2000360", name: "Reno County USD 313", willCreate: false },
       viaNces: false,
+      viaName: false,
       assignedBdrId: "me-1",
       leadType: "mql",
     },
@@ -221,6 +226,8 @@ describe("BulkUploadModal — leads dataset", () => {
 
     expect(screen.getByText("Olivia Tran")).toBeTruthy();
     expect(screen.getAllByText("Reno County USD 313").length).toBe(2);
+    // Row 0's district came from the name + state fallback → "via name" tag.
+    expect(screen.getByText("via name")).toBeTruthy();
     expect(screen.getByText("Contact already has an active lead")).toBeTruthy();
     // Footer counts only resolvable rows.
     expect(screen.getByRole("button", { name: "Import 1 leads" })).toBeTruthy();

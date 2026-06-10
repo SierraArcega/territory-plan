@@ -70,6 +70,28 @@ function NewBadge() {
   return <span className={NEW_BADGE}>NEW</span>;
 }
 
+/** "via NCES" / "via name" district-resolution tag in the preview rows. */
+function ViaTag({ label, title }: { label: string; title: string }) {
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-[3px] whitespace-nowrap rounded-full bg-[#EFECFB] px-1.5 py-px text-[9px] font-bold text-[#5A4F9E]"
+    >
+      <Link2 size={9} aria-hidden />
+      {label}
+    </span>
+  );
+}
+
+function ResolutionViaTags({ viaNces, viaName }: { viaNces: boolean; viaName: boolean }) {
+  return (
+    <>
+      {viaNces && <ViaTag label="via NCES" title="District resolved from the school's NCES id" />}
+      {viaName && <ViaTag label="via name" title="District matched by name and state" />}
+    </>
+  );
+}
+
 export interface BulkUploadModalProps {
   onClose: () => void;
 }
@@ -345,7 +367,7 @@ export default function BulkUploadModal({ onClose }: BulkUploadModalProps) {
             <span className="min-w-0">
               {isActivity
                 ? "Required: Lead Email, Activity Type, Date. Events match the contact by email. For someone at a specific school, include the School NCES — the district is looked up from it."
-                : "Required: Email. New contacts also need First + Last and a District NCES ID (or School NCES — the district is looked up from it)."}
+                : "Required: Email. New contacts also need First + Last and a district — an NCES ID (district or school), or a district/company name plus State for name matching."}
             </span>
             <button
               type="button"
@@ -563,15 +585,7 @@ function ActivityResolutionList({
                   </span>
                 )}
               </span>
-              {res.viaNces && (
-                <span
-                  title="District resolved from the school's NCES id"
-                  className="inline-flex items-center gap-[3px] whitespace-nowrap rounded-full bg-[#EFECFB] px-1.5 py-px text-[9px] font-bold text-[#5A4F9E]"
-                >
-                  <Link2 size={9} aria-hidden />
-                  via NCES
-                </span>
-              )}
+              <ResolutionViaTags viaNces={res.viaNces} viaName={res.viaName} />
               <span
                 className="ml-auto whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold"
                 style={{ background: chip.bg, color: chip.fg }}
@@ -640,15 +654,7 @@ function LeadPreviewList({
                       {res.district?.name ??
                         (res.district ? `NCES ${res.district.leaid}` : "—")}
                     </span>
-                    {res.viaNces && (
-                      <span
-                        title="District resolved from the school's NCES id"
-                        className="inline-flex items-center gap-[3px] whitespace-nowrap rounded-full bg-[#EFECFB] px-1.5 py-px text-[9px] font-bold text-[#5A4F9E]"
-                      >
-                        <Link2 size={9} aria-hidden />
-                        via NCES
-                      </span>
-                    )}
+                    <ResolutionViaTags viaNces={res.viaNces} viaName={res.viaName} />
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-2.5 py-[7px]">
