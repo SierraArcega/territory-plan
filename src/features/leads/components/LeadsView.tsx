@@ -58,6 +58,7 @@ import LeadsTable from "./LeadsTable";
 import StatTile from "./bits/StatTile";
 import LeadDetailPanel from "./panels/LeadDetailPanel";
 import AddLeadModal from "./modals/AddLeadModal";
+import BulkUploadModal from "./modals/BulkUploadModal";
 import OutcomeModal from "./modals/OutcomeModal";
 import DisqualifyModal from "./modals/DisqualifyModal";
 import LinkOpportunityModal from "./modals/LinkOpportunityModal";
@@ -545,6 +546,7 @@ export default function LeadsView() {
           }}
         />
       )}
+      {modal === "bulk" && <BulkUploadModal onClose={() => setModal(null)} />}
       {modal === "outcome" && selectedLead && (
         <OutcomeModal lead={selectedLead} onClose={() => setModal(null)} />
       )}

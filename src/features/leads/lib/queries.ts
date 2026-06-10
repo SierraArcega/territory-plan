@@ -25,6 +25,13 @@ import type {
   LeadTimelineResponse,
   SchoolRecordResponse,
 } from "./types";
+import type {
+  ActivityImportPlan,
+  ActivityImportRowInput,
+  ImportResult,
+  LeadImportPlan,
+  LeadImportRowInput,
+} from "./import";
 
 /** Server page cap (MAX_PAGE_SIZE in /api/leads). */
 export const LEADS_FETCH_LIMIT = 200;
@@ -324,6 +331,60 @@ export interface LinkOpportunityMutationInput {
   name?: string | null;
   amount?: number | null;
   closeDate?: string | null;
+}
+
+// ---- Bulk import (L9) -----------------------------------------------------------
+
+/** Dry-run the leads import — full resolution plan, nothing written. */
+export function useLeadImportDryRun() {
+  return useMutation({
+    mutationFn: (rows: LeadImportRowInput[]) =>
+      fetchJson<LeadImportPlan>(`${API_BASE}/leads/import?dryRun=1`, {
+        method: "POST",
+        body: JSON.stringify({ rows }),
+      }),
+  });
+}
+
+/** Run the leads import (same resolution code path as the dry run). */
+export function useLeadImportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: LeadImportRowInput[]) =>
+      fetchJson<ImportResult>(`${API_BASE}/leads/import`, {
+        method: "POST",
+        body: JSON.stringify({ rows }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leadKeys.all });
+    },
+  });
+}
+
+/** Dry-run the activity/engagement import — per-row resolution plan. */
+export function useActivityImportDryRun() {
+  return useMutation({
+    mutationFn: (rows: ActivityImportRowInput[]) =>
+      fetchJson<ActivityImportPlan>(`${API_BASE}/leads/import/activities?dryRun=1`, {
+        method: "POST",
+        body: JSON.stringify({ rows }),
+      }),
+  });
+}
+
+/** Run the activity/engagement import. */
+export function useActivityImportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: ActivityImportRowInput[]) =>
+      fetchJson<ImportResult>(`${API_BASE}/leads/import/activities`, {
+        method: "POST",
+        body: JSON.stringify({ rows }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: leadKeys.all });
+    },
+  });
 }
 
 /** Link an existing open opp or create a Stage 0 opp for the lead. */
