@@ -63,6 +63,21 @@ export const STATUS_CONFIG: Record<LeadStatus, StatusConfig> = {
   },
 };
 
+/**
+ * Explicit lifecycle transition table. Forward moves follow the pipeline; the
+ * one back-step (meeting fell through) is meeting_scheduled → working.
+ * Terminal states (sales_qualified, unqualified) cannot be left. Declared
+ * here (client-safe) and imported by lib/server/lead-service.ts — the server
+ * validation and the UI's offered choices can't drift.
+ */
+export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
+  new: ["working", "unqualified"],
+  working: ["meeting_scheduled", "unqualified"],
+  meeting_scheduled: ["working", "sales_qualified", "unqualified"],
+  sales_qualified: [],
+  unqualified: [],
+};
+
 export const STATUS_ORDER: readonly LeadStatus[] = [
   "new",
   "working",
@@ -153,6 +168,14 @@ export const SEQUENCES = [
  * lib/server/lead-service.ts so the toast and the lead_event can't drift.
  */
 export const OPP_ADVANCED_MESSAGE = "Opportunity advanced to Stage 1 · Discovery";
+
+/** Product lines offered on a new Stage 0 opportunity (verbatim from leadsData.js). */
+export const OPP_PRODUCTS = [
+  "Virtual Instruction",
+  "Special Education Services",
+  "Tutoring & Intervention",
+  "Credit Recovery",
+] as const;
 
 // ---- Opportunity stages ----------------------------------------------------
 // Entering "Meeting Scheduled" creates a Stage 0 opportunity (the lead-to-opp

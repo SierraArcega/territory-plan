@@ -3,7 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ServiceError, type DbClient } from "@/features/shared/lib/service-error";
 import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
-import { OPP_ADVANCED_MESSAGE } from "@/features/leads/lib/status-config";
+import { LEAD_TRANSITIONS, OPP_ADVANCED_MESSAGE } from "@/features/leads/lib/status-config";
 
 /**
  * Lead mutation core (BDR pipeline). All lifecycle side-effects — accepting,
@@ -34,18 +34,10 @@ export const ACTIVE_LEAD_STATUSES = [
 
 export const LEAD_TYPES = ["mql", "inbound", "conference", "other"] as const;
 
-/**
- * Explicit transition table. Forward moves follow the pipeline; the one
- * back-step (meeting fell through) is meeting_scheduled → working. Terminal
- * states (sales_qualified, unqualified) cannot be left. Anything else is a 422.
- */
-export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
-  new: ["working", "unqualified"],
-  working: ["meeting_scheduled", "unqualified"],
-  meeting_scheduled: ["working", "sales_qualified", "unqualified"],
-  sales_qualified: [],
-  unqualified: [],
-};
+// Transition table — single source of truth in status-config (client + server
+// share it so the UI's offered choices and this validation can't drift).
+// Anything not in the table is a 422.
+export { LEAD_TRANSITIONS };
 
 // ---- Opportunity constants -------------------------------------------------
 // Exact existing stage strings (src/features/views/lib/opp-stage-columns.ts).

@@ -193,6 +193,9 @@ export interface UpdateLeadInput {
   status?: LeadStatus;
   /** Required when transitioning to unqualified. */
   reason?: string | null;
+  /** Meeting date — rides along with a meeting_scheduled transition, or
+   *  stands alone as a field edit (rescheduling in-stage). */
+  meetingAt?: string | null;
   leadType?: string | null;
   sequence?: string | null;
   marketingOwner?: string | null;

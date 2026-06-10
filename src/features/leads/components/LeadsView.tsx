@@ -57,6 +57,11 @@ import LeadsBoard, { type BoardLayout } from "./board/LeadsBoard";
 import LeadsTable from "./LeadsTable";
 import StatTile from "./bits/StatTile";
 import LeadDetailPanel from "./panels/LeadDetailPanel";
+import AddLeadModal from "./modals/AddLeadModal";
+import OutcomeModal from "./modals/OutcomeModal";
+import DisqualifyModal from "./modals/DisqualifyModal";
+import LinkOpportunityModal from "./modals/LinkOpportunityModal";
+import ScheduleMeetingModal from "./modals/ScheduleMeetingModal";
 import ContactRecordPanel from "./panels/ContactRecordPanel";
 import SchoolRecordPanel from "./panels/SchoolRecordPanel";
 import DistrictRecordPanel from "./panels/DistrictRecordPanel";
@@ -528,12 +533,30 @@ export default function LeadsView() {
         />
       )}
 
-      {/* L8/L9 integration slot: AddLeadModal ("add"), BulkUploadModal
-          ("bulk"), OutcomeModal ("outcome"), DisqualifyModal ("disqualify"),
-          LinkOpportunityModal ("link_opp") and ScheduleMeetingModal
-          ("schedule_meeting") render here against `modal` / `setModal(null)`
-          (close) + `selectedLead`. Nothing renders until those tasks land. */}
-      {modal && null}
+      {/* Modals (L8/L9) — "add"/"bulk" open from the header; the rest act on
+          the selected lead from the detail panel. */}
+      {modal === "add" && (
+        <AddLeadModal
+          onClose={() => setModal(null)}
+          onCreated={(lead) => {
+            // Create-and-add: select the new lead immediately.
+            setModal(null);
+            setSelected(lead.id);
+          }}
+        />
+      )}
+      {modal === "outcome" && selectedLead && (
+        <OutcomeModal lead={selectedLead} onClose={() => setModal(null)} />
+      )}
+      {modal === "disqualify" && selectedLead && (
+        <DisqualifyModal lead={selectedLead} onClose={() => setModal(null)} />
+      )}
+      {modal === "link_opp" && selectedLead && (
+        <LinkOpportunityModal lead={selectedLead} onClose={() => setModal(null)} />
+      )}
+      {modal === "schedule_meeting" && selectedLead && (
+        <ScheduleMeetingModal lead={selectedLead} onClose={() => setModal(null)} />
+      )}
     </div>
   );
 }
