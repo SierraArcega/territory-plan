@@ -113,6 +113,8 @@ export type LeadTimelineItem = LifecycleTimelineItem | EngagementTimelineItem;
 
 export interface LeadTimelineResponse {
   items: LeadTimelineItem[];
+  /** True when the server trimmed the merged timeline to its fetch cap. */
+  hasMore?: boolean;
 }
 
 // ---- Record panels (mirror /api/leads/records/* responses) -----------------

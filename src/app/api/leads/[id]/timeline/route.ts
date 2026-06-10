@@ -4,6 +4,7 @@ import { getUser } from "@/lib/supabase/server";
 import {
   ENGAGEMENT_ACTIVITY_SELECT,
   ENGAGEMENT_SOURCE_FILTER,
+  TIMELINE_FETCH_LIMIT,
   attributeActivity,
   sortTimelineDesc,
   toEngagementItem,
@@ -55,18 +56,24 @@ export async function GET(
         },
         select: ENGAGEMENT_ACTIVITY_SELECT,
         orderBy: { startDate: "desc" },
+        take: TIMELINE_FETCH_LIMIT,
       }),
     ]);
 
-    const items: TimelineItem[] = sortTimelineDesc([
+    const merged: TimelineItem[] = sortTimelineDesc([
       ...events.map(toLifecycleItem),
       ...activities.map((a) => {
         const { attribution, attributionName } = attributeActivity(a, lead.contactId);
         return toEngagementItem(a, attribution, attributionName);
       }),
     ]);
+    const items = merged.slice(0, TIMELINE_FETCH_LIMIT);
+    // True when items were trimmed here, or the activities query hit its take
+    // cap (meaning older engagement exists beyond what we fetched).
+    const hasMore =
+      merged.length > items.length || activities.length === TIMELINE_FETCH_LIMIT;
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items, hasMore });
   } catch (error) {
     console.error("Error fetching lead timeline:", error);
     return NextResponse.json({ error: "Failed to fetch lead timeline" }, { status: 500 });

@@ -16,6 +16,13 @@ export type TimelineAttribution = "own_contact" | "other_contact" | "district_wi
 /** Engagement = real activities; "system" rows are sync noise, not engagement. */
 export const ENGAGEMENT_SOURCE_FILTER = { source: { not: "system" } } as const;
 
+/**
+ * Server-side cap for the merged lead timeline: the activities query takes at
+ * most this many (newest first), and the merged engagement + lifecycle list is
+ * trimmed to the same bound before serialization.
+ */
+export const TIMELINE_FETCH_LIMIT = 200;
+
 export const ENGAGEMENT_ACTIVITY_SELECT = {
   id: true,
   type: true,

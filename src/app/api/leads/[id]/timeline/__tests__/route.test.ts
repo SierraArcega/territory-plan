@@ -18,6 +18,7 @@ import prisma from "@/lib/prisma";
 const mockPrisma = vi.mocked(prisma, { deep: true });
 
 import { GET } from "../route";
+import { TIMELINE_FETCH_LIMIT } from "@/features/leads/lib/server/timeline-items";
 
 const TEST_USER = { id: "user-1", email: "bdr@fullmindlearning.com" };
 const routeParams = { params: Promise.resolve({ id: "lead-1" }) };
@@ -145,5 +146,47 @@ describe("GET /api/leads/[id]/timeline", () => {
       "act-old",
     ]);
     expect(body.items[1]).toMatchObject({ itemType: "lifecycle", kind: "accepted" });
+  });
+
+  it("caps the activities query at TIMELINE_FETCH_LIMIT, newest first", async () => {
+    await GET(request(), routeParams);
+    const args = mockPrisma.activity.findMany.mock.calls[0][0];
+    expect(args?.take).toBe(TIMELINE_FETCH_LIMIT);
+    expect(args?.orderBy).toEqual({ startDate: "desc" });
+  });
+
+  it("trims the merged timeline to TIMELINE_FETCH_LIMIT and flags hasMore", async () => {
+    // Activities hit the take cap exactly + lifecycle events push the merge over.
+    mockPrisma.activity.findMany.mockResolvedValue(
+      Array.from({ length: TIMELINE_FETCH_LIMIT }, (_, i) =>
+        activityFixture({
+          id: `act-${i}`,
+          startDate: new Date(Date.UTC(2026, 0, 1, 0, 0, i)),
+        }),
+      ) as never,
+    );
+    mockPrisma.leadEvent.findMany.mockResolvedValue([
+      {
+        id: "ev-1",
+        leadId: "lead-1",
+        kind: "created",
+        payload: null,
+        actorId: "user-1",
+        createdAt: new Date("2026-06-03T10:00:00Z"),
+      },
+    ] as never);
+
+    const res = await GET(request(), routeParams);
+    const body = await res.json();
+    expect(body.items).toHaveLength(TIMELINE_FETCH_LIMIT);
+    expect(body.hasMore).toBe(true);
+  });
+
+  it("reports hasMore: false for a small timeline", async () => {
+    mockPrisma.activity.findMany.mockResolvedValue([activityFixture({})] as never);
+    const res = await GET(request(), routeParams);
+    const body = await res.json();
+    expect(body.items).toHaveLength(1);
+    expect(body.hasMore).toBe(false);
   });
 });

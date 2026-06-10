@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { TimelineList, lifecycleText } from "../LeadActivityTimeline";
+import { RENDER_PAGE_SIZE } from "@/features/leads/lib/queries";
 import type {
   EngagementTimelineItem,
   LifecycleTimelineItem,
@@ -200,5 +201,33 @@ describe("TimelineList lifecycle rows", () => {
   it("renders the empty state when there are no items", () => {
     render(<TimelineList items={[]} now={NOW} emptyText="No activity yet." />);
     expect(screen.getByText("No activity yet.")).toBeInTheDocument();
+  });
+});
+
+describe("TimelineList pagination", () => {
+  const manyItems = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      engagement({ id: `a-${i}`, title: `Touch ${i}` }),
+    );
+
+  it("renders at most RENDER_PAGE_SIZE rows with a Show-more button", () => {
+    render(<TimelineList items={manyItems(RENDER_PAGE_SIZE + 10)} now={NOW} />);
+    expect(screen.getAllByTestId("timeline-engagement")).toHaveLength(RENDER_PAGE_SIZE);
+    expect(screen.getByRole("button", { name: "Show 10 more" })).toBeInTheDocument();
+  });
+
+  it("reveals the next page on Show more and hides the button when exhausted", () => {
+    render(<TimelineList items={manyItems(RENDER_PAGE_SIZE + 10)} now={NOW} />);
+    fireEvent.click(screen.getByRole("button", { name: "Show 10 more" }));
+    expect(screen.getAllByTestId("timeline-engagement")).toHaveLength(
+      RENDER_PAGE_SIZE + 10,
+    );
+    expect(screen.queryByRole("button", { name: /Show .* more/ })).not.toBeInTheDocument();
+  });
+
+  it("shows no pagination button at or under the page size", () => {
+    render(<TimelineList items={manyItems(RENDER_PAGE_SIZE)} now={NOW} />);
+    expect(screen.getAllByTestId("timeline-engagement")).toHaveLength(RENDER_PAGE_SIZE);
+    expect(screen.queryByRole("button", { name: /Show .* more/ })).not.toBeInTheDocument();
   });
 });

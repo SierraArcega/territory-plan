@@ -12,11 +12,12 @@
 // renders any pre-fetched item array, so the record panels (ContactRecord /
 // SchoolRecord / DistrictRecord) reuse the exact rows.
 
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Calendar, Gift, Mail, Phone, Target, Users, Zap } from "lucide-react";
 import { fmtRel } from "@/features/shared/lib/date-utils";
 import { ACTIVITY_TYPE_LABELS, type ActivityType } from "@/features/activities/types";
-import { useLeadTimelineQuery } from "@/features/leads/lib/queries";
+import { RENDER_PAGE_SIZE, useLeadTimelineQuery } from "@/features/leads/lib/queries";
 import {
   OUTCOME_PILLS,
   STATUS_CONFIG,
@@ -254,16 +255,30 @@ interface TimelineListProps {
   now?: Date;
 }
 
-/** Renders a pre-fetched item array — shared with the record panels. */
+/**
+ * Renders a pre-fetched item array — shared with the record panels. Paginated
+ * at RENDER_PAGE_SIZE (50) with the board's Show-more button (CLAUDE.md: never
+ * render more than 50 items at once).
+ */
 export function TimelineList({ items, emptyText = "No activity yet.", now }: TimelineListProps) {
+  const [visible, setVisible] = useState(RENDER_PAGE_SIZE);
   if (items.length === 0) {
     return <div className="py-2 text-[12.5px] text-[#A69DC0]">{emptyText}</div>;
   }
   return (
     <div>
-      {items.map((item, i) => (
+      {items.slice(0, visible).map((item, i) => (
         <TimelineRow key={item.id} item={item} first={i === 0} now={now} />
       ))}
+      {items.length > visible && (
+        <button
+          type="button"
+          onClick={() => setVisible((v) => v + RENDER_PAGE_SIZE)}
+          className="mt-2 w-full whitespace-nowrap rounded-lg border border-[#D4CFE2] bg-white px-3 py-2 text-xs font-semibold text-[#403770] hover:bg-[#F7F5FA]"
+        >
+          Show {Math.min(RENDER_PAGE_SIZE, items.length - visible)} more
+        </button>
+      )}
     </div>
   );
 }
