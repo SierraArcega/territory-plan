@@ -17,7 +17,7 @@ export async function GET(
 
     const { id } = await params;
     const docId = Number(id);
-    if (!Number.isInteger(docId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    if (!Number.isInteger(docId) || docId < 1) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
     const row = await prisma.generatedDocument.findUnique({
       where: { id: docId },

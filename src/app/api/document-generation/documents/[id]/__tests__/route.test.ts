@@ -34,6 +34,10 @@ describe("GET /api/document-generation/documents/[id]", () => {
   it("400s on a non-integer id", async () => {
     expect((await get("abc")).status).toBe(400);
   });
+  it("400s on zero and negative ids", async () => {
+    expect((await get("0")).status).toBe(400);
+    expect((await get("-1")).status).toBe(400);
+  });
   it("404s for an unknown row", async () => {
     mockFindUnique.mockResolvedValue(null);
     expect((await get("7")).status).toBe(404);
