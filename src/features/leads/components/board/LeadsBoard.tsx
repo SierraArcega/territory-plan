@@ -306,7 +306,7 @@ export default function LeadsBoard({
     return (
       <div
         className="h-full overflow-auto rounded-[10px] border border-[#E2DEEC] bg-white"
-        style={{ touchAction: "pan-x" }}
+        style={{ touchAction: "pan-x pan-y" }}
       >
         <div
           className="grid min-w-max"

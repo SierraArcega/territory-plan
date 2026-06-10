@@ -505,14 +505,15 @@ export default function LeadsView() {
       </div>
 
       {/* Lead detail panel (L5) — Esc is owned by the record stack while one
-          is open. */}
+          is open, and by the active modal while one is open (each layer pops
+          one level per press). */}
       {selectedLead && (
         <LeadDetailPanel
           key={selectedLead.id}
           lead={selectedLead}
           currentUserId={profile?.id ?? null}
           onClose={closePanel}
-          escDisabled={recordStack.length > 0}
+          escDisabled={recordStack.length > 0 || modal !== null}
           onOpenRecord={pushRecord}
           onLogOutcome={() => setModal("outcome")}
           onDisqualify={() => setModal("disqualify")}
