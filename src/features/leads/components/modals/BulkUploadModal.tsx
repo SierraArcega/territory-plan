@@ -94,19 +94,25 @@ function ResolutionViaTags({ viaNces, viaName }: { viaNces: boolean; viaName: bo
   );
 }
 
-/** Golden non-fatal warning chips (nces_name_conflict, duplicate_email, …). */
+/** Golden non-fatal warning chips (nces_name_conflict, duplicate_email, …).
+    Chips truncate to their container with the full copy on hover, so long
+    warning sentences can never dictate column widths. */
 function WarningChips({ warnings }: { warnings: string[] }) {
   return (
     <>
-      {warnings.map((code) => (
-        <span
-          key={code}
-          className="inline-flex items-center gap-[3px] whitespace-nowrap rounded-full bg-[#fffaf1] px-1.5 py-px text-[9px] font-bold text-[#8A6A00]"
-        >
-          <TriangleAlert size={9} aria-hidden />
-          {importWarningCopy(code)}
-        </span>
-      ))}
+      {warnings.map((code) => {
+        const copy = importWarningCopy(code);
+        return (
+          <span
+            key={code}
+            title={copy}
+            className="inline-flex min-w-0 max-w-full items-center gap-[3px] rounded-full bg-[#fffaf1] px-1.5 py-px text-[9px] font-bold text-[#8A6A00]"
+          >
+            <TriangleAlert size={9} className="shrink-0" aria-hidden />
+            <span className="truncate">{copy}</span>
+          </span>
+        );
+      })}
     </>
   );
 }
@@ -468,7 +474,11 @@ export default function BulkUploadModal({ onClose }: BulkUploadModalProps) {
             <div className="mt-[18px] flex flex-wrap items-end gap-3.5">
               <div className="min-w-[200px] flex-1">
                 <FieldLabel>Assign all to BDR</FieldLabel>
-                {usersLoading || !users ? (
+                {/* Wait for the profile too — rendering the select while
+                    bdrValue is "" makes the browser display the first user
+                    alphabetically as if selected (real imports went to the
+                    wrong BDR this way). */}
+                {usersLoading || !users || !profile ? (
                   <select
                     disabled
                     aria-label="Assign all to BDR"
@@ -641,8 +651,17 @@ function LeadPreviewList({
     [cell(index, "first"), cell(index, "last")].filter(Boolean).join(" ");
 
   return (
-    <div className="max-h-72 overflow-y-auto rounded-lg border border-[#E2DEEC]">
-      <table className="w-full border-collapse text-[11.5px]">
+    <div className="max-h-72 overflow-y-auto overflow-x-auto rounded-lg border border-[#E2DEEC]">
+      {/* Fixed layout — long names/warnings truncate inside their columns
+          instead of dictating widths (narrow-width resilience). */}
+      <table className="w-full min-w-[560px] table-fixed border-collapse text-[11.5px]">
+        <colgroup>
+          <col className="w-[24%]" />
+          <col className="w-[40%]" />
+          <col className="w-[13%]" />
+          <col className="w-[9%]" />
+          <col className="w-[14%]" />
+        </colgroup>
         <thead>
           <tr className="bg-[#F7F5FA]">
             {["Name", "District", "Type", "Score", ""].map((h, i) => (
@@ -663,19 +682,31 @@ function LeadPreviewList({
             return (
               <tr key={res.index} className="border-t border-[#EFEDF5]">
                 <td className="px-2.5 py-[7px] font-semibold text-[#403770]">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="[overflow-wrap:anywhere]">{name(res.index, res) || "—"}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate" title={name(res.index, res) || undefined}>
+                      {name(res.index, res) || "—"}
+                    </span>
                     {res.contact?.willCreate && <NewBadge />}
                   </span>
                 </td>
                 <td className="px-2.5 py-[7px] text-[#5C5277]">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="[overflow-wrap:anywhere]">
-                      {res.district?.name ??
-                        (res.district ? `NCES ${res.district.leaid}` : "—")}
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span
+                        className="truncate"
+                        title={res.district?.name ?? undefined}
+                      >
+                        {res.district?.name ??
+                          (res.district ? `NCES ${res.district.leaid}` : "—")}
+                      </span>
+                      <ResolutionViaTags viaNces={res.viaNces} viaName={res.viaName} />
                     </span>
-                    <ResolutionViaTags viaNces={res.viaNces} viaName={res.viaName} />
-                  </span>
+                    {res.ok && res.warnings.length > 0 && (
+                      <span className="flex min-w-0 flex-wrap gap-1">
+                        <WarningChips warnings={res.warnings} />
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="whitespace-nowrap px-2.5 py-[7px]">
                   <LeadTypeBadge
@@ -687,14 +718,14 @@ function LeadPreviewList({
                   <ScorePill score={Number.isFinite(scoreRaw) ? scoreRaw : 0} />
                 </td>
                 <td className="px-2.5 py-[7px] text-right">
-                  <span className="inline-flex flex-wrap items-center justify-end gap-1">
-                    {!res.ok && (
-                      <span className="whitespace-nowrap rounded-full bg-[#FEF1F0] px-2 py-0.5 text-[10px] font-bold text-[#C25A52]">
-                        {importErrorCopy(res.error ?? "failed")}
-                      </span>
-                    )}
-                    {res.ok && <WarningChips warnings={res.warnings} />}
-                  </span>
+                  {!res.ok && (
+                    <span
+                      title={importErrorCopy(res.error ?? "failed")}
+                      className="inline-flex min-w-0 max-w-full rounded-full bg-[#FEF1F0] px-2 py-0.5 text-[10px] font-bold text-[#C25A52]"
+                    >
+                      <span className="truncate">{importErrorCopy(res.error ?? "failed")}</span>
+                    </span>
+                  )}
                 </td>
               </tr>
             );
