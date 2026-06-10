@@ -2158,6 +2158,7 @@ model AgencyDistrictMap {
 }
 
 enum SignatureStatus {
+  processing
   sent
   viewed
   signed
