@@ -158,6 +158,51 @@ function Column({
   );
 }
 
+// ---- Layout 2 cell: BDR × stage (paginated at 50 like every list) -------------
+
+function SwimlaneCell({
+  cell,
+  selectedId,
+  onSelectLead,
+  firstRow,
+  now,
+}: {
+  cell: Lead[];
+  selectedId: string | null;
+  onSelectLead: (lead: Lead) => void;
+  firstRow: boolean;
+  now?: Date;
+}) {
+  const [visible, setVisible] = useState(RENDER_PAGE_SIZE);
+  return (
+    <div
+      className={`flex min-h-16 flex-col gap-[7px] border-l border-[#EFEDF5] bg-[#FAF8FC] p-2 ${
+        firstRow ? "" : "border-t border-t-[#EFEDF5]"
+      }`}
+    >
+      {cell.slice(0, visible).map((l) => (
+        <LeadCard
+          key={l.id}
+          lead={l}
+          selectedId={selectedId}
+          onOpen={onSelectLead}
+          dense
+          now={now}
+        />
+      ))}
+      {cell.length > visible && (
+        <button
+          type="button"
+          onClick={() => setVisible((v) => v + RENDER_PAGE_SIZE)}
+          className="self-start whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-bold text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770]"
+        >
+          +{cell.length - visible} more
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ---- Layout 3: compact grouped rows -----------------------------------------
 
 function CompactRow({
@@ -222,6 +267,63 @@ function CompactRow({
           —
         </span>
       )}
+    </div>
+  );
+}
+
+// ---- Layout 3 group: one stage's white card (paginated at 50) ------------------
+
+function GroupedSection({
+  statusKey,
+  items,
+  selectedId,
+  onSelectLead,
+  now,
+}: {
+  statusKey: LeadStatus;
+  items: Lead[];
+  selectedId: string | null;
+  onSelectLead: (lead: Lead) => void;
+  now?: Date;
+}) {
+  const c = STATUS_CONFIG[statusKey];
+  const [visible, setVisible] = useState(RENDER_PAGE_SIZE);
+  const overdueCount = statusKey === "new" ? countOverdue(items, now) : 0;
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.dot }} />
+        <span className="whitespace-nowrap text-[13px] font-bold text-[#403770]">
+          {c.label}
+        </span>
+        <InfoTip label={c.label} text={c.definition} align="left" />
+        <CountPill count={items.length} />
+        {overdueCount > 0 && <OverduePill count={overdueCount} />}
+      </div>
+      <div className="overflow-hidden rounded-lg border border-[#E2DEEC] bg-white">
+        {items.slice(0, visible).map((l, i) => (
+          <CompactRow
+            key={l.id}
+            lead={l}
+            selectedId={selectedId}
+            onSelectLead={onSelectLead}
+            first={i === 0}
+            now={now}
+          />
+        ))}
+        {items.length > visible && (
+          <button
+            type="button"
+            onClick={() => setVisible((v) => v + RENDER_PAGE_SIZE)}
+            className="w-full whitespace-nowrap border-t border-[#EFEDF5] px-3.5 py-2.5 text-left text-xs font-semibold text-[#403770] hover:bg-[#F7F5FA]"
+          >
+            Show {Math.min(RENDER_PAGE_SIZE, items.length - visible)} more
+          </button>
+        )}
+        {items.length === 0 && (
+          <div className="px-4 py-3.5 text-xs text-[#B8B0D0]">None</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -357,32 +459,20 @@ export default function LeadsBoard({
                   {row.label}
                 </span>
               </div>
-              {cols.map((k) => {
-                const cell = leads.filter(
-                  (l) =>
-                    l.status === k &&
-                    (row.bdr ? l.assignedBdr?.id === row.key : !l.assignedBdr),
-                );
-                return (
-                  <div
-                    key={k}
-                    className={`flex min-h-16 flex-col gap-[7px] border-l border-[#EFEDF5] bg-[#FAF8FC] p-2 ${
-                      ri === 0 ? "" : "border-t border-t-[#EFEDF5]"
-                    }`}
-                  >
-                    {cell.slice(0, RENDER_PAGE_SIZE).map((l) => (
-                      <LeadCard
-                        key={l.id}
-                        lead={l}
-                        selectedId={selectedId}
-                        onOpen={onSelectLead}
-                        dense
-                        now={now}
-                      />
-                    ))}
-                  </div>
-                );
-              })}
+              {cols.map((k) => (
+                <SwimlaneCell
+                  key={k}
+                  cell={leads.filter(
+                    (l) =>
+                      l.status === k &&
+                      (row.bdr ? l.assignedBdr?.id === row.key : !l.assignedBdr),
+                  )}
+                  selectedId={selectedId}
+                  onSelectLead={onSelectLead}
+                  firstRow={ri === 0}
+                  now={now}
+                />
+              ))}
             </div>
           ))}
         </div>
@@ -396,42 +486,16 @@ export default function LeadsBoard({
       className="flex h-full max-w-[820px] flex-col gap-[18px] overflow-auto"
       style={{ touchAction: "pan-y" }}
     >
-      {PIPELINE.map((k) => {
-        const items = byStatus(k);
-        const c = STATUS_CONFIG[k];
-        const overdueCount = k === "new" ? countOverdue(items, now) : 0;
-        return (
-          <div key={k}>
-            <div className="mb-2 flex items-center gap-2">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: c.dot }}
-              />
-              <span className="whitespace-nowrap text-[13px] font-bold text-[#403770]">
-                {c.label}
-              </span>
-              <InfoTip label={c.label} text={c.definition} align="left" />
-              <CountPill count={items.length} />
-              {overdueCount > 0 && <OverduePill count={overdueCount} />}
-            </div>
-            <div className="overflow-hidden rounded-lg border border-[#E2DEEC] bg-white">
-              {items.slice(0, RENDER_PAGE_SIZE).map((l, i) => (
-                <CompactRow
-                  key={l.id}
-                  lead={l}
-                  selectedId={selectedId}
-                  onSelectLead={onSelectLead}
-                  first={i === 0}
-                  now={now}
-                />
-              ))}
-              {items.length === 0 && (
-                <div className="px-4 py-3.5 text-xs text-[#B8B0D0]">None</div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {PIPELINE.map((k) => (
+        <GroupedSection
+          key={k}
+          statusKey={k}
+          items={byStatus(k)}
+          selectedId={selectedId}
+          onSelectLead={onSelectLead}
+          now={now}
+        />
+      ))}
     </div>
   );
 }
