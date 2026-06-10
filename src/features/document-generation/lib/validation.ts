@@ -1,6 +1,22 @@
 import type { DocFormState } from "./payload-types";
 import { computeTotals } from "./quote";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Split a freeform CC field on commas/semicolons into trimmed, case-insensitively deduped emails. */
+export function parseCcEmails(raw: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const token of raw.split(/[,;]/)) {
+    const email = token.trim();
+    const key = email.toLowerCase();
+    if (!email || seen.has(key)) continue;
+    seen.add(key);
+    out.push(email);
+  }
+  return out;
+}
+
 export interface Completeness {
   isComplete: boolean;
   missing: string[];
@@ -23,5 +39,8 @@ export function getCompleteness(state: DocFormState): Completeness {
   if (!state.startDate.trim()) missing.push("Start date");
   if (!state.endDate.trim()) missing.push("End date");
   if (state.docType === "boces_quote" && !state.quoteNumber.trim()) missing.push("Quote number");
+  for (const email of parseCcEmails(state.ccEmails)) {
+    if (!EMAIL_RE.test(email)) missing.push(`Invalid CC email: ${email}`);
+  }
   return { isComplete: missing.length === 0, missing };
 }

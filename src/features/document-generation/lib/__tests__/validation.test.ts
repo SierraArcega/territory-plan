@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getCompleteness } from "../validation";
+import { parseCcEmails, getCompleteness } from "../validation";
 import { emptyFormState } from "../payload-types";
 import type { ContactRef } from "../payload-types";
 
@@ -47,5 +47,33 @@ describe("getCompleteness", () => {
     s.clientContact = c; s.billingAddress = "1"; s.startDate = "a"; s.endDate = "b";
     s.lineItems = [{ id: "1", sku: "B", service: "S", description: "", qty: 1, unit: "hrs", listRate: 10, discountPct: 0 }];
     expect(getCompleteness(s).missing).toContain("Quote number");
+  });
+});
+
+describe("parseCcEmails", () => {
+  it("splits on commas and semicolons, trims, drops empties", () => {
+    expect(parseCcEmails(" a@x.com, b@y.org ;; c@z.io ,")).toEqual(["a@x.com", "b@y.org", "c@z.io"]);
+  });
+  it("dedupes case-insensitively, keeping first casing", () => {
+    expect(parseCcEmails("AP@x.com, ap@x.com")).toEqual(["AP@x.com"]);
+  });
+  it("returns [] for empty/whitespace input", () => {
+    expect(parseCcEmails("")).toEqual([]);
+    expect(parseCcEmails("  ")).toEqual([]);
+  });
+});
+
+describe("getCompleteness — ccEmails", () => {
+  it("flags invalid CC tokens", () => {
+    const s = emptyFormState("contract", "0601234");
+    s.ccEmails = "good@x.com, not-an-email";
+    const { missing } = getCompleteness(s);
+    expect(missing).toContain("Invalid CC email: not-an-email");
+    expect(missing).not.toContain("Invalid CC email: good@x.com");
+  });
+  it("accepts an empty ccEmails field", () => {
+    const s = emptyFormState("contract", "0601234");
+    s.ccEmails = "";
+    expect(getCompleteness(s).missing.filter((m) => m.startsWith("Invalid CC"))).toEqual([]);
   });
 });
