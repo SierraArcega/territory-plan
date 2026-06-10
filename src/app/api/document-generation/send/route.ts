@@ -2,10 +2,12 @@
 // via Dropbox Sign (mechanism A), then persist a GeneratedDocument row.
 // Body: { payload: DocPayload, districtLeaId?: string }.
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getUser } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { sendForSignature } from "@/features/document-generation/lib/render-apps-script";
 import type { DocPayload } from "@/features/document-generation/lib/payload-types";
+import { promotedFields } from "@/features/document-generation/lib/persist";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
     const companyName = deal.client_company || "";
 
     const result = await sendForSignature(payload);
+    const promoted = promotedFields(payload);
 
     // NOTE: if this write fails after a successful send, the signature request is already
     // in-flight at Dropbox Sign with no local record. A retry will create a duplicate
@@ -46,6 +49,8 @@ export async function POST(request: Request) {
         districtLeaId: body.districtLeaId ?? null,
         ownerProfileId: user.id,
         sentAt: result.sent ? new Date() : null,
+        payload: payload as unknown as Prisma.InputJsonValue,
+        ...promoted,
       },
     });
 

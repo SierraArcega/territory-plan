@@ -23,8 +23,8 @@ describe("promotedFields", () => {
     const f = promotedFields(p);
     expect(f.paymentType).toBe("A");
     expect(f.schoolYear).toBe("2026 - 2027");
-    expect(f.startDate?.toISOString()).toContain("2026-07-01");
-    expect(f.endDate?.toISOString()).toContain("2027-06-30");
+    expect(f.startDate?.toISOString()).toBe("2026-07-01T00:00:00.000Z");
+    expect(f.endDate?.toISOString()).toBe("2027-06-30T00:00:00.000Z");
     expect(f.orderTotal).toBe(0); // empty line items
     expect(f.quoteNumber).toBeNull(); // contracts have no quote number
   });

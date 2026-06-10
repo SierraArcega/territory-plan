@@ -18,10 +18,12 @@ function toDate(s: string | undefined): Date | null {
 }
 
 export function promotedFields(payload: DocPayload): PromotedFields {
-  const deal = payload.deal as Record<string, string>;
+  const deal = payload.deal;
+  const quote = payload.quote as { order_total?: number } | undefined;
+  const payment = payload.payment as { type?: string | boolean } | undefined;
   return {
-    orderTotal: payload.quote.order_total,
-    paymentType: String(payload.payment.type ?? ""),
+    orderTotal: quote?.order_total ?? 0,
+    paymentType: String(payment?.type ?? ""),
     startDate: toDate(deal.start_date),
     endDate: toDate(deal.end_date),
     schoolYear: deal.school_year?.trim() ? deal.school_year : null,
