@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { matchByName, normalizeOrgName, orgNameSimilarity } from "../district-name-match";
+import {
+  canonicalizeSchoolName,
+  matchByName,
+  normalizeOrgName,
+  normalizeSchoolName,
+  orgNameSimilarity,
+  schoolNameSimilarity,
+} from "../district-name-match";
 
 const TX = [
   { leaid: "4849530", name: "United Independent School District" },
@@ -78,5 +85,84 @@ describe("matchByName", () => {
       kind: "match",
       candidate: candidates[0],
     });
+  });
+
+  it("normalize option swaps the tier-2 normalizer (school abbreviations)", () => {
+    const schools = [
+      { ncessch: "1", name: "MANVEL H S" },
+      { ncessch: "2", name: "MANVEL J H" },
+    ];
+    // Default district normalizer can't see through "H S".
+    expect(matchByName("Manvel High School", schools, { fuzzy: false })).toEqual({
+      kind: "none",
+    });
+    expect(
+      matchByName("Manvel High School", schools, { fuzzy: false, normalize: normalizeSchoolName }),
+    ).toEqual({ kind: "match", candidate: schools[0] });
+    expect(
+      matchByName("Manvel Junior High", schools, { fuzzy: false, normalize: normalizeSchoolName }),
+    ).toEqual({ kind: "match", candidate: schools[1] });
+  });
+});
+
+// ---- School-name canonicalization -------------------------------------------
+
+describe("canonicalizeSchoolName / normalizeSchoolName", () => {
+  it("expands NCES school-type abbreviations to full words", () => {
+    expect(canonicalizeSchoolName("MANVEL H S")).toBe("manvel high school");
+    expect(canonicalizeSchoolName("Manvel H.S.")).toBe("manvel high school");
+    expect(canonicalizeSchoolName("SALYARDS MS")).toBe("salyards middle school");
+    expect(canonicalizeSchoolName("CEDAR PARK J H")).toBe("cedar park junior high");
+    expect(canonicalizeSchoolName("Cedar Park Jr High")).toBe("cedar park junior high");
+    expect(canonicalizeSchoolName("WESTWOOD INT")).toBe("westwood intermediate");
+    expect(canonicalizeSchoolName("LINCOLN ACAD")).toBe("lincoln academy");
+  });
+
+  it("expands a TRAILING 'el' but preserves leading Spanish 'El'", () => {
+    expect(canonicalizeSchoolName("JOWELL EL")).toBe("jowell elementary");
+    expect(canonicalizeSchoolName("EL PASO H S")).toBe("el paso high school");
+    expect(canonicalizeSchoolName("El Campo EL")).toBe("el campo elementary");
+  });
+
+  it("normalizeSchoolName keeps type words but drops generic filler", () => {
+    expect(normalizeSchoolName("Manvel High School")).toBe("manvel high");
+    expect(normalizeSchoolName("MANVEL H S")).toBe("manvel high");
+    expect(normalizeSchoolName("Jowell Elementary")).toBe("jowell elementary");
+    // Type words stay distinguishable — never stripped like district suffixes.
+    expect(normalizeSchoolName("Jowell Middle School")).toBe("jowell middle");
+  });
+});
+
+describe("schoolNameSimilarity", () => {
+  it("scores abbreviation variants of the SAME school as 1", () => {
+    expect(schoolNameSimilarity("Manvel High School", "MANVEL H S")).toBe(1);
+    expect(schoolNameSimilarity("Jowell Elementary", "JOWELL EL")).toBe(1);
+    expect(schoolNameSimilarity("Salyards Middle School", "SALYARDS MS")).toBe(1);
+  });
+
+  it("keeps unrelated names firmly below the 0.8 agreement bar", () => {
+    expect(schoolNameSimilarity("Jowell Elementary", "Alternative Learning Center")).toBeLessThan(
+      0.8,
+    );
+    // Different names, SAME type — the shared "Elementary" must not rescue it.
+    expect(schoolNameSimilarity("Clear Creek Elementary", "KOSTORYZ EL")).toBeLessThan(0.8);
+    // Same proper name, DIFFERENT type — type tokens carry signal.
+    expect(schoolNameSimilarity("Manvel High School", "Manvel Middle School")).toBeLessThan(0.8);
+  });
+
+  it("preserves the borderline behavior the 0.8 cross-check bar was tuned on", () => {
+    expect(
+      schoolNameSimilarity("Truman High School", "Harry S Truman High School"),
+    ).toBeGreaterThanOrEqual(0.8);
+    expect(
+      schoolNameSimilarity("Memorial High School", "Memorial Senior High School"),
+    ).toBeGreaterThanOrEqual(0.8);
+    expect(schoolNameSimilarity("Riverside High School", "Lakeside High School")).toBeLessThan(0.8);
+    expect(schoolNameSimilarity("Jefferson Elementary", "Jackson Elementary")).toBeLessThan(0.8);
+  });
+
+  it("returns 0 for blank inputs", () => {
+    expect(schoolNameSimilarity("", "MANVEL H S")).toBe(0);
+    expect(schoolNameSimilarity("  ", "")).toBe(0);
   });
 });

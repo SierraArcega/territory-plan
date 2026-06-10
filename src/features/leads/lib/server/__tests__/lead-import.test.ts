@@ -14,6 +14,7 @@ import {
   GENERIC_ROW_FAILURE,
   NCES_NAME_AGREE_THRESHOLD,
   classifyNcesId,
+  emailDomain,
   looksLikeSchoolName,
   normalizeLeaid,
   normalizeNcessch,
@@ -418,7 +419,15 @@ const TX_SCHOOLS = [
 ];
 
 type DistrictWhere = { leaid?: { in: string[] }; stateFips?: { in: string[] } };
-type SchoolWhere = { ncessch?: { in: string[] }; stateFips?: { in: string[] } };
+type SchoolWhere = {
+  ncessch?: { in: string[] };
+  stateFips?: { in: string[] };
+  leaid?: { in: string[] };
+};
+type ContactWhere = {
+  email?: { in: string[] };
+  OR?: Array<{ email: { endsWith: string } }>;
+};
 
 function seedTexasWorld(db: MockDb) {
   db.district.findMany.mockImplementation(async (args: { where: DistrictWhere }) => {
@@ -842,6 +851,331 @@ describe("NCES id ↔ name cross-check", () => {
       leaid: "4814310",
       schoolNcessch: "481431017037",
     });
+  });
+});
+
+// ---- School-abbreviation awareness + email-domain → district inference -------------
+//
+// Synthetic world for the two real-export failure modes: (1) NCES abbreviated
+// school names ("MANVEL H S") false-flagging rows whose id was RIGHT, and
+// (2) rows whose school email domain pins the district when the name alone is
+// ambiguous statewide or the state column is unusable.
+
+const DOMAIN_DISTRICTS = [
+  { leaid: "4801620", name: "Alvin ISD", stateFips: "48" },
+  { leaid: "4810950", name: "Cleburne ISD", stateFips: "48" },
+  { leaid: "4839990", name: "Springfield ISD", stateFips: "48" },
+  { leaid: "4839991", name: "Springfield Public Schools", stateFips: "48" },
+];
+const DOMAIN_SCHOOLS = [
+  { ncessch: "480162000001", schoolName: "MANVEL H S", leaid: "4801620", stateFips: "48" },
+  { ncessch: "480162000002", schoolName: "JOWELL EL", leaid: "4801620", stateFips: "48" },
+  { ncessch: "481095000921", schoolName: "AD WHEAT MIDDLE", leaid: "4810950", stateFips: "48" },
+  // Normalizes identically to JOWELL EL → school-by-name is ambiguous
+  // STATEWIDE, but unique within the domain-implied district.
+  {
+    ncessch: "483999000003",
+    schoolName: "Jowell Elementary",
+    leaid: "4839990",
+    stateFips: "48",
+  },
+];
+/** Contacts our DB holds per email domain: [leaid, count][]. */
+const DOMAIN_CONTACTS: Record<string, Array<[string, number]>> = {
+  "alvinisd.example.net": [
+    ["4801620", 4],
+    ["4810950", 1],
+  ], // 4/5 = 80% → dominant
+  "springfield1.example.org": [["4839990", 3]], // 100% → dominant
+  "split.example.org": [
+    ["4839990", 2],
+    ["4839991", 2],
+  ], // 50/50 → no inference (regional co-op shape)
+  "solo.example.org": [["4839990", 1]], // 1 contact → below DOMAIN_MIN_CONTACTS
+};
+
+function seedDomainWorld(db: MockDb) {
+  db.district.findMany.mockImplementation(async (args: { where: DistrictWhere }) => {
+    if (args.where.leaid) {
+      return DOMAIN_DISTRICTS.filter((d) => args.where.leaid!.in.includes(d.leaid)).map(
+        ({ leaid, name }) => ({ leaid, name }),
+      );
+    }
+    if (args.where.stateFips) {
+      return DOMAIN_DISTRICTS.filter((d) => args.where.stateFips!.in.includes(d.stateFips));
+    }
+    return [];
+  });
+  db.school.findMany.mockImplementation(async (args: { where: SchoolWhere }) => {
+    if (args.where.ncessch) {
+      return DOMAIN_SCHOOLS.filter((s) => args.where.ncessch!.in.includes(s.ncessch)).map(
+        ({ ncessch, schoolName, leaid }) => ({ ncessch, schoolName, leaid }),
+      );
+    }
+    if (args.where.leaid) {
+      return DOMAIN_SCHOOLS.filter((s) => args.where.leaid!.in.includes(s.leaid)).map(
+        ({ ncessch, schoolName, leaid }) => ({ ncessch, schoolName, leaid }),
+      );
+    }
+    if (args.where.stateFips) {
+      return DOMAIN_SCHOOLS.filter((s) => args.where.stateFips!.in.includes(s.stateFips));
+    }
+    return [];
+  });
+  db.contact.findMany.mockImplementation(async (args: { where: ContactWhere }) => {
+    if (args.where.OR) {
+      const domains = args.where.OR.map((c) => c.email.endsWith.slice(1));
+      return domains.flatMap((domain) =>
+        (DOMAIN_CONTACTS[domain] ?? []).flatMap(([leaid, count]) =>
+          Array.from({ length: count }, (_, i) => ({
+            email: `c${i}.${leaid}@${domain}`,
+            leaid,
+          })),
+        ),
+      );
+    }
+    return []; // email lookup — every import row is a new contact
+  });
+}
+
+describe("emailDomain", () => {
+  it("returns the lowercased domain of an org email", () => {
+    expect(emailDomain("jane@killeenisd.org")).toBe("killeenisd.org");
+    expect(emailDomain("jane@DonnaISD.NET")).toBe("donnaisd.net");
+  });
+
+  it("returns null for free-mail and junk", () => {
+    expect(emailDomain("jane@gmail.com")).toBeNull();
+    expect(emailDomain("jane@yahoo.com")).toBeNull();
+    expect(emailDomain("jane@icloud.com")).toBeNull();
+    expect(emailDomain("not-an-email")).toBeNull();
+  });
+});
+
+describe("school-abbreviation cross-check (false-flag fix)", () => {
+  let db: MockDb;
+  beforeEach(() => {
+    db = makeDb();
+    seedDomainWorld(db);
+  });
+
+  it("a CORRECT NCES id whose school is abbreviated no longer flags", async () => {
+    const [r] = await resolveLeadRows(
+      [
+        {
+          email: "p@alvinisd.example.net",
+          leaid: "480162000001", // MANVEL H S — the id is RIGHT
+          districtName: "Manvel High School",
+          state: "Texas",
+        },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.viaNces).toBe(true);
+    expect(r.viaName).toBe(false);
+    expect(r.warnings).toEqual([]);
+    expect(r.district).toMatchObject({ leaid: "4801620", name: "Alvin ISD" });
+    // Agreement → no name-disambiguation prefetch of any kind fires.
+    expect(db.contact.findMany).toHaveBeenCalledTimes(1); // email lookup only
+    const stateQueries = [
+      ...db.school.findMany.mock.calls,
+      ...db.district.findMany.mock.calls,
+    ].filter((c) => c[0].where.stateFips);
+    expect(stateQueries).toEqual([]);
+  });
+});
+
+describe("email-domain → district inference", () => {
+  let db: MockDb;
+  beforeEach(() => {
+    db = makeDb();
+    seedDomainWorld(db);
+  });
+
+  it("cross-check conflict: overrides via the domain-implied district even without a state", async () => {
+    const [r] = await resolveLeadRows(
+      [
+        {
+          email: "p@alvinisd.example.net",
+          leaid: "481095000921", // wrong id → AD WHEAT MIDDLE / Cleburne ISD
+          districtName: "Jowell Elementary",
+          // no state — the statewide fallback is impossible
+        },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.viaName).toBe(true);
+    expect(r.viaNces).toBe(false);
+    expect(r.warnings).toContain("nces_name_conflict");
+    expect(r.school).toEqual({ ncessch: "480162000002", name: "JOWELL EL" });
+    expect(r.district).toEqual({ leaid: "4801620", name: "Alvin ISD", willCreate: false });
+  });
+
+  it("cross-check conflict: domain scope beats a statewide-AMBIGUOUS school name", async () => {
+    // "Jowell Elementary School" normalizes onto BOTH Jowells statewide
+    // (tier-2 ambiguous); the alvinisd domain pins JOWELL EL in Alvin ISD.
+    const [r] = await resolveLeadRows(
+      [
+        {
+          email: "p@alvinisd.example.net",
+          leaid: "481095000921",
+          districtName: "Jowell Elementary School",
+          state: "Texas",
+        },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.viaName).toBe(true);
+    expect(r.warnings).toContain("nces_name_conflict");
+    expect(r.district).toMatchObject({ leaid: "4801620" });
+    expect(r.school).toMatchObject({ ncessch: "480162000002" });
+  });
+
+  it("cross-check conflict without a domain hit keeps today's mismatch flag", async () => {
+    const [r] = await resolveLeadRows(
+      [
+        {
+          email: "p@solo.example.org", // 1 contact → no inference
+          leaid: "481095000921",
+          districtName: "Jowell Elementary School",
+          state: "Texas", // statewide: tier-2 ambiguous (two Jowells) → no override
+        },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.viaNces).toBe(true);
+    expect(r.warnings).toContain("nces_name_mismatch");
+    expect(r.district).toMatchObject({ leaid: "4810950" });
+  });
+
+  it("no-id row: school name + dominant domain resolve without a state", async () => {
+    const [r] = await resolveLeadRows(
+      [
+        {
+          email: "t@alvinisd.example.net",
+          districtName: "Manvel High School", // ← abbreviation-aware in-district match
+        },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.viaName).toBe(true);
+    expect(r.warnings).toContain("domain_inferred_district");
+    expect(r.school).toEqual({ ncessch: "480162000001", name: "MANVEL H S" });
+    expect(r.district).toEqual({ leaid: "4801620", name: "Alvin ISD", willCreate: false });
+  });
+
+  it("no-id row: district name + dominant domain rescue a statewide-ambiguous name", async () => {
+    const rows = await resolveLeadRows(
+      [
+        // Dominant domain → "Springfield" corroborates Springfield ISD.
+        { email: "d@springfield1.example.org", districtName: "Springfield", state: "Texas" },
+        // Split 50/50 domain → no inference → still ambiguous statewide.
+        { email: "e@split.example.org", districtName: "Springfield", state: "Texas" },
+        // Single-contact domain → below DOMAIN_MIN_CONTACTS → still ambiguous.
+        { email: "f@solo.example.org", districtName: "Springfield", state: "Texas" },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(rows[0].ok).toBe(true);
+    expect(rows[0].viaName).toBe(true);
+    expect(rows[0].warnings).toContain("domain_inferred_district");
+    expect(rows[0].district).toEqual({
+      leaid: "4839990",
+      name: "Springfield ISD",
+      willCreate: false,
+    });
+    expect(rows[1]).toMatchObject({ ok: false, error: "ambiguous_district", district: null });
+    expect(rows[2]).toMatchObject({ ok: false, error: "ambiguous_district", district: null });
+  });
+
+  it("never trusts the domain ALONE — an uncorroborated name keeps failing", async () => {
+    const [r] = await resolveLeadRows(
+      [
+        {
+          email: "v@alvinisd.example.net", // dominant domain…
+          districtName: "Wholly Unknown Organization", // …but the name matches nothing in it
+          state: "Texas",
+        },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r).toMatchObject({ ok: false, error: "unresolved_district", district: null });
+    expect(r.warnings).not.toContain("domain_inferred_district");
+  });
+
+  it("free-mail domains are never looked up", async () => {
+    const [r] = await resolveLeadRows(
+      [{ email: "g@gmail.com", districtName: "Springfield", state: "Texas" }],
+      USER_ID,
+      asDb(db),
+    );
+    expect(r).toMatchObject({ ok: false, error: "ambiguous_district" });
+    // Only the email lookup ran — no domain OR-query for a free-mail row.
+    expect(db.contact.findMany).toHaveBeenCalledTimes(1);
+    expect(db.contact.findMany.mock.calls[0][0].where.OR).toBeUndefined();
+  });
+
+  it("applies identically to activity rows", async () => {
+    const [r] = await resolveActivityRows(
+      [{ email: "t@alvinisd.example.net", districtName: "Manvel High School", kind: "email" }],
+      asDb(db),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.viaName).toBe(true);
+    expect(r.warnings).toContain("domain_inferred_district");
+    expect(r.school).toMatchObject({ ncessch: "480162000001" });
+    expect(r.district).toMatchObject({ leaid: "4801620" });
+  });
+
+  it("dry/wet parity: the wet run writes the domain-resolved district and surfaces the warning", async () => {
+    db.contact.create.mockResolvedValue({ id: 501 });
+    const rows = [{ email: "t@alvinisd.example.net", districtName: "Manvel High School" }];
+    const resolutions = await resolveLeadRows(rows, USER_ID, asDb(db));
+    const result = await applyLeadImport(rows, resolutions, USER_ID, asDb(db));
+
+    expect(result.succeeded).toEqual([0]);
+    expect(result.warnings).toEqual([{ index: 0, warning: "domain_inferred_district" }]);
+    expect(db.district.create).not.toHaveBeenCalled(); // implied district is real — never a stub
+    expect(db.contact.create.mock.calls[0][0].data).toMatchObject({
+      leaid: "4801620",
+      schoolNcessch: "480162000001",
+    });
+    expect(db.lead.create.mock.calls[0][0].data).toMatchObject({
+      leaid: "4801620",
+      schoolNcessch: "480162000001",
+    });
+  });
+
+  it("stays batched: a whole multi-domain batch costs a fixed number of queries", async () => {
+    const rows = await resolveLeadRows(
+      [
+        { email: "a@alvinisd.example.net", districtName: "Manvel High School", state: "Texas" },
+        { email: "b@springfield1.example.org", districtName: "Springfield", state: "Texas" },
+        { email: "c@split.example.org", districtName: "Springfield", state: "Texas" },
+        { email: "d@alvinisd.example.net", districtName: "Jowell Elementary", state: "Texas" },
+      ],
+      USER_ID,
+      asDb(db),
+    );
+    expect(rows.filter((r) => r.ok)).toHaveLength(3);
+    // contact: email lookup + ONE grouped domain query — never per-row.
+    expect(db.contact.findMany).toHaveBeenCalledTimes(2);
+    // school: stateFips prefetch + implied-leaid prefetch (no ncessch rows).
+    expect(db.school.findMany.mock.calls.length).toBeLessThanOrEqual(2);
+    // district: stateFips prefetch + missing implied districts.
+    expect(db.district.findMany.mock.calls.length).toBeLessThanOrEqual(2);
   });
 });
 
