@@ -1,12 +1,8 @@
 "use client";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { RenderResult, DocType } from "@/features/document-generation/lib/payload-types";
-
-export interface SendBanner {
-  phase: "processing" | "sent" | "error" | "unconfirmed";
-  recipientEmail?: string;
-  sendError?: string;
-}
+import type { SendBanner } from "@/features/document-generation/lib/send-banner";
+export type { SendBanner };
 
 interface Props {
   result: RenderResult;
@@ -31,20 +27,20 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
       )}
 
       {sendState?.phase === "processing" && (
-        <div className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">Sending…</div>
+        <div role="status" className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">Sending…</div>
       )}
       {sendState?.phase === "sent" && (
-        <div className="rounded-lg bg-[#EAF5EE] px-3 py-2 text-sm text-[#2C6E49]">
+        <div role="status" className="rounded-lg bg-[#EAF5EE] px-3 py-2 text-sm text-[#2C6E49]">
           Sent ✓{sendState.recipientEmail ? ` to ${sendState.recipientEmail}` : ""}
         </div>
       )}
       {sendState?.phase === "error" && (
-        <div className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm text-[#F37167]">
+        <div role="alert" className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm text-[#F37167]">
           Send failed: {sendState.sendError ?? "unknown error"}
         </div>
       )}
       {sendState?.phase === "unconfirmed" && (
-        <div className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">
+        <div role="status" className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">
           Send accepted — awaiting confirmation. Check back shortly.
         </div>
       )}

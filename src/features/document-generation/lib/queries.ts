@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { ContactsResponse } from "@/features/shared/types/api-types";
 
@@ -44,11 +44,19 @@ export function sendPollInterval(
 }
 
 export function useGeneratedDocumentStatus(id: number | null) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: ["generated-document", id],
     queryFn: () => fetchJson<GeneratedDocumentStatus>(`${API_BASE}/document-generation/documents/${id}`),
     enabled: id != null,
-    refetchInterval: (query) =>
-      sendPollInterval(query.state.data?.status, query.state.dataUpdateCount, query.state.errorUpdateCount),
+    refetchInterval: (q) =>
+      sendPollInterval(q.state.data?.status, q.state.dataUpdateCount, q.state.errorUpdateCount),
   });
+  // dataUpdateCount lives on the internal QueryState, not the observer result —
+  // read it from the cache so the banner's timeout matches the poll's stop condition.
+  const dataUpdateCount =
+    (id != null ? queryClient.getQueryState(["generated-document", id])?.dataUpdateCount : 0) ?? 0;
+  const pollTimedOut =
+    dataUpdateCount >= SEND_POLL_MAX_UPDATES || query.errorUpdateCount >= SEND_POLL_MAX_ERRORS;
+  return { ...query, pollTimedOut };
 }

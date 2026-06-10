@@ -12,12 +12,18 @@ vi.mock("@/features/document-generation/lib/validation", async (importOriginal) 
     getCompleteness: () => ({ isComplete: true, missing: [] }),
   };
 });
-// Mock the queries module — GenerateDocumentModal uses useGeneratedDocumentStatus which needs a QueryClientProvider otherwise
-vi.mock("@/features/document-generation/lib/queries", () => ({
-  useGeneratedDocumentStatus: () => ({ data: undefined, dataUpdateCount: 0, errorUpdateCount: 0 }),
-  SEND_POLL_MAX_UPDATES: 30,
-  SEND_POLL_MAX_ERRORS: 5,
+
+// Configurable mock for useGeneratedDocumentStatus — default: no data, not timed out
+const mockUseGeneratedDocumentStatus = vi.fn(() => ({
+  data: undefined,
+  errorUpdateCount: 0,
+  pollTimedOut: false,
 }));
+vi.mock("@/features/document-generation/lib/queries", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  useGeneratedDocumentStatus: (_id: number | null) => mockUseGeneratedDocumentStatus(),
+}));
+
 // Mock send-client so we can control what the send POST returns
 const mockSendForSignatureRequest = vi.fn();
 vi.mock("@/features/document-generation/lib/send-client", () => ({
@@ -77,5 +83,40 @@ describe("GenerateDocumentModal", () => {
 
     // The mocked useGeneratedDocumentStatus returns no data → phase "processing" → shows "Sending…"
     expect(screen.getByText("Sending…")).toBeInTheDocument();
+  });
+
+  it("shows 'Send accepted — awaiting confirmation' when pollTimedOut is true after a successful send", async () => {
+    // Configure the hook to report timed out
+    mockUseGeneratedDocumentStatus.mockReturnValue({
+      data: undefined,
+      errorUpdateCount: 0,
+      pollTimedOut: true,
+    });
+
+    mockSendForSignatureRequest.mockResolvedValueOnce({
+      id: 7,
+      status: "processing",
+      recipientEmail: "t@x.org",
+      docUrl: "https://docs.google.com/document/d/X/edit",
+      signatureRequestId: "sig_xyz",
+    });
+
+    const renderClient = vi.fn().mockResolvedValue({ docUrl: "https://docs.google.com/document/d/X/edit" });
+    setup(renderClient);
+
+    const renderBtn = screen.getByRole("button", { name: /Render document/i });
+    await act(async () => { renderBtn.click(); });
+
+    const sendBtn = screen.getByRole("button", { name: /Send for signature/i });
+    await act(async () => { sendBtn.click(); });
+
+    expect(screen.getByText(/Send accepted — awaiting confirmation/i)).toBeInTheDocument();
+
+    // Reset mock to default for subsequent tests
+    mockUseGeneratedDocumentStatus.mockReturnValue({
+      data: undefined,
+      errorUpdateCount: 0,
+      pollTimedOut: false,
+    });
   });
 });

@@ -2,7 +2,6 @@
 import { useState } from "react";
 import DocumentPayloadForm from "./form/DocumentPayloadForm";
 import ReviewStage from "./review/ReviewStage";
-import type { SendBanner } from "./review/ReviewStage";
 import { emptyFormState } from "@/features/document-generation/lib/payload-types";
 import type { DocFormState, RenderClient, RenderResult } from "@/features/document-generation/lib/payload-types";
 import { assemblePayload } from "@/features/document-generation/lib/payload";
@@ -10,7 +9,8 @@ import { computeTotals } from "@/features/document-generation/lib/quote";
 import { stubRenderClient } from "@/features/document-generation/lib/render-client";
 import type { PrefillResult } from "@/features/document-generation/lib/prefill";
 import { sendForSignatureRequest } from "@/features/document-generation/lib/send-client";
-import { useGeneratedDocumentStatus, SEND_POLL_MAX_UPDATES, SEND_POLL_MAX_ERRORS } from "@/features/document-generation/lib/queries";
+import { useGeneratedDocumentStatus } from "@/features/document-generation/lib/queries";
+import { deriveSendBanner } from "@/features/document-generation/lib/send-banner";
 
 interface Props {
   prefill: PrefillResult;
@@ -46,21 +46,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   const statusQuery = useGeneratedDocumentStatus(sendId);
 
   // Derive the send banner BEFORE handleSend so the retry guard can use it
-  let sendState: SendBanner | null = null;
-  if (syncSend?.sendError) {
-    sendState = { phase: "error", sendError: syncSend.sendError };
-  } else if (sendId != null) {
-    const status = statusQuery.data?.status ?? "processing";
-    if (status === "error") {
-      sendState = { phase: "error", sendError: statusQuery.data?.errorMessage ?? "send failed" };
-    } else if (status === "processing") {
-      sendState = (statusQuery.dataUpdateCount >= SEND_POLL_MAX_UPDATES || statusQuery.errorUpdateCount >= SEND_POLL_MAX_ERRORS)
-        ? { phase: "unconfirmed", recipientEmail: syncSend?.recipientEmail }
-        : { phase: "processing", recipientEmail: syncSend?.recipientEmail };
-    } else {
-      sendState = { phase: "sent", recipientEmail: statusQuery.data?.recipientEmail ?? syncSend?.recipientEmail };
-    }
-  }
+  const sendState = deriveSendBanner(syncSend, sendId, statusQuery.data, statusQuery.pollTimedOut);
 
   const canSend = !busy && (sendId == null || sendState?.phase === "error");
 
