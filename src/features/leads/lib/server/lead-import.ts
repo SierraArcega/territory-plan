@@ -414,6 +414,13 @@ export interface ImportFailure {
   index: number;
   reason: string;
 }
+
+/**
+ * Surfaced for unexpected per-row write errors instead of the raw error
+ * message (Prisma internals are not for end users); the real error is logged
+ * server-side. Structured resolver codes (invalid_email, …) pass through.
+ */
+export const GENERIC_ROW_FAILURE = "Could not import this row";
 export interface ImportWarning {
   index: number;
   warning: string;
@@ -528,10 +535,8 @@ export async function applyActivityImport(
       }
       succeeded.push(resolution.index);
     } catch (error) {
-      failed.push({
-        index: resolution.index,
-        reason: error instanceof Error ? error.message : "row_failed",
-      });
+      console.error(`Activity import: row ${resolution.index} failed:`, error);
+      failed.push({ index: resolution.index, reason: GENERIC_ROW_FAILURE });
     }
   }
 
@@ -660,10 +665,8 @@ export async function applyLeadImport(
       });
       succeeded.push(resolution.index);
     } catch (error) {
-      failed.push({
-        index: resolution.index,
-        reason: error instanceof Error ? error.message : "row_failed",
-      });
+      console.error(`Lead import: row ${resolution.index} failed:`, error);
+      failed.push({ index: resolution.index, reason: GENERIC_ROW_FAILURE });
     }
   }
 

@@ -293,7 +293,8 @@ export interface LogEngagementInput {
 }
 
 export interface LogEngagementResponse {
-  activityId: number;
+  /** Activities are keyed by uuid strings. */
+  activityId: string;
   lead: Lead;
 }
 

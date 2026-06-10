@@ -120,6 +120,14 @@ describe("AddLeadModal", () => {
     expect(input.score).toBe(138);
   });
 
+  it("preserves an explicit 0 score (only an empty field defaults to 100)", () => {
+    renderModal();
+    fillRequired();
+    fireEvent.change(screen.getByLabelText("Engagement score"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: /Add & assign/ }));
+    expect(createMock.mock.calls[0][0].score).toBe(0);
+  });
+
   it("auto-selects the created lead (create-and-add)", () => {
     const { onCreated } = renderModal();
     fillRequired();

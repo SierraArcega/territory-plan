@@ -77,7 +77,9 @@ export interface OutcomeModalProps {
 export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) {
   const [actKey, setActKey] = useState("call");
   const [rating, setRating] = useState(0);
-  const [picks, setPicks] = useState<string[]>([]);
+  // Single-select — only one outcome persists (outcomeType), so the pills
+  // behave like a radio group with deselect (click the active pill to clear).
+  const [pick, setPick] = useState<string | null>(null);
   const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<LeadStatus>(
@@ -108,8 +110,7 @@ export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) 
     (!needOpp || oppDraftValid(oppDraft)) &&
     !pending;
 
-  const toggle = (key: string) =>
-    setPicks((p) => (p.includes(key) ? p.filter((x) => x !== key) : [...p, key]));
+  const toggle = (key: string) => setPick((p) => (p === key ? null : key));
 
   const save = async () => {
     if (!canSave) return;
@@ -126,7 +127,7 @@ export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) 
         title: `${choice.label} · ${lead.district?.name ?? lead.contact?.name ?? "Lead"}`,
         notes: note.trim() || null,
         rating,
-        outcomeType: picks[0] ?? null,
+        outcomeType: pick,
         resultingStatus: status,
         reason: needReason ? reason : null,
       });
@@ -187,7 +188,7 @@ export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) 
         <div className={SECTION_LABEL}>How did it go?</div>
         <div className="flex flex-wrap gap-2">
           {OUTCOME_PILLS.map((o) => {
-            const on = picks.includes(o.key);
+            const on = pick === o.key;
             return (
               <button
                 key={o.key}

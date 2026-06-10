@@ -66,6 +66,27 @@ describe("OutcomeModal", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it("outcome pills are single-select: a new pick replaces, re-clicking clears", async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "4 stars" }));
+    const forward = screen.getByRole("button", { name: /Moved Forward/ });
+    const goodChat = screen.getByRole("button", { name: /Good Chat/ });
+
+    fireEvent.click(forward);
+    expect(forward).toHaveAttribute("aria-pressed", "true");
+    // Picking another pill replaces the first (only one outcome persists).
+    fireEvent.click(goodChat);
+    expect(goodChat).toHaveAttribute("aria-pressed", "true");
+    expect(forward).toHaveAttribute("aria-pressed", "false");
+    // Re-clicking the active pill deselects it.
+    fireEvent.click(goodChat);
+    expect(goodChat).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(save());
+    await waitFor(() => expect(logEngagementMock).toHaveBeenCalled());
+    expect(logEngagementMock.mock.calls[0][0].outcomeType).toBeNull();
+  });
+
   it("maps Email and Meeting to the email / discovery_call activity types", async () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: "Email" }));

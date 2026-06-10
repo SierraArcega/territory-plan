@@ -183,6 +183,9 @@ export default function AddLeadModal({ onClose, onCreated }: AddLeadModalProps) 
     if (createLead.isPending) return;
     setServerError(null);
     const typeLabel = leadTypeConfig(leadType).label;
+    // Prototype default: an unstated/invalid score lands at the 100-pt MQL
+    // threshold — but an explicit 0 is a real score, not "unstated".
+    const parsedScore = parseInt(score, 10);
     createLead.mutate(
       {
         leaid: district!.leaid,
@@ -195,8 +198,7 @@ export default function AddLeadModal({ onClose, onCreated }: AddLeadModalProps) 
         sequence,
         marketingOwner: marketingOwner.trim() || null,
         assignedBdrId: bdrValue || null,
-        // Prototype default: an unstated score lands at the 100-pt MQL threshold.
-        score: parseInt(score, 10) || 100,
+        score: Number.isNaN(parsedScore) ? 100 : parsedScore,
       },
       {
         onSuccess: (lead) => {

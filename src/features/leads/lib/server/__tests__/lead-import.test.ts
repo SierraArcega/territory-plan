@@ -4,6 +4,7 @@ vi.mock("@/lib/prisma", () => ({ default: {} }));
 
 import type { DbClient } from "@/features/shared/lib/service-error";
 import {
+  GENERIC_ROW_FAILURE,
   normalizeLeaid,
   normalizeNcessch,
   nameFromEmail,
@@ -331,5 +332,23 @@ describe("resolveLeadRows / applyLeadImport", () => {
       leadId: "lead-new",
       kind: "created",
     });
+  });
+
+  it("maps unexpected per-row write errors to the generic reason and logs the real one", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const prismaError = new Error(
+      "Invalid `prisma.lead.create()` invocation: Foreign key constraint failed",
+    );
+    db.lead.create.mockRejectedValue(prismaError);
+
+    const importRows = [{ email: "karen@frontier.org", leaid: "9912345" }];
+    const resolutions = await resolveLeadRows(importRows, USER_ID, asDb(db));
+    const result = await applyLeadImport(importRows, resolutions, USER_ID, asDb(db));
+
+    // The raw Prisma message never reaches failed[].reason…
+    expect(result.failed).toEqual([{ index: 0, reason: GENERIC_ROW_FAILURE }]);
+    // …but it is logged server-side.
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), prismaError);
+    consoleError.mockRestore();
   });
 });
