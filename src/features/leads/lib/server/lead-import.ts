@@ -1,7 +1,12 @@
 import prisma from "@/lib/prisma";
 import type { DbClient } from "@/features/shared/lib/service-error";
 import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
-import { matchByName, orgNameSimilarity } from "@/features/shared/lib/district-name-match";
+import {
+  matchByName,
+  normalizeSchoolName,
+  orgNameSimilarity,
+  schoolNameSimilarity,
+} from "@/features/shared/lib/district-name-match";
 import { abbrevToFips, normalizeState } from "@/lib/states";
 import {
   ACTIVE_LEAD_STATUSES,
@@ -118,12 +123,17 @@ export function looksLikeSchoolName(name: string): boolean {
  * "Memorial Senior High School" 0.84) while different schools sharing a
  * generic suffix land below ("Riverside High School" vs "Lakeside High
  * School" 0.77, "Jefferson Elementary" vs "Jackson Elementary" 0.72).
+ *
+ * Scored with `schoolNameSimilarity`, which expands NCES abbreviations first
+ * — "Manvel High School" vs "MANVEL H S" is the SAME school (1.0), not a
+ * false mismatch, while "Clear Creek Elementary" vs "KOSTORYZ EL" still
+ * conflicts (~0.51): only the type token matches, not the name.
  */
 export const NCES_NAME_AGREE_THRESHOLD = 0.8;
 
 /** True when a row's school-ish name disagrees with the NCES-resolved school. */
 function ncesNameConflicts(rowName: string, ncesSchoolName: string): boolean {
-  return orgNameSimilarity(rowName, ncesSchoolName) < NCES_NAME_AGREE_THRESHOLD;
+  return schoolNameSimilarity(rowName, ncesSchoolName) < NCES_NAME_AGREE_THRESHOLD;
 }
 
 /** Row state ("Texas", "tx") → 2-digit FIPS, or null when unusable. */
@@ -135,6 +145,44 @@ export function normalizeEmail(value: unknown): string | null {
   if (value == null) return null;
   const raw = String(value).trim().toLowerCase();
   return raw.includes("@") ? raw : null;
+}
+
+// ---- Email-domain → district inference ---------------------------------------
+//
+// A school-org email domain (killeenisd.org, donnaisd.net) pins the district
+// even when the row's org name is ambiguous statewide. Inference is built from
+// our own contacts table — which districts do contacts on this domain belong
+// to? — and only trusted when the domain is DOMINANT (constants below).
+// A domain is never trusted ALONE: the row's name must corroborate it.
+
+/**
+ * A domain implies a district only when one leaid holds at least this share
+ * of the domain's contacts. Multi-district domains (regional co-ops, vendor
+ * domains) split below this bar and imply nothing.
+ */
+export const DOMAIN_DOMINANCE_RATIO = 0.8;
+/**
+ * …and that leaid must hold at least this many contacts. A single contact is
+ * one typo or one mis-assigned record away from a wrong district.
+ */
+export const DOMAIN_MIN_CONTACTS = 2;
+/** Cap on distinct domains per import batch (rows cap at 500 anyway). */
+const MAX_DOMAIN_LOOKUPS = 200;
+/** Free-mail domains say nothing about a district — never looked up. */
+export const FREE_MAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "rocketmail.com",
+  "outlook.com", "hotmail.com", "live.com", "msn.com", "aol.com",
+  "icloud.com", "me.com", "mac.com", "comcast.net", "att.net",
+  "verizon.net", "sbcglobal.net", "bellsouth.net", "cox.net", "charter.net",
+  "protonmail.com", "proton.me", "zoho.com", "mail.com", "gmx.com",
+]);
+
+/** Lowercased domain of a normalized email, or null for free-mail/junk. */
+export function emailDomain(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return null;
+  const domain = email.slice(at + 1).trim().toLowerCase();
+  return domain && !FREE_MAIL_DOMAINS.has(domain) ? domain : null;
 }
 
 /** Port of the prototype's nameFromEmail — last-resort contact name. */
@@ -268,6 +316,10 @@ interface ResolutionContext {
   /** Name-fallback candidates, keyed by state FIPS (only prefetched states). */
   districtsByStateFips: Map<string, Array<{ leaid: string; name: string }>>;
   schoolsByStateFips: Map<string, Array<{ ncessch: string; schoolName: string; leaid: string }>>;
+  /** Email domain → the leaid that DOMINATES that domain's contacts. */
+  districtByEmailDomain: Map<string, string>;
+  /** Schools of the domain-implied districts, keyed by leaid (batched prefetch). */
+  schoolsByLeaid: Map<string, Array<{ ncessch: string; schoolName: string; leaid: string }>>;
   activeLeadByContactId: Map<number, string>;
   validUserIds: Set<string>;
 }
@@ -344,13 +396,20 @@ async function buildContext(
   // Rows that DO resolve via a school NCES id but carry a school-ish name
   // that disagrees with that school also get the state loaded, so the
   // resolver's NCES↔name cross-check can attempt the name override.
+  // The same rows (name disambiguation needed) also feed the email-domain →
+  // district inference — collected here, resolved in ONE grouped query below.
   const districtFips = new Set<string>();
   const schoolFips = new Set<string>();
+  const domainCandidates = new Set<string>();
   rows.forEach((row, i) => {
     const name = row.districtName?.trim();
     if (!name) return;
     const email = normalizeEmail(row.email);
     if (email && contactsByEmail.has(email)) return; // existing contacts keep their district
+    const domain = email ? emailDomain(email) : null;
+    const addDomain = () => {
+      if (domain && domainCandidates.size < MAX_DOMAIN_LOOKUPS) domainCandidates.add(domain);
+    };
     const n = ncesByRow[i];
     const ncesSchool = n.schoolNcessch ? schoolsByNcessch.get(n.schoolNcessch) : undefined;
     if (ncesSchool) {
@@ -358,6 +417,7 @@ async function buildContext(
       // actually fire (school-ish name that disagrees with the id's school).
       if (!looksLikeSchoolName(name)) return;
       if (!ncesNameConflicts(name, ncesSchool.schoolName)) return;
+      addDomain(); // domain-scoped override works even without a state
       const fips = rowStateFips(row);
       if (!fips) return;
       districtFips.add(fips); // override path names the school's district
@@ -365,6 +425,7 @@ async function buildContext(
       return;
     }
     if (n.leaid) return; // resolves (or stubs) by district id
+    addDomain(); // domain + name corroboration works even without a state
     const fips = rowStateFips(row);
     if (!fips) return;
     districtFips.add(fips);
@@ -400,6 +461,75 @@ async function buildContext(
     }
   }
 
+  // Email-domain → district inference: ONE grouped query over contacts for
+  // all candidate domains, then in-memory dominance. A domain implies a
+  // district only when one leaid holds ≥ DOMAIN_DOMINANCE_RATIO of the
+  // domain's contacts AND ≥ DOMAIN_MIN_CONTACTS contacts.
+  const districtByEmailDomain = new Map<string, string>();
+  if (domainCandidates.size > 0) {
+    const domainContacts = await db.contact.findMany({
+      where: {
+        OR: [...domainCandidates].map((d) => ({
+          email: { endsWith: `@${d}`, mode: "insensitive" as const },
+        })),
+      },
+      select: { email: true, leaid: true },
+    });
+    const leaidCountsByDomain = new Map<string, Map<string, number>>();
+    for (const c of domainContacts) {
+      const domain = c.email ? emailDomain(c.email) : null;
+      if (!domain || !domainCandidates.has(domain)) continue;
+      const counts = leaidCountsByDomain.get(domain) ?? new Map<string, number>();
+      counts.set(c.leaid, (counts.get(c.leaid) ?? 0) + 1);
+      leaidCountsByDomain.set(domain, counts);
+    }
+    for (const [domain, counts] of leaidCountsByDomain) {
+      let total = 0;
+      let topLeaid: string | null = null;
+      let topCount = 0;
+      for (const [leaid, count] of counts) {
+        total += count;
+        if (count > topCount) {
+          topLeaid = leaid;
+          topCount = count;
+        }
+      }
+      if (topLeaid && topCount >= DOMAIN_MIN_CONTACTS && topCount / total >= DOMAIN_DOMINANCE_RATIO) {
+        districtByEmailDomain.set(domain, topLeaid);
+      }
+    }
+  }
+
+  // Implied districts' schools join the batched prefetch (still no per-row
+  // queries) so the resolver can match names WITHIN an implied district —
+  // including for rows whose state was missing from the stateFips prefetch.
+  const schoolsByLeaid = new Map<
+    string,
+    Array<{ ncessch: string; schoolName: string; leaid: string }>
+  >();
+  const impliedLeaids = [...new Set(districtByEmailDomain.values())];
+  if (impliedLeaids.length > 0) {
+    const impliedSchools = await db.school.findMany({
+      where: { leaid: { in: impliedLeaids } },
+      select: { ncessch: true, schoolName: true, leaid: true },
+    });
+    for (const s of impliedSchools) {
+      const list = schoolsByLeaid.get(s.leaid) ?? [];
+      list.push(s);
+      schoolsByLeaid.set(s.leaid, list);
+    }
+    // Implied districts always exist (contacts.leaid is a FK) but may not be
+    // in districtsByLeaid yet — fetch the missing ones for their names.
+    const missing = impliedLeaids.filter((l) => !districtsByLeaid.has(l));
+    if (missing.length > 0) {
+      const impliedDistricts = await db.district.findMany({
+        where: { leaid: { in: missing } },
+        select: { leaid: true, name: true },
+      });
+      for (const d of impliedDistricts) districtsByLeaid.set(d.leaid, d);
+    }
+  }
+
   const contactIds = contacts.map((c) => c.id);
   const activeLeads = contactIds.length
     ? await db.lead.findMany({
@@ -422,6 +552,8 @@ async function buildContext(
     districtsByLeaid,
     districtsByStateFips,
     schoolsByStateFips,
+    districtByEmailDomain,
+    schoolsByLeaid,
     activeLeadByContactId,
     validUserIds: new Set(users.map((u) => u.id)),
   };
@@ -455,7 +587,7 @@ function resolveSchoolByName(
   const sm = matchByName(
     name,
     schools.map((s) => ({ ...s, name: s.schoolName })),
-    { fuzzy: false },
+    { fuzzy: false, normalize: normalizeSchoolName },
   );
   if (sm.kind !== "match") return null;
   // The school's FK guarantees its district exists — never a stub.
@@ -466,6 +598,66 @@ function resolveSchoolByName(
     district: { leaid: sm.candidate.leaid, name: district?.name ?? null, willCreate: false },
     school: { ncessch: sm.candidate.ncessch, name: sm.candidate.schoolName },
   };
+}
+
+/**
+ * School-by-name WITHIN one (email-domain-implied) district. Unlike the
+ * statewide matcher, the fuzzy tier (unique ≥ 0.85) is ON — the candidate
+ * pool is one district's schools, so a unique high Dice score is safe.
+ */
+function resolveSchoolInDistrict(
+  name: string,
+  leaid: string,
+  ctx: ResolutionContext,
+): { district: ResolvedDistrict; school: ResolvedSchool } | null {
+  const schools = ctx.schoolsByLeaid.get(leaid) ?? [];
+  const sm = matchByName(
+    name,
+    schools.map((s) => ({ ...s, name: s.schoolName })),
+    { normalize: normalizeSchoolName },
+  );
+  if (sm.kind !== "match") return null;
+  const district = ctx.districtsByLeaid.get(leaid);
+  return {
+    district: { leaid, name: district?.name ?? null, willCreate: false },
+    school: { ncessch: sm.candidate.ncessch, name: sm.candidate.schoolName },
+  };
+}
+
+/** The dominant district for the row's email domain, or null. */
+function domainImpliedLeaid(email: string, ctx: ResolutionContext): string | null {
+  const domain = emailDomain(email);
+  return (domain && ctx.districtByEmailDomain.get(domain)) || null;
+}
+
+/**
+ * Email-domain inference for rows with no usable NCES id. The domain alone is
+ * NEVER trusted — a dominant domain with an unrelated row name is most often
+ * a vendor, a co-op address, or stale contact data. The row's name must
+ * corroborate the implied district by matching one of its schools (tiered,
+ * incl. unique fuzzy — tiny pool) or the district itself (≥ matchByName's
+ * 0.85 auto-pick bar, since this DRIVES an assignment rather than validating
+ * one). No corroboration → null, and the caller keeps today's statewide path.
+ */
+function resolveByEmailDomain(
+  row: LeadImportRow | ActivityImportRow,
+  email: string,
+  ctx: ResolutionContext,
+): { district: ResolvedDistrict; school: ResolvedSchool | null } | null {
+  const name = row.districtName?.trim();
+  if (!name) return null;
+  const leaid = domainImpliedLeaid(email, ctx);
+  if (!leaid) return null;
+  const bySchool = resolveSchoolInDistrict(name, leaid, ctx);
+  if (bySchool) return bySchool;
+  const district = ctx.districtsByLeaid.get(leaid);
+  if (district && orgNameSimilarity(name, district.name) >= 0.85) {
+    return {
+      district: { leaid, name: district.name, willCreate: false },
+      school: null,
+    };
+  }
+  return null;
 }
 
 /**
@@ -509,8 +701,10 @@ function resolveDistrictByName(
  *  - a ≤7-digit value in the mixed column is the district leaid, creating a
  *    district stub if missing (the way the schools ETL does) — stubs are
  *    ONLY ever planned for a valid 7-digit numeric leaid;
- *  - rows with no usable id fall back to a name + state district match
- *    (viaName); ambiguous matches fail with `ambiguous_district`;
+ *  - rows with no usable id first try the email-domain inference (dominant
+ *    domain + corroborating name → viaName + `domain_inferred_district`),
+ *    then fall back to a name + state district match (viaName); ambiguous
+ *    matches fail with `ambiguous_district`;
  *  - an unresolvable school degrades gracefully (warning, falls through).
  */
 function resolveRecords(
@@ -576,15 +770,20 @@ function resolveRecords(
         // school-ish and disagrees with the id's school, trust the name: an
         // unambiguous school-by-name match overrides the id (viaName +
         // nces_name_conflict); otherwise keep the id but flag the row for a
-        // human (nces_name_mismatch).
+        // human (nces_name_mismatch). The email-domain-implied district is
+        // searched FIRST — its tiny pool disambiguates names that are
+        // ambiguous statewide (and works even when the row has no state).
         const rowOrgName = row.districtName?.trim();
         if (
           rowOrgName &&
           looksLikeSchoolName(rowOrgName) &&
           ncesNameConflicts(rowOrgName, s.schoolName)
         ) {
+          const impliedLeaid = domainImpliedLeaid(email, ctx);
           const fips = rowStateFips(row);
-          const byName = fips ? resolveSchoolByName(rowOrgName, fips, ctx) : null;
+          const byName =
+            (impliedLeaid ? resolveSchoolInDistrict(rowOrgName, impliedLeaid, ctx) : null) ??
+            (fips ? resolveSchoolByName(rowOrgName, fips, ctx) : null);
           if (byName) {
             viaNces = false;
             viaName = true;
@@ -607,6 +806,18 @@ function resolveRecords(
       district = d
         ? { leaid: nces.leaid, name: d.name, willCreate: false }
         : { leaid: nces.leaid, name: row.districtName?.trim() || null, willCreate: true };
+    }
+    if (!district) {
+      // Email-domain inference runs BEFORE the statewide name match: a
+      // dominant domain + corroborating name pins the district even when the
+      // name is ambiguous statewide (or the row has no usable state).
+      const byDomain = resolveByEmailDomain(row, email, ctx);
+      if (byDomain) {
+        viaName = true;
+        district = byDomain.district;
+        if (!school && byDomain.school) school = byDomain.school;
+        warnings.push("domain_inferred_district");
+      }
     }
     if (!district) {
       const byName = resolveDistrictByName(row, ctx);

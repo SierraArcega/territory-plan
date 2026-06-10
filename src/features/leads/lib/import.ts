@@ -394,6 +394,7 @@ export function importErrorCopy(code: string): string {
 export const IMPORT_WARNING_COPY: Record<string, string> = {
   nces_name_conflict: "School name disagreed with the NCES id — matched by name instead",
   nces_name_mismatch: "School name doesn't match this NCES id — verify the district",
+  domain_inferred_district: "District identified from the email domain + a name match",
   duplicate_email: "Multiple contacts share this email — using the most recent",
   school_not_found: "School NCES id not found — imported without a school link",
   invalid_nces_id: "NCES ID column value isn't a usable id",
