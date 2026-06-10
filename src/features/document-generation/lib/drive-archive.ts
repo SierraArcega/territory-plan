@@ -2,12 +2,7 @@ import "server-only";
 import { Readable } from "node:stream";
 import { google } from "googleapis";
 import { buildJwt } from "./render-apps-script";
-
-function requireEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
+import { requireEnv } from "@/features/shared/lib/env";
 
 /** Uploads an executed-contract PDF into the Executed Drive folder.
  *  Auth reuses the doc-gen service account (DWD grant already includes drive). */

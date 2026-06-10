@@ -1,6 +1,7 @@
 import "server-only";
 import { google } from "googleapis";
 import type { DocPayload, RenderResult } from "./payload-types";
+import { requireEnv } from "@/features/shared/lib/env";
 
 // Scopes are provisional — confirmed/adjusted by the Task B1 auth spike against the
 // domain-restricted web app deployment.
@@ -9,12 +10,6 @@ const SCOPES = [
   "openid",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
-
-function requireEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
 
 /** Builds the service-account JWT from whichever credential source is configured.
  *
