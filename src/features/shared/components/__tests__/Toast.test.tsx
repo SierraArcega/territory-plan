@@ -118,7 +118,7 @@ describe("ToastProvider / useToast", () => {
     expect(screen.queryByText("Click me away")).not.toBeInTheDocument();
   });
 
-  it("applies the alert tone palette", () => {
+  it("renders the plum card with the alert-tone icon tint", () => {
     render(
       <ToastProvider>
         <Trigger message="Something failed" tone="alert" />
@@ -128,8 +128,23 @@ describe("ToastProvider / useToast", () => {
       screen.getByText("fire").click();
     });
     const card = screen.getByText("Something failed").closest("button")!;
-    expect(card.className).toContain("bg-[#FEF1F0]");
-    expect(card.className).toContain("text-[#C25A52]");
+    expect(card.className).toContain("bg-[#403770]");
+    expect(card.className).toContain("text-white");
+    expect(card.querySelector(".text-\\[\\#F7C9C5\\]")).not.toBeNull();
+  });
+
+  it("tones differentiate via icon color on the same plum card", () => {
+    render(
+      <ToastProvider>
+        <Trigger message="All good" tone="success" />
+      </ToastProvider>,
+    );
+    act(() => {
+      screen.getByText("fire").click();
+    });
+    const card = screen.getByText("All good").closest("button")!;
+    expect(card.className).toContain("bg-[#403770]");
+    expect(card.querySelector(".text-\\[\\#9FE0B0\\]")).not.toBeNull();
   });
 
   it("throws when useToast is used outside the provider", () => {

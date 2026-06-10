@@ -7,10 +7,11 @@
 //   showToast("Lead accepted", { tone: "success" });
 //
 // Toasts stack bottom-center, auto-dismiss after ~3.2s, and can be dismissed
-// early by clicking. Tones: success (green check), info (steel info), alert
-// (coral-red card). Visuals follow the leads design handoff: white card,
-// radius 12, plum text, popover shadow; alert tone uses the alert palette
-// (fg #C25A52 / bg #FEF1F0 / border #F7C9C5).
+// early by clicking. Visuals follow the leads design handoff (LeadsView.jsx
+// toast): plum #403770 card, white text, radius 10, plum-tinted shadow. The
+// three tones differentiate via the icon on the plum card — success (mint
+// CheckCircle2 #9FE0B0), info (steel-tint Info #8BB5CB), alert (coral-tint
+// AlertTriangle #F7C9C5).
 
 import {
   createContext,
@@ -55,25 +56,10 @@ export function useToast(): ToastContextValue {
 
 const DEFAULT_DURATION_MS = 3200;
 
-const TONE_STYLES: Record<
-  ToastTone,
-  { card: string; icon: typeof Info; iconColor: string }
-> = {
-  success: {
-    card: "border-[#D4CFE2] bg-white text-[#403770]",
-    icon: CheckCircle2,
-    iconColor: "text-[#69B34A]",
-  },
-  info: {
-    card: "border-[#D4CFE2] bg-white text-[#403770]",
-    icon: Info,
-    iconColor: "text-[#6EA3BE]",
-  },
-  alert: {
-    card: "border-[#F7C9C5] bg-[#FEF1F0] text-[#C25A52]",
-    icon: AlertTriangle,
-    iconColor: "text-[#C25A52]",
-  },
+const TONE_STYLES: Record<ToastTone, { icon: typeof Info; iconColor: string }> = {
+  success: { icon: CheckCircle2, iconColor: "text-[#9FE0B0]" },
+  info: { icon: Info, iconColor: "text-[#8BB5CB]" },
+  alert: { icon: AlertTriangle, iconColor: "text-[#F7C9C5]" },
 };
 
 let nextToastId = 1;
@@ -140,7 +126,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   type="button"
                   onClick={() => dismissToast(toast.id)}
                   aria-label={`Dismiss: ${toast.message}`}
-                  className={`flex max-w-[min(92vw,480px)] cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-[11px] text-left text-[13px] font-medium shadow-[0_10px_28px_-8px_rgba(64,55,112,0.22)] ${tone.card}`}
+                  className="flex max-w-[min(92vw,480px)] cursor-pointer items-center gap-[9px] rounded-[10px] bg-[#403770] px-4 py-[11px] text-left text-[13px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(64,55,112,0.5)]"
                   style={{
                     animation:
                       "fm-toast-up 220ms cubic-bezier(0.16,1,0.3,1)",
