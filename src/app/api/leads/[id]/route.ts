@@ -71,6 +71,15 @@ export async function PATCH(
         if (!bdr) {
           return NextResponse.json({ error: "invalid_bdr" }, { status: 400 });
         }
+        // Routing an unassigned NEW lead starts the acceptance SLA — reset
+        // the clock to now (assignedAt otherwise keeps its creation default).
+        const current = await prisma.lead.findUnique({
+          where: { id },
+          select: { assignedBdrId: true, status: true },
+        });
+        if (current && current.assignedBdrId === null && current.status === "new") {
+          data.assignedAt = new Date();
+        }
       }
       data.assignedBdrId = body.assignedBdrId;
     }

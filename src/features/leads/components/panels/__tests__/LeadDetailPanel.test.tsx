@@ -106,6 +106,40 @@ describe("LeadDetailPanel action zone per status", () => {
     expect(screen.getByRole("button", { name: /Disqualify lead/ })).toBeInTheDocument();
   });
 
+  it("new + unassigned → Route-to-BDR zone; Assign fires the routing PATCH", () => {
+    renderPanel(makeLead({ assignedBdr: null, sequence: null }));
+    const zone = screen.getByTestId("action-zone");
+    expect(zone).toHaveTextContent("Route to a BDR");
+    expect(zone).toHaveTextContent(
+      "starts the 2-business-day acceptance SLA",
+    );
+    expect(screen.queryByText("Awaiting acceptance")).not.toBeInTheDocument();
+    // BDR select defaults to the current user (u1).
+    expect(screen.getByLabelText("Assign to BDR")).toHaveValue("u1");
+
+    fireEvent.click(screen.getByRole("button", { name: /Assign & start SLA/ }));
+    expect(mutateMock).toHaveBeenCalledTimes(1);
+    expect(mutateMock.mock.calls[0][0]).toEqual({
+      id: "lead-1",
+      assignedBdrId: "u1",
+      sequence: "Superintendent — Special Ed",
+    });
+  });
+
+  it("routing PATCH omits the sequence when it matches the saved one", () => {
+    renderPanel(
+      makeLead({ assignedBdr: null, sequence: "Superintendent — Special Ed" }),
+    );
+    fireEvent.change(screen.getByLabelText("Assign to BDR"), {
+      target: { value: "u2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Assign & start SLA/ }));
+    expect(mutateMock.mock.calls[0][0]).toEqual({
+      id: "lead-1",
+      assignedBdrId: "u2",
+    });
+  });
+
   it("working → Log activity & outcome + Schedule meeting / Link opportunity slots", () => {
     const handlers = renderPanel(makeLead({ status: "working" }));
     expect(screen.getByTestId("action-zone")).toHaveTextContent("Log engagement outcome");

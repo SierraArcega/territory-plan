@@ -30,6 +30,7 @@ import {
   School,
   Target,
   X,
+  Zap,
 } from "lucide-react";
 import { useToast } from "@/features/shared/components/Toast";
 import UserAvatar from "@/features/shared/components/UserAvatar";
@@ -40,10 +41,12 @@ import {
   LEAD_TYPES,
   LEAD_TYPE_ORDER,
   OPP_ADVANCED_MESSAGE,
+  SEQUENCES,
   fmtMoney,
   leadTypeConfig,
   oppStageFromString,
 } from "@/features/leads/lib/status-config";
+import { BTN_PRIMARY } from "../modals/modal-chrome";
 import { slaState, type SlaState } from "@/features/leads/lib/sla";
 import type { Lead, LeadOpportunity, RecordRef } from "@/features/leads/lib/types";
 import StatusBadge from "../bits/StatusBadge";
@@ -146,6 +149,22 @@ export default function LeadDetailPanel({
     );
   };
 
+  // Route an unassigned New lead to a BDR — the server restarts the SLA clock
+  // (assignedAt) on this first assignment; sequence rides along when changed.
+  const routeToBdr = (assignedBdrId: string, bdrName: string, sequence: string) => {
+    updateLead.mutate(
+      {
+        id: lead.id,
+        assignedBdrId,
+        ...(sequence !== lead.sequence ? { sequence } : {}),
+      },
+      {
+        onSuccess: () =>
+          showToast(`Assigned to ${bdrName} · SLA started`, { tone: "success" }),
+      },
+    );
+  };
+
   const canDisqualify = ["new", "working", "meeting_scheduled"].includes(lead.status);
   const editable = canDisqualify; // terminal statuses are read-only
 
@@ -201,6 +220,7 @@ export default function LeadDetailPanel({
             onAccept={accept}
             onSalesQualify={salesQualify}
             onAssignBdr={assignBdr}
+            onRoute={routeToBdr}
             onLogOutcome={onLogOutcome}
             onLinkOpportunity={onLinkOpportunity}
             onScheduleMeeting={onScheduleMeeting}
@@ -584,6 +604,93 @@ function ZoneCard({ children, tone }: { children: ReactNode; tone?: "alert" }) {
   );
 }
 
+/**
+ * Routing branch for an unassigned New lead (prototype LeadDetailPanel.jsx):
+ * Marketing routes to a BDR + sequence; assignment starts the acceptance SLA.
+ */
+function RouteZone({
+  lead,
+  currentUserId,
+  onRoute,
+}: {
+  lead: Lead;
+  currentUserId: string | null;
+  onRoute: (id: string, name: string, sequence: string) => void;
+}) {
+  const { data: users, isLoading } = useUsers();
+  const [bdrId, setBdrId] = useState(currentUserId ?? "");
+  const [sequence, setSequence] = useState(lead.sequence ?? SEQUENCES[0]);
+  const labelClass = "mb-[5px] block whitespace-nowrap text-[11px] font-semibold text-[#6E6390]";
+  return (
+    <ZoneCard>
+      <div className="mb-2.5 flex items-center gap-2">
+        <Zap size={16} className="shrink-0 text-[#9A7B3F]" aria-hidden />
+        <span className="whitespace-nowrap text-[13px] font-bold text-[#403770]">
+          Route to a BDR
+        </span>
+      </div>
+      <div className="mb-3 text-xs text-[#8A80A8]">
+        New {leadTypeConfig(lead.leadType).label} lead, unassigned. Routing to a
+        BDR starts the 2-business-day acceptance SLA.
+      </div>
+      <label className={labelClass} htmlFor="route-bdr">
+        Assign to BDR
+      </label>
+      {isLoading || !users ? (
+        <select id="route-bdr" disabled className={`${SELECT_CLASS} text-[#A69DC0]`}>
+          <option>Loading…</option>
+        </select>
+      ) : (
+        <select
+          id="route-bdr"
+          value={bdrId}
+          onChange={(e) => setBdrId(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.fullName ?? u.email}
+              {u.id === currentUserId ? " (You)" : ""}
+            </option>
+          ))}
+        </select>
+      )}
+      <label className={`${labelClass} mt-3`} htmlFor="route-sequence">
+        Outreach sequence
+      </label>
+      <select
+        id="route-sequence"
+        value={sequence}
+        onChange={(e) => setSequence(e.target.value)}
+        className={SELECT_CLASS}
+      >
+        {SEQUENCES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+        {lead.sequence && !(SEQUENCES as readonly string[]).includes(lead.sequence) && (
+          <option value={lead.sequence}>{lead.sequence}</option>
+        )}
+      </select>
+      <div className="mt-3.5">
+        <button
+          type="button"
+          disabled={!bdrId}
+          onClick={() => {
+            const u = users?.find((x) => x.id === bdrId);
+            if (u) onRoute(u.id, u.fullName ?? u.email, sequence);
+          }}
+          className={BTN_PRIMARY}
+        >
+          <ArrowRight size={15} aria-hidden />
+          Assign &amp; start SLA
+        </button>
+      </div>
+    </ZoneCard>
+  );
+}
+
 interface ActionZoneProps {
   lead: Lead;
   sla: SlaState | null;
@@ -594,6 +701,7 @@ interface ActionZoneProps {
   onAccept: () => void;
   onSalesQualify: () => void;
   onAssignBdr: (id: string, name: string) => void;
+  onRoute: (id: string, name: string, sequence: string) => void;
   onLogOutcome: () => void;
   onLinkOpportunity: () => void;
   onScheduleMeeting: () => void;
@@ -609,10 +717,16 @@ function ActionZone({
   onAccept,
   onSalesQualify,
   onAssignBdr,
+  onRoute,
   onLogOutcome,
   onLinkOpportunity,
   onScheduleMeeting,
 }: ActionZoneProps) {
+  // NEW + unassigned — Marketing routes to a BDR (starts the SLA).
+  if (lead.status === "new" && !lead.assignedBdr) {
+    return <RouteZone lead={lead} currentUserId={currentUserId} onRoute={onRoute} />;
+  }
+
   // NEW — SLA banner + Accept (+ reassign control).
   if (lead.status === "new") {
     return (

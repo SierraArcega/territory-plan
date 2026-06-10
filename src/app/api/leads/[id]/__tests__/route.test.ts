@@ -171,6 +171,49 @@ describe("PATCH /api/leads/[id]", () => {
     expect(res.status).toBe(400);
   });
 
+  it("starts the SLA clock when routing an unassigned new lead to a BDR", async () => {
+    mockPrisma.lead.findUnique.mockResolvedValue({
+      id: "lead-1",
+      assignedBdrId: null,
+      status: "new",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue({ id: "user-2" } as never);
+    const res = await PATCH(patchRequest({ assignedBdrId: "user-2" }), routeParams);
+    expect(res.status).toBe(200);
+    const data = mockPrisma.lead.update.mock.calls[0][0].data as {
+      assignedBdrId: string;
+      assignedAt?: Date;
+    };
+    expect(data.assignedBdrId).toBe("user-2");
+    expect(data.assignedAt).toBeInstanceOf(Date);
+  });
+
+  it("does not reset assignedAt when the lead already has a BDR", async () => {
+    mockPrisma.lead.findUnique.mockResolvedValue({
+      id: "lead-1",
+      assignedBdrId: "user-1",
+      status: "new",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue({ id: "user-2" } as never);
+    const res = await PATCH(patchRequest({ assignedBdrId: "user-2" }), routeParams);
+    expect(res.status).toBe(200);
+    const data = mockPrisma.lead.update.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ assignedBdrId: "user-2" });
+  });
+
+  it("does not reset assignedAt when an unassigned lead is past New", async () => {
+    mockPrisma.lead.findUnique.mockResolvedValue({
+      id: "lead-1",
+      assignedBdrId: null,
+      status: "working",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue({ id: "user-2" } as never);
+    const res = await PATCH(patchRequest({ assignedBdrId: "user-2" }), routeParams);
+    expect(res.status).toBe(200);
+    const data = mockPrisma.lead.update.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ assignedBdrId: "user-2" });
+  });
+
   it("returns 400 when there is nothing to update", async () => {
     const res = await PATCH(patchRequest({}), routeParams);
     expect(res.status).toBe(400);
