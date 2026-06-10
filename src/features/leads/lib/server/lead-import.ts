@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import type { DbClient } from "@/features/shared/lib/service-error";
 import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
-import { matchByName } from "@/features/shared/lib/district-name-match";
+import { matchByName, orgNameSimilarity } from "@/features/shared/lib/district-name-match";
 import { abbrevToFips, normalizeState } from "@/lib/states";
 import {
   ACTIVE_LEAD_STATUSES,
@@ -101,6 +101,29 @@ const DISTRICT_NAME_HINT =
   /\b(district|isd|usd|cusd|schools|unified|department|board|county office)\b/i;
 export function looksLikeSchoolName(name: string): boolean {
   return SCHOOL_NAME_HINT.test(name) && !DISTRICT_NAME_HINT.test(name);
+}
+
+/**
+ * NCES-id ↔ row-name cross-check threshold. Marketing exports carry a wrong
+ * "NCES ID" for ~30% of school rows while the school NAMES are reliable, so
+ * an id-resolved row whose school-ish name scores below this bar against the
+ * id's school is treated as a conflict.
+ *
+ * 0.80, deliberately under `matchByName`'s 0.85 fuzzy bar: that bar guards
+ * auto-PICKING one of many candidates; this one only validates a single known
+ * pair, where the failure mode is a warning, not a silent wrong write. School
+ * names are short and noisy, and Dice punishes word drops hard — measured on
+ * normalized pairs: same-school variants land just above 0.80 ("Truman High
+ * School" vs "Harry S Truman High School" 0.81, "Memorial High School" vs
+ * "Memorial Senior High School" 0.84) while different schools sharing a
+ * generic suffix land below ("Riverside High School" vs "Lakeside High
+ * School" 0.77, "Jefferson Elementary" vs "Jackson Elementary" 0.72).
+ */
+export const NCES_NAME_AGREE_THRESHOLD = 0.8;
+
+/** True when a row's school-ish name disagrees with the NCES-resolved school. */
+function ncesNameConflicts(rowName: string, ncesSchoolName: string): boolean {
+  return orgNameSimilarity(rowName, ncesSchoolName) < NCES_NAME_AGREE_THRESHOLD;
 }
 
 /** Row state ("Texas", "tx") → 2-digit FIPS, or null when unusable. */
@@ -318,6 +341,9 @@ async function buildContext(
   // Name-fallback prefetch: rows with no usable NCES resolution but a
   // district-name + state get that state's districts loaded for in-memory
   // matching — and its schools too when the name looks like a school.
+  // Rows that DO resolve via a school NCES id but carry a school-ish name
+  // that disagrees with that school also get the state loaded, so the
+  // resolver's NCES↔name cross-check can attempt the name override.
   const districtFips = new Set<string>();
   const schoolFips = new Set<string>();
   rows.forEach((row, i) => {
@@ -326,8 +352,19 @@ async function buildContext(
     const email = normalizeEmail(row.email);
     if (email && contactsByEmail.has(email)) return; // existing contacts keep their district
     const n = ncesByRow[i];
+    const ncesSchool = n.schoolNcessch ? schoolsByNcessch.get(n.schoolNcessch) : undefined;
+    if (ncesSchool) {
+      // Resolves via the school id — prefetch only when the cross-check will
+      // actually fire (school-ish name that disagrees with the id's school).
+      if (!looksLikeSchoolName(name)) return;
+      if (!ncesNameConflicts(name, ncesSchool.schoolName)) return;
+      const fips = rowStateFips(row);
+      if (!fips) return;
+      districtFips.add(fips); // override path names the school's district
+      schoolFips.add(fips);
+      return;
+    }
     if (n.leaid) return; // resolves (or stubs) by district id
-    if (n.schoolNcessch && schoolsByNcessch.has(n.schoolNcessch)) return; // resolves via school
     const fips = rowStateFips(row);
     if (!fips) return;
     districtFips.add(fips);
@@ -404,6 +441,34 @@ interface RecordResolution {
 }
 
 /**
+ * Unambiguous school-by-name + state match (exact/normalized only — fuzzy is
+ * off because school names are only trustworthy on those tiers) → the school
+ * plus its district via the school's leaid FK. Shared by the no-id name
+ * fallback and the NCES↔name cross-check. Null = no/ambiguous match.
+ */
+function resolveSchoolByName(
+  name: string,
+  fips: string,
+  ctx: ResolutionContext,
+): { district: ResolvedDistrict; school: ResolvedSchool } | null {
+  const schools = ctx.schoolsByStateFips.get(fips) ?? [];
+  const sm = matchByName(
+    name,
+    schools.map((s) => ({ ...s, name: s.schoolName })),
+    { fuzzy: false },
+  );
+  if (sm.kind !== "match") return null;
+  // The school's FK guarantees its district exists — never a stub.
+  const district =
+    ctx.districtsByLeaid.get(sm.candidate.leaid) ??
+    (ctx.districtsByStateFips.get(fips) ?? []).find((d) => d.leaid === sm.candidate.leaid);
+  return {
+    district: { leaid: sm.candidate.leaid, name: district?.name ?? null, willCreate: false },
+    school: { ncessch: sm.candidate.ncessch, name: sm.candidate.schoolName },
+  };
+}
+
+/**
  * Name + state fallback for rows with no usable NCES resolution. District
  * names match against the state's districts (tiered, incl. fuzzy); names
  * that look like a school also try an exact/normalized school match → the
@@ -430,21 +495,7 @@ function resolveDistrictByName(
   }
 
   if (!looksLikeSchoolName(name)) return null;
-  const schools = ctx.schoolsByStateFips.get(fips) ?? [];
-  const sm = matchByName(
-    name,
-    schools.map((s) => ({ ...s, name: s.schoolName })),
-    { fuzzy: false },
-  );
-  if (sm.kind !== "match") return null;
-  // The school's FK guarantees its district exists — never a stub.
-  const district =
-    ctx.districtsByLeaid.get(sm.candidate.leaid) ??
-    districts.find((d) => d.leaid === sm.candidate.leaid);
-  return {
-    district: { leaid: sm.candidate.leaid, name: district?.name ?? null, willCreate: false },
-    school: { ncessch: sm.candidate.ncessch, name: sm.candidate.schoolName },
-  };
+  return resolveSchoolByName(name, fips, ctx);
 }
 
 /**
@@ -519,6 +570,31 @@ function resolveRecords(
         school = { ncessch: s.ncessch, name: s.schoolName };
         const d = ctx.districtsByLeaid.get(s.leaid);
         district = { leaid: s.leaid, name: d?.name ?? null, willCreate: !d };
+
+        // Cross-check: marketing "NCES ID" columns are wrong ~30% of the
+        // time while the school NAMES are reliable. When the row's name is
+        // school-ish and disagrees with the id's school, trust the name: an
+        // unambiguous school-by-name match overrides the id (viaName +
+        // nces_name_conflict); otherwise keep the id but flag the row for a
+        // human (nces_name_mismatch).
+        const rowOrgName = row.districtName?.trim();
+        if (
+          rowOrgName &&
+          looksLikeSchoolName(rowOrgName) &&
+          ncesNameConflicts(rowOrgName, s.schoolName)
+        ) {
+          const fips = rowStateFips(row);
+          const byName = fips ? resolveSchoolByName(rowOrgName, fips, ctx) : null;
+          if (byName) {
+            viaNces = false;
+            viaName = true;
+            school = byName.school;
+            district = byName.district;
+            warnings.push("nces_name_conflict");
+          } else {
+            warnings.push("nces_name_mismatch");
+          }
+        }
       } else {
         // Degrade gracefully — keep the row, drop the school link.
         warnings.push("school_not_found");

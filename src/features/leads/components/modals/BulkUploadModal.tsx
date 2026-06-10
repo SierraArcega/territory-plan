@@ -19,6 +19,7 @@ import {
   Link2,
   MessageSquare,
   School,
+  TriangleAlert,
   Upload,
   UserCheck,
   Users,
@@ -40,6 +41,7 @@ import {
   activityTemplateCsv,
   buildHeaderMapping,
   importErrorCopy,
+  importWarningCopy,
   leadTemplateCsv,
   toActivityImportRows,
   toLeadImportRows,
@@ -88,6 +90,23 @@ function ResolutionViaTags({ viaNces, viaName }: { viaNces: boolean; viaName: bo
     <>
       {viaNces && <ViaTag label="via NCES" title="District resolved from the school's NCES id" />}
       {viaName && <ViaTag label="via name" title="District matched by name and state" />}
+    </>
+  );
+}
+
+/** Golden non-fatal warning chips (nces_name_conflict, duplicate_email, …). */
+function WarningChips({ warnings }: { warnings: string[] }) {
+  return (
+    <>
+      {warnings.map((code) => (
+        <span
+          key={code}
+          className="inline-flex items-center gap-[3px] whitespace-nowrap rounded-full bg-[#fffaf1] px-1.5 py-px text-[9px] font-bold text-[#8A6A00]"
+        >
+          <TriangleAlert size={9} aria-hidden />
+          {importWarningCopy(code)}
+        </span>
+      ))}
     </>
   );
 }
@@ -586,6 +605,7 @@ function ActivityResolutionList({
                 )}
               </span>
               <ResolutionViaTags viaNces={res.viaNces} viaName={res.viaName} />
+              <WarningChips warnings={res.warnings} />
               <span
                 className="ml-auto whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold"
                 style={{ background: chip.bg, color: chip.fg }}
@@ -666,12 +686,15 @@ function LeadPreviewList({
                 <td className="whitespace-nowrap px-2.5 py-[7px] text-right">
                   <ScorePill score={Number.isFinite(scoreRaw) ? scoreRaw : 0} />
                 </td>
-                <td className="whitespace-nowrap px-2.5 py-[7px] text-right">
-                  {!res.ok && (
-                    <span className="rounded-full bg-[#FEF1F0] px-2 py-0.5 text-[10px] font-bold text-[#C25A52]">
-                      {importErrorCopy(res.error ?? "failed")}
-                    </span>
-                  )}
+                <td className="px-2.5 py-[7px] text-right">
+                  <span className="inline-flex flex-wrap items-center justify-end gap-1">
+                    {!res.ok && (
+                      <span className="whitespace-nowrap rounded-full bg-[#FEF1F0] px-2 py-0.5 text-[10px] font-bold text-[#C25A52]">
+                        {importErrorCopy(res.error ?? "failed")}
+                      </span>
+                    )}
+                    {res.ok && <WarningChips warnings={res.warnings} />}
+                  </span>
                 </td>
               </tr>
             );

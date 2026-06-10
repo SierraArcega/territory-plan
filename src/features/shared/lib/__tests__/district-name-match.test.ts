@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchByName, normalizeOrgName } from "../district-name-match";
+import { matchByName, normalizeOrgName, orgNameSimilarity } from "../district-name-match";
 
 const TX = [
   { leaid: "4849530", name: "United Independent School District" },
@@ -11,6 +11,29 @@ describe("normalizeOrgName", () => {
   it("strips K-12 suffix stop-words and punctuation", () => {
     expect(normalizeOrgName("Alamo Heights Independent School District")).toBe("alamo heights");
     expect(normalizeOrgName("Florence School District One")).toBe("florence");
+  });
+});
+
+describe("orgNameSimilarity", () => {
+  it("scores exact and stop-word-normalized equality as 1", () => {
+    expect(orgNameSimilarity("Donna ISD", "donna isd")).toBe(1);
+    // "school" is a stop word — the marketing-export shape vs the NCES shape.
+    expect(orgNameSimilarity("A P Solis Middle School", "A P SOLIS MIDDLE")).toBe(1);
+  });
+
+  it("scores unrelated school names low", () => {
+    expect(orgNameSimilarity("A P Solis Middle School", "AD WHEAT MIDDLE")).toBeLessThan(0.5);
+  });
+
+  it("scores same-school name variants high without reaching 1", () => {
+    const score = orgNameSimilarity("Truman High School", "Harry S Truman High School");
+    expect(score).toBeGreaterThan(0.8);
+    expect(score).toBeLessThan(1);
+  });
+
+  it("returns 0 for blank inputs", () => {
+    expect(orgNameSimilarity("", "Anything")).toBe(0);
+    expect(orgNameSimilarity("  ", "")).toBe(0);
   });
 });
 

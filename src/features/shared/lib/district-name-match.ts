@@ -51,6 +51,27 @@ function diceCoefficient(a: string, b: string): number {
   return (2 * intersection) / (totalA + totalB);
 }
 
+/**
+ * Pairwise org-name similarity for cross-VALIDATION (not candidate selection):
+ * 1.0 on exact or stop-word-normalized equality, else the best Dice-bigram
+ * score across the raw-lowercase and normalized forms. Normalizing first
+ * matters for short K-12 names — "A P Solis Middle School" vs
+ * "A P SOLIS MIDDLE" is identical once "school" is stripped, but raw Dice
+ * scores it ~0.81. Callers pick their own threshold: `matchByName`'s 0.85 bar
+ * guards auto-picking one of many candidates; validating a single known pair
+ * tolerates a lower bar.
+ */
+export function orgNameSimilarity(a: string, b: string): number {
+  const la = a.toLowerCase().trim();
+  const lb = b.toLowerCase().trim();
+  if (!la || !lb) return 0;
+  if (la === lb) return 1;
+  const na = normalizeOrgName(a);
+  const nb = normalizeOrgName(b);
+  if (na && na === nb) return 1;
+  return Math.max(diceCoefficient(la, lb), na && nb ? diceCoefficient(na, nb) : 0);
+}
+
 export type NameMatchResult<T> =
   | { kind: "match"; candidate: T }
   | { kind: "ambiguous" }

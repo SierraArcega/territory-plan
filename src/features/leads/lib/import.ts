@@ -389,3 +389,19 @@ export const IMPORT_ERROR_COPY: Record<string, string> = {
 export function importErrorCopy(code: string): string {
   return IMPORT_ERROR_COPY[code] ?? code;
 }
+
+/** Human copy for resolver warning codes (non-fatal — the row still imports). */
+export const IMPORT_WARNING_COPY: Record<string, string> = {
+  nces_name_conflict: "School name disagreed with the NCES id — matched by name instead",
+  nces_name_mismatch: "School name doesn't match this NCES id — verify the district",
+  duplicate_email: "Multiple contacts share this email — using the most recent",
+  school_not_found: "School NCES id not found — imported without a school link",
+  invalid_nces_id: "NCES ID column value isn't a usable id",
+  invalid_school_nces: "School NCES value isn't a 12-digit id — ignored",
+  invalid_lead_type: "Unknown lead type — left blank",
+  invalid_bdr: "Unknown BDR — assigned to you instead",
+};
+
+export function importWarningCopy(code: string): string {
+  return IMPORT_WARNING_COPY[code] ?? code;
+}
