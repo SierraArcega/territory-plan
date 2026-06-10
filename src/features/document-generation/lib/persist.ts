@@ -45,7 +45,10 @@ export interface BocesRenderInput {
 
 /** Records a successful BOCES-quote render. Render is the quote's terminal action
  *  (no eSign), so one row per (quote number, owner) — re-renders update in place.
- *  Blank quote number → no row (validation requires it, but never trust input). */
+ *  Blank quote number → no row (validation requires it, but never trust input).
+ *  A concurrent re-render of the same quote can make the create branch throw a
+ *  unique-constraint error (partial unique index); the render route swallows it —
+ *  the first writer's row is the correct record. */
 export async function upsertBocesRender(input: BocesRenderInput): Promise<void> {
   const promoted = promotedFields(input.payload);
   if (!promoted.quoteNumber) return;
@@ -60,6 +63,8 @@ export async function upsertBocesRender(input: BocesRenderInput): Promise<void> 
     ...promoted,
     ...(input.districtLeaId ? { districtLeaId: input.districtLeaId } : {}),
   };
+  // status intentionally untouched on update: BOCES quotes are render-terminal
+  // ("rendered" is their only lifecycle value — no eSign flow).
   if (existing) {
     await prisma.generatedDocument.update({ where: { id: existing.id }, data: fields });
   } else {

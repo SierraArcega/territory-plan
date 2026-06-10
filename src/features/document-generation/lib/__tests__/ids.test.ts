@@ -17,4 +17,8 @@ describe("docIdFromUrl", () => {
   it("returns null for an empty string", () => {
     expect(docIdFromUrl("")).toBeNull();
   });
+
+  it("stops at a query string when there is no trailing slash", () => {
+    expect(docIdFromUrl("https://docs.google.com/document/d/ABC123?usp=sharing")).toBe("ABC123");
+  });
 });

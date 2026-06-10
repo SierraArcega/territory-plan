@@ -5,5 +5,5 @@ export function newRowId(prefix: string): string {
 
 /** Extracts the Drive file id from a Google Docs URL ("/d/<id>/"). */
 export function docIdFromUrl(url: string): string | null {
-  return /\/d\/([^/]+)/.exec(url)?.[1] ?? null;
+  return /\/d\/([^/?#]+)/.exec(url)?.[1] ?? null;
 }

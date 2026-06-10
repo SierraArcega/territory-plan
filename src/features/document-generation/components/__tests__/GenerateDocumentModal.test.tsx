@@ -65,7 +65,7 @@ describe("GenerateDocumentModal", () => {
     await act(async () => { btn.click(); });
     expect(renderClient).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ tags: false }),
+      expect.objectContaining({ tags: false, districtLeaId: "x" }),
     );
   });
 
