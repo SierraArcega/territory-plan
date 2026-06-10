@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import type { DbClient } from "@/features/shared/lib/service-error";
 import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
+import { matchByName } from "@/features/shared/lib/district-name-match";
+import { abbrevToFips, normalizeState } from "@/lib/states";
 import {
   ACTIVE_LEAD_STATUSES,
   LEAD_TYPES,
@@ -34,6 +36,78 @@ export function normalizeNcessch(value: unknown): string | null {
   return /^\d{1,12}$/.test(raw) ? raw.padStart(12, "0") : raw;
 }
 
+export type NcesIdClass =
+  | { kind: "leaid"; value: string }
+  | { kind: "ncessch"; value: string }
+  | { kind: "invalid" };
+
+/**
+ * Marketing exports ship ONE mixed "NCES ID" column: 7-digit district LEAIDs,
+ * 12-digit school ids, blanks, and junk. Classify by digit count — ≤7 digits
+ * is a district leaid (zfill 7), 8–12 digits is a school ncessch (zfill 12),
+ * anything else is unusable and must NEVER mint a district stub.
+ */
+export function classifyNcesId(value: unknown): NcesIdClass | null {
+  if (value == null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (!/^\d+$/.test(raw)) return { kind: "invalid" };
+  if (raw.length <= 7) return { kind: "leaid", value: raw.padStart(7, "0") };
+  if (raw.length <= 12) return { kind: "ncessch", value: raw.padStart(12, "0") };
+  return { kind: "invalid" };
+}
+
+/** School ids must be 12-digit numeric after zfill — anything else is junk. */
+function strictNcessch(value: unknown): string | null {
+  const norm = normalizeNcessch(value);
+  return norm && /^\d{12}$/.test(norm) ? norm : null;
+}
+
+/** The row's usable NCES inputs after mixed-column disambiguation. */
+interface NcesInputs {
+  /** Valid 12-digit school id (explicit column wins over the mixed column). */
+  schoolNcessch: string | null;
+  /** Valid 7-digit district leaid from the mixed column. */
+  leaid: string | null;
+  /** The leaid column held something non-numeric / over 12 digits. */
+  invalidLeaidInput: boolean;
+  /** The explicit school column held something that isn't a 12-digit id. */
+  invalidSchoolInput: boolean;
+}
+
+function ncesInputs(row: LeadImportRow | ActivityImportRow): NcesInputs {
+  const rawSchool = row.schoolNcessch == null ? "" : String(row.schoolNcessch).trim();
+  const explicitSchool = rawSchool ? strictNcessch(rawSchool) : null;
+  const cls = classifyNcesId(row.leaid);
+  // A school-shaped (8–12 digit) value in the mixed column counts as the
+  // row's school only when no usable explicit school id was provided.
+  const fromLeaidColumn = !explicitSchool && cls?.kind === "ncessch" ? cls.value : null;
+  return {
+    schoolNcessch: explicitSchool ?? fromLeaidColumn,
+    leaid: cls?.kind === "leaid" ? cls.value : null,
+    invalidLeaidInput: cls?.kind === "invalid",
+    invalidSchoolInput: !!rawSchool && !explicitSchool,
+  };
+}
+
+/**
+ * Marketing "Company Name" cells are often a SCHOOL ("A P Solis Middle
+ * School") rather than the district. Heuristic gate for the school-table
+ * name fallback — school-ish word present, district-ish word absent.
+ */
+const SCHOOL_NAME_HINT =
+  /\b(school|elementary|middle|high|academy|campus|center|centre|preparatory|prep|kindergarten)\b/i;
+const DISTRICT_NAME_HINT =
+  /\b(district|isd|usd|cusd|schools|unified|department|board|county office)\b/i;
+export function looksLikeSchoolName(name: string): boolean {
+  return SCHOOL_NAME_HINT.test(name) && !DISTRICT_NAME_HINT.test(name);
+}
+
+/** Row state ("Texas", "tx") → 2-digit FIPS, or null when unusable. */
+function rowStateFips(row: LeadImportRow | ActivityImportRow): string | null {
+  return row.state ? abbrevToFips(normalizeState(row.state)) : null;
+}
+
 export function normalizeEmail(value: unknown): string | null {
   if (value == null) return null;
   const raw = String(value).trim().toLowerCase();
@@ -61,6 +135,8 @@ export interface LeadImportRow {
   phone?: string;
   leaid?: string;
   districtName?: string;
+  /** Row's US state ("Texas" or "TX") — enables the name-match fallback. */
+  state?: string;
   schoolNcessch?: string;
   leadType?: string;
   sequence?: string;
@@ -82,6 +158,8 @@ export interface ActivityImportRow {
   points?: number;
   leaid?: string;
   districtName?: string;
+  /** Row's US state ("Texas" or "TX") — enables the name-match fallback. */
+  state?: string;
   schoolNcessch?: string;
 }
 
@@ -132,6 +210,8 @@ interface RowResolutionBase {
   district: ResolvedDistrict | null;
   /** District resolved from the school's NCES id. */
   viaNces: boolean;
+  /** District resolved by name + state match. */
+  viaName: boolean;
 }
 
 export interface ActivityRowResolution extends RowResolutionBase {
@@ -162,6 +242,9 @@ interface ResolutionContext {
   contactsByEmail: Map<string, ContactLite[]>;
   schoolsByNcessch: Map<string, { ncessch: string; schoolName: string; leaid: string }>;
   districtsByLeaid: Map<string, { leaid: string; name: string }>;
+  /** Name-fallback candidates, keyed by state FIPS (only prefetched states). */
+  districtsByStateFips: Map<string, Array<{ leaid: string; name: string }>>;
+  schoolsByStateFips: Map<string, Array<{ ncessch: string; schoolName: string; leaid: string }>>;
   activeLeadByContactId: Map<number, string>;
   validUserIds: Set<string>;
 }
@@ -173,10 +256,10 @@ async function buildContext(
   const emails = [
     ...new Set(rows.map((r) => normalizeEmail(r.email)).filter((e): e is string => !!e)),
   ];
+  // Disambiguated NCES inputs per row (the leaid column may carry school ids).
+  const ncesByRow = rows.map(ncesInputs);
   const ncesschs = [
-    ...new Set(
-      rows.map((r) => normalizeNcessch(r.schoolNcessch)).filter((n): n is string => !!n),
-    ),
+    ...new Set(ncesByRow.map((n) => n.schoolNcessch).filter((n): n is string => !!n)),
   ];
   const bdrIds = [
     ...new Set(
@@ -218,9 +301,8 @@ async function buildContext(
   const schoolsByNcessch = new Map(schools.map((s) => [s.ncessch, s]));
 
   const leaids = new Set<string>();
-  for (const r of rows) {
-    const leaid = normalizeLeaid(r.leaid);
-    if (leaid) leaids.add(leaid);
+  for (const n of ncesByRow) {
+    if (n.leaid) leaids.add(n.leaid);
   }
   for (const s of schools) leaids.add(s.leaid);
   for (const c of contacts) leaids.add(c.leaid);
@@ -232,6 +314,54 @@ async function buildContext(
       })
     : [];
   const districtsByLeaid = new Map(districts.map((d) => [d.leaid, d]));
+
+  // Name-fallback prefetch: rows with no usable NCES resolution but a
+  // district-name + state get that state's districts loaded for in-memory
+  // matching — and its schools too when the name looks like a school.
+  const districtFips = new Set<string>();
+  const schoolFips = new Set<string>();
+  rows.forEach((row, i) => {
+    const name = row.districtName?.trim();
+    if (!name) return;
+    const email = normalizeEmail(row.email);
+    if (email && contactsByEmail.has(email)) return; // existing contacts keep their district
+    const n = ncesByRow[i];
+    if (n.leaid) return; // resolves (or stubs) by district id
+    if (n.schoolNcessch && schoolsByNcessch.has(n.schoolNcessch)) return; // resolves via school
+    const fips = rowStateFips(row);
+    if (!fips) return;
+    districtFips.add(fips);
+    if (looksLikeSchoolName(name)) schoolFips.add(fips);
+  });
+
+  const districtsByStateFips = new Map<string, Array<{ leaid: string; name: string }>>();
+  if (districtFips.size > 0) {
+    const stateDistricts = await db.district.findMany({
+      where: { stateFips: { in: [...districtFips] } },
+      select: { leaid: true, name: true, stateFips: true },
+    });
+    for (const d of stateDistricts) {
+      const list = districtsByStateFips.get(d.stateFips) ?? [];
+      list.push({ leaid: d.leaid, name: d.name });
+      districtsByStateFips.set(d.stateFips, list);
+    }
+  }
+  const schoolsByStateFips = new Map<
+    string,
+    Array<{ ncessch: string; schoolName: string; leaid: string }>
+  >();
+  if (schoolFips.size > 0) {
+    const stateSchools = await db.school.findMany({
+      where: { stateFips: { in: [...schoolFips] } },
+      select: { ncessch: true, schoolName: true, leaid: true, stateFips: true },
+    });
+    for (const s of stateSchools) {
+      if (!s.stateFips) continue;
+      const list = schoolsByStateFips.get(s.stateFips) ?? [];
+      list.push({ ncessch: s.ncessch, schoolName: s.schoolName, leaid: s.leaid });
+      schoolsByStateFips.set(s.stateFips, list);
+    }
+  }
 
   const contactIds = contacts.map((c) => c.id);
   const activeLeads = contactIds.length
@@ -253,6 +383,8 @@ async function buildContext(
     contactsByEmail,
     schoolsByNcessch,
     districtsByLeaid,
+    districtsByStateFips,
+    schoolsByStateFips,
     activeLeadByContactId,
     validUserIds: new Set(users.map((u) => u.id)),
   };
@@ -268,17 +400,66 @@ interface RecordResolution {
   school: ResolvedSchool | null;
   district: ResolvedDistrict | null;
   viaNces: boolean;
+  viaName: boolean;
 }
 
 /**
- * Prototype `resolveRow` semantics, ported:
+ * Name + state fallback for rows with no usable NCES resolution. District
+ * names match against the state's districts (tiered, incl. fuzzy); names
+ * that look like a school also try an exact/normalized school match → the
+ * school's district. Multiple district hits = "ambiguous" (never guess);
+ * multiple school hits = skipped.
+ */
+function resolveDistrictByName(
+  row: LeadImportRow | ActivityImportRow,
+  ctx: ResolutionContext,
+): { district: ResolvedDistrict; school: ResolvedSchool | null } | "ambiguous" | null {
+  const name = row.districtName?.trim();
+  if (!name) return null;
+  const fips = rowStateFips(row);
+  if (!fips) return null;
+
+  const districts = ctx.districtsByStateFips.get(fips) ?? [];
+  const dm = matchByName(name, districts);
+  if (dm.kind === "ambiguous") return "ambiguous";
+  if (dm.kind === "match") {
+    return {
+      district: { leaid: dm.candidate.leaid, name: dm.candidate.name, willCreate: false },
+      school: null,
+    };
+  }
+
+  if (!looksLikeSchoolName(name)) return null;
+  const schools = ctx.schoolsByStateFips.get(fips) ?? [];
+  const sm = matchByName(
+    name,
+    schools.map((s) => ({ ...s, name: s.schoolName })),
+    { fuzzy: false },
+  );
+  if (sm.kind !== "match") return null;
+  // The school's FK guarantees its district exists — never a stub.
+  const district =
+    ctx.districtsByLeaid.get(sm.candidate.leaid) ??
+    districts.find((d) => d.leaid === sm.candidate.leaid);
+  return {
+    district: { leaid: sm.candidate.leaid, name: district?.name ?? null, willCreate: false },
+    school: { ncessch: sm.candidate.ncessch, name: sm.candidate.schoolName },
+  };
+}
+
+/**
+ * Prototype `resolveRow` semantics, ported + hardened for marketing exports:
  *  - email matches the contact (no unique constraint → most recent wins,
  *    with a duplicate warning);
  *  - an existing contact keeps its school + district;
- *  - a new contact with a school NCES resolves the DISTRICT from the school's
- *    leaid (viaNces) — schools and districts are separate records;
- *  - otherwise the row's leaid is used, creating a district stub if missing
- *    (the way the schools ETL does);
+ *  - a new contact with a school NCES (explicit column, or an 8–12 digit
+ *    value in the mixed "NCES ID" column) resolves the DISTRICT from the
+ *    school's leaid (viaNces) — schools and districts are separate records;
+ *  - a ≤7-digit value in the mixed column is the district leaid, creating a
+ *    district stub if missing (the way the schools ETL does) — stubs are
+ *    ONLY ever planned for a valid 7-digit numeric leaid;
+ *  - rows with no usable id fall back to a name + state district match
+ *    (viaName); ambiguous matches fail with `ambiguous_district`;
  *  - an unresolvable school degrades gracefully (warning, falls through).
  */
 function resolveRecords(
@@ -286,18 +467,22 @@ function resolveRecords(
   ctx: ResolutionContext,
 ): RecordResolution {
   const warnings: string[] = [];
+  const fail = (
+    error: string,
+    school: ResolvedSchool | null = null,
+  ): RecordResolution => ({
+    error,
+    warnings,
+    existingContact: null,
+    contact: null,
+    school,
+    district: null,
+    viaNces: false,
+    viaName: false,
+  });
+
   const email = normalizeEmail(row.email);
-  if (!email) {
-    return {
-      error: "invalid_email",
-      warnings,
-      existingContact: null,
-      contact: null,
-      school: null,
-      district: null,
-      viaNces: false,
-    };
-  }
+  if (!email) return fail("invalid_email");
 
   const matches = ctx.contactsByEmail.get(email) ?? [];
   if (matches.length > 1) warnings.push("duplicate_email");
@@ -306,6 +491,7 @@ function resolveRecords(
   let school: ResolvedSchool | null = null;
   let district: ResolvedDistrict | null = null;
   let viaNces = false;
+  let viaName = false;
 
   if (existingContact) {
     // Existing contacts keep their school + district.
@@ -320,9 +506,12 @@ function resolveRecords(
       school = { ncessch: existingContact.schoolNcessch, name: s?.schoolName ?? null };
     }
   } else {
-    const ncessch = normalizeNcessch(row.schoolNcessch);
-    if (ncessch) {
-      const s = ctx.schoolsByNcessch.get(ncessch);
+    const nces = ncesInputs(row);
+    if (nces.invalidSchoolInput) warnings.push("invalid_school_nces");
+    if (nces.invalidLeaidInput) warnings.push("invalid_nces_id");
+
+    if (nces.schoolNcessch) {
+      const s = ctx.schoolsByNcessch.get(nces.schoolNcessch);
       if (s) {
         // District resolved FROM the school's NCES id. The school row's FK
         // guarantees its district exists.
@@ -335,26 +524,24 @@ function resolveRecords(
         warnings.push("school_not_found");
       }
     }
+    if (!district && nces.leaid) {
+      // nces.leaid is guaranteed 7-digit numeric — the only shape allowed
+      // to plan a district stub.
+      const d = ctx.districtsByLeaid.get(nces.leaid);
+      district = d
+        ? { leaid: nces.leaid, name: d.name, willCreate: false }
+        : { leaid: nces.leaid, name: row.districtName?.trim() || null, willCreate: true };
+    }
     if (!district) {
-      const leaid = normalizeLeaid(row.leaid);
-      if (leaid) {
-        const d = ctx.districtsByLeaid.get(leaid);
-        district = d
-          ? { leaid, name: d.name, willCreate: false }
-          : { leaid, name: row.districtName?.trim() || null, willCreate: true };
+      const byName = resolveDistrictByName(row, ctx);
+      if (byName === "ambiguous") return fail("ambiguous_district", school);
+      if (byName) {
+        viaName = true;
+        district = byName.district;
+        if (!school && byName.school) school = byName.school;
       }
     }
-    if (!district) {
-      return {
-        error: "unresolved_district",
-        warnings,
-        existingContact: null,
-        contact: null,
-        school,
-        district: null,
-        viaNces,
-      };
-    }
+    if (!district) return fail("unresolved_district", school);
   }
 
   const first = "first" in row ? row.first : undefined;
@@ -367,7 +554,7 @@ function resolveRecords(
     ? { id: existingContact.id, name: existingContact.name, email, willCreate: false }
     : { id: null, name: rowName ?? nameFromEmail(email), email, willCreate: true };
 
-  return { error: null, warnings, existingContact, contact, school, district, viaNces };
+  return { error: null, warnings, existingContact, contact, school, district, viaNces, viaName };
 }
 
 // ---- Activity dataset --------------------------------------------------------------
@@ -394,6 +581,7 @@ export async function resolveActivityRows(
       school: base.school,
       district: base.district,
       viaNces: base.viaNces,
+      viaName: base.viaName,
       leadId,
       points,
     };
@@ -437,6 +625,14 @@ async function ensureDistrictStub(
   db: DbClient,
 ) {
   if (!district.willCreate || createdLeaids.has(district.leaid)) return;
+  // Hard guard: a stub may only ever be minted with a normalized 7-digit
+  // numeric leaid. Resolution never plans anything else — this backstop
+  // fails the row instead of writing a junk district record.
+  if (!/^\d{7}$/.test(district.leaid)) {
+    throw new Error(
+      `Refusing to create a district stub for non-7-digit leaid "${district.leaid}"`,
+    );
+  }
   await db.district.create({
     data: {
       leaid: district.leaid,
@@ -598,6 +794,7 @@ export async function resolveLeadRows(
       school: base.school,
       district: base.district,
       viaNces: base.viaNces,
+      viaName: base.viaName,
       assignedBdrId,
       leadType,
     };
