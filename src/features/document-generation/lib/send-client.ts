@@ -3,7 +3,7 @@ import type { DocPayload } from "./payload-types";
 export interface SendResponse {
   id?: number;
   docUrl: string;
-  status: "sent" | "error";
+  status: "processing" | "error";
   signatureRequestId: string | null;
   sendError?: string;
   recipientEmail?: string;

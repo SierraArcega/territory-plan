@@ -9,7 +9,7 @@ interface Props {
   onSend: () => void | Promise<void>;
   onBack: () => void;
   busy?: boolean;
-  sendState?: { status: "sent" | "error"; recipientEmail?: string; sendError?: string } | null;
+  sendState?: { status: "processing" | "error"; recipientEmail?: string; sendError?: string } | null;
 }
 
 export default function ReviewStage({ result, orderTotal, docType, onSend, onBack, busy, sendState }: Props) {
@@ -24,7 +24,7 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
         </a>
       )}
 
-      {sendState?.status === "sent" && (
+      {sendState?.status === "processing" && (
         <div className="rounded-lg bg-[#EAF5EE] px-3 py-2 text-sm text-[#2C6E49]">
           Sent ✓{sendState.recipientEmail ? ` to ${sendState.recipientEmail}` : ""}
         </div>

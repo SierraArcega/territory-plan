@@ -7,7 +7,7 @@ const props = (over = {}) => ({
   orderTotal: 16500,
   docType: "contract" as const,
   onSend: vi.fn(), onBack: vi.fn(),
-  busy: false, sendState: null as null | { status: "sent" | "error"; recipientEmail?: string; sendError?: string },
+  busy: false, sendState: null as null | { status: "processing" | "error"; recipientEmail?: string; sendError?: string },
   ...over,
 });
 
@@ -31,7 +31,7 @@ describe("ReviewStage", () => {
     expect(p.onSend).toHaveBeenCalled();
   });
   it("shows the sent confirmation", () => {
-    render(<ReviewStage {...props({ sendState: { status: "sent", recipientEmail: "s@acme.org" } })} />);
+    render(<ReviewStage {...props({ sendState: { status: "processing", recipientEmail: "s@acme.org" } })} />);
     expect(screen.getByText(/Sent/i)).toHaveTextContent("s@acme.org");
   });
   it("shows the send error", () => {

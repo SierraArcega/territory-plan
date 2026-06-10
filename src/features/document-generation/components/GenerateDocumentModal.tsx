@@ -38,7 +38,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   const [state, setState] = useState<DocFormState>(() => seedState(prefill));
   const [result, setResult] = useState<RenderResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sendState, setSendState] = useState<{ status: "sent" | "error"; recipientEmail?: string; sendError?: string } | null>(null);
+  const [sendState, setSendState] = useState<{ status: "processing" | "error"; recipientEmail?: string; sendError?: string } | null>(null);
 
   async function render(tags: boolean): Promise<RenderResult> {
     setBusy(true);
@@ -57,8 +57,8 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
     try {
       const payload = assemblePayload(state);
       const res = await sendForSignatureRequest(payload, state.districtLeaId);
-      setSendState(res.status === "sent"
-        ? { status: "sent", recipientEmail: res.recipientEmail }
+      setSendState(res.status === "processing"
+        ? { status: "processing", recipientEmail: res.recipientEmail }
         : { status: "error", sendError: res.sendError });
     } catch {
       setSendState({ status: "error", sendError: "Send request failed" });

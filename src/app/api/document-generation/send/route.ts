@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         signatureRequestId: result.sent ? (result.signatureRequestId ?? null) : null,
         recipientEmail,
         companyName,
-        status: result.sent ? "sent" : "error",
+        status: result.sent ? "processing" : "error",
         errorMessage: result.sent ? null : (result.sendError ?? "send failed"),
         districtLeaId: body.districtLeaId ?? null,
         ownerProfileId: user.id,
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       id: row.id,
       docUrl: result.docUrl,
-      status: result.sent ? "sent" : "error",
+      status: result.sent ? "processing" : "error",
       signatureRequestId: result.signatureRequestId ?? null,
       sendError: result.sent ? undefined : (result.sendError ?? "send failed"),
       recipientEmail,
