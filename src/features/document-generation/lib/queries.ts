@@ -19,6 +19,8 @@ export function useDistrictContacts(leaid: string | null) {
 // Generated-document status polling
 // ---------------------------------------------------------------------------
 
+// Statuses visible to the SEND polling flow. Deliberately excludes "rendered"
+// (BOCES rows are written at render time and never polled).
 export interface GeneratedDocumentStatus {
   id: number;
   status: "processing" | "sent" | "viewed" | "signed" | "declined" | "canceled" | "error";

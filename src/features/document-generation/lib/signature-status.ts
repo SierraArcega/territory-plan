@@ -1,7 +1,8 @@
 // Maps Dropbox Sign event_type values to our SignatureStatus. Returns null for
 // events that should be acknowledged but not change a row (callback_test, etc.).
-// Intentionally excludes "processing" — that value is only written by the send
-// route on synchronous accept; no Dropbox Sign event ever maps to it.
+// Intentionally excludes "processing" (only written by the send route on
+// synchronous accept) and "rendered" (only written by the render route for
+// BOCES quotes) — no Dropbox Sign event ever maps to either.
 export type SignatureStatusValue =
   | "sent" | "viewed" | "signed" | "declined" | "canceled" | "error";
 
