@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyEventHash } from "@/features/document-generation/lib/dropbox-sign-verify";
 import { mapEventToStatus } from "@/features/document-generation/lib/signature-status";
+import { fetchExecutedPdf } from "@/features/document-generation/lib/dropbox-files";
+import { uploadExecutedPdf } from "@/features/document-generation/lib/drive-archive";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,31 @@ export async function POST(request: Request) {
       });
       console.log(`Dropbox Sign event: ${ev.event_type} → ${status} for ${sigId}`);
       // updateMany with count 0 (unknown id) is fine — idempotent ack.
+
+      // Archive the executed PDF on signed events. Strictly best-effort: any failure
+      // logs and leaves the columns null — Dropbox Sign must always get the ack.
+      if (status === "signed") {
+        try {
+          const row = await prisma.generatedDocument.findUnique({
+            where: { signatureRequestId: sigId },
+            select: { id: true, companyName: true, executedPdfFileId: true },
+          });
+          if (row && !row.executedPdfFileId) {
+            const pdf = await fetchExecutedPdf(sigId);
+            if (pdf) {
+              const today = new Date().toISOString().slice(0, 10);
+              const name = `${row.companyName || "Contract"} — signed ${today} (${sigId.slice(0, 8)}).pdf`;
+              const uploaded = await uploadExecutedPdf(pdf, name);
+              await prisma.generatedDocument.update({
+                where: { id: row.id },
+                data: { executedPdfUrl: uploaded.url, executedPdfFileId: uploaded.fileId },
+              });
+            }
+          }
+        } catch (archiveError) {
+          console.error("Executed-PDF archive error:", archiveError);
+        }
+      }
     }
 
     // Dropbox Sign requires a plain-text body containing this exact string to ack.

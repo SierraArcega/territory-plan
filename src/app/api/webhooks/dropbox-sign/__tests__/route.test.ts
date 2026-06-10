@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "node:crypto";
 
-const { mockUpdateMany } = vi.hoisted(() => ({ mockUpdateMany: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({ default: { generatedDocument: { updateMany: mockUpdateMany } } }));
+const { mockUpdateMany, mockFindUnique, mockRowUpdate, mockFetchPdf, mockUpload } = vi.hoisted(() => ({
+  mockUpdateMany: vi.fn(),
+  mockFindUnique: vi.fn(),
+  mockRowUpdate: vi.fn(),
+  mockFetchPdf: vi.fn(),
+  mockUpload: vi.fn(),
+}));
+vi.mock("@/lib/prisma", () => ({ default: { generatedDocument: { updateMany: mockUpdateMany, findUnique: mockFindUnique, update: mockRowUpdate } } }));
+vi.mock("@/features/document-generation/lib/dropbox-files", () => ({ fetchExecutedPdf: mockFetchPdf }));
+vi.mock("@/features/document-generation/lib/drive-archive", () => ({ uploadExecutedPdf: mockUpload }));
 
 import { POST } from "../route";
 
@@ -87,5 +95,45 @@ describe("POST /api/webhooks/dropbox-sign", () => {
   it("does not touch errorMessage on non-error transitions", async () => {
     await POST(eventForm("signature_request_viewed", "sig_1"));
     expect(mockUpdateMany.mock.calls[0][0].data).not.toHaveProperty("errorMessage");
+  });
+
+  it("archives the executed PDF on all_signed", async () => {
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme ISD", executedPdfFileId: null });
+    mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
+    mockUpload.mockResolvedValue({ fileId: "F1", url: "https://drive/f1" });
+    const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(res.status).toBe(200);
+    expect(mockUpload).toHaveBeenCalled();
+    expect(mockRowUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 5 },
+      data: { executedPdfUrl: "https://drive/f1", executedPdfFileId: "F1" },
+    }));
+  });
+
+  it("skips archiving when the row already has an executed file (idempotent across signed events)", async () => {
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: "F-old" });
+    await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(mockFetchPdf).not.toHaveBeenCalled();
+  });
+
+  it("still acks when archiving fails", async () => {
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
+    mockFetchPdf.mockRejectedValue(new Error("boom"));
+    const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("Hello API Event Received");
+  });
+
+  it("does not archive on non-signed events", async () => {
+    await POST(eventForm("signature_request_viewed", "sig_1"));
+    expect(mockFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("leaves columns untouched when the PDF is not ready yet (null)", async () => {
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
+    mockFetchPdf.mockResolvedValue(null);
+    const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(res.status).toBe(200);
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 });
