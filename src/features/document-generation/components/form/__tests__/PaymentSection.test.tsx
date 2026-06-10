@@ -86,4 +86,17 @@ describe("PaymentSection", () => {
     const inputs = screen.getAllByPlaceholderText(/PO number/i);
     expect(inputs).toHaveLength(1);
   });
+
+  it("disables the payment type select for BOCES quotes (template has only the baked-in C block)", () => {
+    render_({ docType: "boces_quote", paymentType: "C" });
+    const select = screen.getByLabelText("Payment type") as HTMLSelectElement;
+    expect(select).toBeDisabled();
+    expect(select.value).toBe("C");
+  });
+
+  it("keeps the payment type select enabled for contracts", () => {
+    render_({ docType: "contract" });
+    const select = screen.getByLabelText("Payment type") as HTMLSelectElement;
+    expect(select).not.toBeDisabled();
+  });
 });

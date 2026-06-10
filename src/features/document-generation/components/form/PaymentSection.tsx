@@ -16,10 +16,12 @@ export default function PaymentSection({ state, onChange }: Props) {
   // from state so the checkbox can't drift out of sync with state.invoiceDate.
   const [wantsDate, setWantsDate] = useState(false);
   const showInvoiceDate = wantsDate || state.invoiceDate.trim() !== "";
+  const isBoces = state.docType === "boces_quote";
   return (
     <div className="space-y-2 text-sm">
       <select aria-label="Payment type" value={state.paymentType} onChange={(e) => onChange({ paymentType: e.target.value as PaymentType })}
-        className="rounded border border-[#C2BBD4] px-2 py-1">
+        disabled={isBoces}
+        className="rounded border border-[#C2BBD4] px-2 py-1 disabled:opacity-50">
         {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
 
