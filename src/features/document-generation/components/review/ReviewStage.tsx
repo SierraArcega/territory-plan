@@ -25,7 +25,7 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
             href={`https://docs.google.com/document/d/${docId}/export?format=pdf`}
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white whitespace-nowrap"
+            className="rounded-lg border border-[#403770] px-3 py-1 text-sm text-[#403770] whitespace-nowrap"
           >View PDF ↓</a>
         )}
         <a
@@ -35,11 +35,6 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
           className="text-sm text-[#403770] underline whitespace-nowrap"
         >Edit in Google Docs ↗</a>
       </div>
-      {docType === "contract" && (
-        <p className="text-xs text-[#6E6390]">
-          Manual doc edits don&apos;t carry into sending — Send re-renders a clean copy. The PDF always shows the doc&apos;s current state.
-        </p>
-      )}
       <div className="text-sm">Order total: {formatCurrency(orderTotal)}</div>
       {result.agreementUrl && (
         <a href={result.agreementUrl} target="_blank" rel="noreferrer" className="block text-sm text-[#403770] underline">
@@ -64,6 +59,12 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
         <div role="status" className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">
           Send accepted — awaiting confirmation. Check back shortly.
         </div>
+      )}
+
+      {docType === "contract" && (
+        <p className="text-xs text-[#6E6390]">
+          Manual doc edits don&apos;t carry into sending — Send re-renders a clean copy. The PDF always shows the doc&apos;s current state.
+        </p>
       )}
 
       <div className="flex flex-wrap gap-2">
