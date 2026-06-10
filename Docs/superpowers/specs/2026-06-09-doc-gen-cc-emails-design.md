@@ -177,6 +177,20 @@ doc slot can never be filled. Fix (folded into this branch per brainstorm
 - **Tests**: payload emits `po_number` for type A; input visible on type A and
   forwards the `{ poNumber }` patch.
 
+## Addendum 2 (2026-06-10): lock payment type to C for BOCES quotes
+
+Field-blanking audit follow-up: the BOCES quote template's payment block is
+baked in — `BocesQuote.gs` renders `<<boces_name>>`/`<<pay_prepost>>`
+unconditionally (no A/B/C block deletion). The form defaults BOCES quotes to
+payment type C and forces C on doc-type switch, but the payment-type select
+stays editable — flipping it to A/B on a BOCES quote blanks those payload
+fields and hides their inputs while the doc still renders the slots.
+
+Fix: in `PaymentSection.tsx`, disable the payment-type select when
+`state.docType === "boces_quote"` (disabled, not hidden, per the "show
+loading state, don't hide UI" convention — C is the only meaningful value
+there). Tests: select disabled for boces_quote, enabled for contract.
+
 ## Out of scope
 
 - Persisting CC addresses on `GeneratedDocument`
