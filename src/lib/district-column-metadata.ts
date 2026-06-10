@@ -2753,6 +2753,30 @@ export const SERVICE_ALIAS_COLUMNS: ColumnMetadata[] = [
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last time the mapping changed (auto-touched by trigger).", domain: "core", format: "date", source: "user", queryable: true },
 ];
 
+/** generated_documents — doc-gen outputs (contracts + BOCES quotes) with deal payload, promoted report columns, and signature lifecycle */
+export const GENERATED_DOCUMENT_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "Document ID", description: "Serial PK.", domain: "crm", format: "integer", source: "user", queryable: true },
+  { field: "docType", column: "doc_type", label: "Doc Type", description: "'contract' (sent for signature) or 'boces_quote' (rendered quote, no eSign).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "status", column: "status", label: "Status", description: "Lifecycle: 'rendered' (BOCES quotes — terminal at render), 'processing' (send accepted, awaiting webhook), 'sent', 'viewed', 'signed', 'declined', 'canceled', 'error'. For 'executed contracts' filter status='signed'; for 'open signature requests' use sent/viewed/processing.", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "companyName", column: "company_name", label: "Company", description: "Client company/district name as it appears on the document.", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "recipientEmail", column: "recipient_email", label: "Recipient", description: "Signer email for contracts; empty for BOCES quotes.", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "orderTotal", column: "order_total", label: "Order Total", description: "Total dollar value of the quoted/contracted order.", domain: "crm", format: "currency", source: "user", queryable: true },
+  { field: "paymentType", column: "payment_type", label: "Payment Type", description: "A (standard) / B (customized) / C (BOCES standardized).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "startDate", column: "start_date", label: "Service Start", description: "Contract/quote service start date.", domain: "crm", format: "date", source: "user", queryable: true },
+  { field: "endDate", column: "end_date", label: "Service End", description: "Contract/quote service end date.", domain: "crm", format: "date", source: "user", queryable: true },
+  { field: "schoolYear", column: "school_year", label: "School Year", description: "e.g. '2026 - 2027'. Contracts only — null for BOCES quotes.", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "quoteNumber", column: "quote_number", label: "Quote #", description: "BOCES quote number — null for contracts. One row per quote number per owner (re-renders update in place).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "districtLeaId", column: "district_lea_id", label: "District LEA ID", description: "FK to districts.leaid (nullable).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "ownerProfileId", column: "owner_profile_id", label: "Owner", description: "FK to user_profiles.id — the rep who generated it.", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "opportunityId", column: "opportunity_id", label: "Opportunity ID", description: "FK to opportunities — null until the opportunity entry points ship (SP3).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "executedPdfUrl", column: "executed_pdf_url", label: "Executed PDF", description: "Drive link to the signed PDF; null until signing completes (or if archiving failed).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "docUrl", column: "doc_url", label: "Doc URL", description: "Google Doc link to the rendered (unsigned) document.", domain: "crm", format: "text", source: "user", queryable: false },
+  { field: "sentAt", column: "sent_at", label: "Sent At", description: "When the signature send was initiated (null for BOCES quotes).", domain: "crm", format: "date", source: "user", queryable: true },
+  { field: "signedAt", column: "signed_at", label: "Signed At", description: "When signing completed.", domain: "crm", format: "date", source: "user", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "Row creation (render time for quotes, send time for contracts).", domain: "crm", format: "date", source: "user", queryable: true },
+  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last lifecycle/render update.", domain: "crm", format: "date", source: "user", queryable: true },
+];
+
 // ============================================================================
 // Table Registry & Semantic Context
 // ============================================================================
@@ -3381,6 +3405,19 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
     columns: SAVED_REPORT_COLUMNS,
     relationships: [],
   },
+  generated_documents: {
+    table: "generated_documents",
+    description:
+      "Doc-gen outputs — contracts sent for Dropbox Sign signature plus rendered BOCES quotes, with order totals, payment terms, service dates, and signature lifecycle. One row per send (contracts) or per quote number per owner (BOCES; re-renders update in place). Query this for 'what did we quote/contract this month', win-through-signature funnels (sent→viewed→signed), executed-contract lookups (status='signed', executed_pdf_url), or quote volume by district/rep.",
+    primaryKey: "id",
+    columns: GENERATED_DOCUMENT_COLUMNS,
+    excludedColumns: ["payload", "doc_id", "signature_request_id", "error_message", "executed_pdf_file_id"],
+    relationships: [
+      { toTable: "districts", type: "many-to-one", joinSql: "generated_documents.district_lea_id = districts.leaid", description: "District the document was generated for" },
+      { toTable: "user_profiles", type: "many-to-one", joinSql: "generated_documents.owner_profile_id = user_profiles.id", description: "Rep who generated/sent it" },
+      { toTable: "opportunities", type: "many-to-one", joinSql: "generated_documents.opportunity_id = opportunities.id", description: "Source opportunity (null until SP3 entry points ship)" },
+    ],
+  },
 
   // === Junction tables (no column arrays — Claude navigates through relationships) ===
 
@@ -3809,9 +3846,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "news_match_queue",
     "opportunity_snapshots",
     "report_drafts",
-    // Doc-gen signature-request audit trail — internal lifecycle state, not a
-    // rep-facing query target (the planned monitoring view reads it directly).
-    "generated_documents",
     // RFP feed: rfps is registered in TABLE_REGISTRY (Phase 3). The other two
     // are backend-only — agency_district_maps is admin triage state,
     // rfp_ingest_runs is sync telemetry. Neither belongs in rep-facing queries.
