@@ -40,6 +40,8 @@ export const leadKeys = {
   timeline: (leadId: string) => ["leads", "timeline", leadId] as const,
   record: (type: "contact" | "school" | "district", id: string) =>
     ["leads", "record", type, id] as const,
+  districtOpenOpps: (leaid: string) => ["leads", "district-open-opps", leaid] as const,
+  districtSchools: (leaid: string) => ["leads", "district-schools", leaid] as const,
 };
 
 export function useLeadsQuery(scope: LeadScope) {
@@ -90,6 +92,66 @@ export function useDistrictRecordQuery(leaid: string) {
     queryFn: () =>
       fetchJson<DistrictRecordResponse>(`${API_BASE}/leads/records/district/${leaid}`),
     staleTime: 30 * 1000,
+  });
+}
+
+// ---- Modal lookups -----------------------------------------------------------
+
+/** Stages that close an opportunity — excluded from the link-existing list. */
+const CLOSED_OPP_STAGES = ["Closed Won", "Closed Lost"];
+
+export interface DistrictOpenOpp {
+  id: string;
+  name: string | null;
+  stage: string | null;
+  netBookingAmount: number | null;
+  districtName: string | null;
+  districtLeaId: string | null;
+  closeDate: string | null;
+}
+
+/**
+ * Open opportunities in a lead's district, for the Link-existing flow.
+ * Reuses GET /api/opportunities?leaids= (the Saved Views listing shape) and
+ * drops closed stages client-side.
+ */
+export function useDistrictOpenOppsQuery(leaid: string) {
+  return useQuery({
+    queryKey: leadKeys.districtOpenOpps(leaid),
+    queryFn: async () => {
+      const res = await fetchJson<{ opportunities: DistrictOpenOpp[] }>(
+        `${API_BASE}/opportunities?leaids=${encodeURIComponent(leaid)}&limit=50`,
+      );
+      return res.opportunities.filter(
+        (o) => !o.stage || !CLOSED_OPP_STAGES.includes(o.stage),
+      );
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export interface DistrictSchoolOption {
+  ncessch: string;
+  schoolName: string | null;
+  schoolLevel: string | null;
+}
+
+/** Schools in a district — the optional workplace select in the Add lead form. */
+export function useDistrictSchoolsQuery(leaid: string | null) {
+  return useQuery({
+    queryKey: leadKeys.districtSchools(leaid ?? ""),
+    queryFn: async () => {
+      const res = await fetchJson<{ schools: DistrictSchoolOption[] }>(
+        `${API_BASE}/schools/by-district/${leaid}`,
+      );
+      return res.schools.map((s) => ({
+        ncessch: s.ncessch,
+        schoolName: s.schoolName,
+        schoolLevel: s.schoolLevel,
+      }));
+    },
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -194,6 +256,86 @@ export function useUpdateLeadMutation() {
       // sales_qualified" — strip the status prefix for the toast.
       const message = error.message.replace(/^\d{3}:\s*/, "");
       showToast(message || "Failed to update lead", { tone: "alert" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: leadKeys.all });
+    },
+  });
+}
+
+// ---- Engagement (Outcome modal) ----------------------------------------------
+
+export interface LogEngagementInput {
+  leadId: string;
+  /** App activity type (e.g. cold_call, email, discovery_call). */
+  type: string;
+  title: string;
+  notes?: string | null;
+  occurredAt?: string | null;
+  points?: number;
+  outcome?: string | null;
+  outcomeType?: string | null;
+  rating?: number | null;
+  /** Optional lifecycle transition applied after logging (validated server-side). */
+  resultingStatus?: LeadStatus | null;
+  /** Required when resultingStatus is unqualified. */
+  reason?: string | null;
+}
+
+export interface LogEngagementResponse {
+  activityId: number;
+  lead: Lead;
+}
+
+/**
+ * Log an engagement outcome: a real activities row on the shared store
+ * (contact/district/school junctions — never the lead), a score increment,
+ * and an optional status transition. Errors surface as alert toasts with the
+ * server's message (422 illegal transition, 400 missing reason).
+ */
+export function useLogEngagementMutation() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  return useMutation({
+    mutationFn: ({ leadId, ...input }: LogEngagementInput) =>
+      fetchJson<LogEngagementResponse>(`${API_BASE}/leads/${leadId}/engagement`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onError: (error: Error) => {
+      const message = error.message.replace(/^\d{3}:\s*/, "");
+      showToast(message || "Failed to log engagement", { tone: "alert" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: leadKeys.all });
+    },
+  });
+}
+
+// ---- Link opportunity ----------------------------------------------------------
+
+export interface LinkOpportunityMutationInput {
+  leadId: string;
+  /** Link an existing open opportunity; omit to create a fresh Stage 0 opp. */
+  opportunityId?: string | null;
+  name?: string | null;
+  amount?: number | null;
+  closeDate?: string | null;
+}
+
+/** Link an existing open opp or create a Stage 0 opp for the lead. */
+export function useLinkOpportunityMutation() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  return useMutation({
+    mutationFn: ({ leadId, ...input }: LinkOpportunityMutationInput) =>
+      fetchJson<Lead>(`${API_BASE}/leads/${leadId}/opportunity`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onError: (error: Error) => {
+      const message = error.message.replace(/^\d{3}:\s*/, "");
+      showToast(message || "Failed to link opportunity", { tone: "alert" });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: leadKeys.all });

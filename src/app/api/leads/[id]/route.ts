@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { getUser, isAdmin } from "@/lib/supabase/server";
+import { getUser } from "@/lib/supabase/server";
 import { isServiceError } from "@/features/shared/lib/service-error";
+import { authorizeLead } from "@/features/leads/lib/server/route-auth";
 import {
   transitionLead,
   serializeLead,
@@ -12,32 +13,6 @@ import {
 } from "@/features/leads/lib/server/lead-service";
 
 export const dynamic = "force-dynamic";
-
-type AuthResult = { ok: true } | { ok: false; response: NextResponse };
-
-/**
- * Owner-or-admin guard mirroring the activities [id] routes: leads with no
- * assigned BDR are treated as anyone's (legacy/unassigned rows).
- */
-async function authorize(leadId: string, userId: string): Promise<AuthResult> {
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: { id: true, assignedBdrId: true },
-  });
-  if (!lead) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "Lead not found" }, { status: 404 }),
-    };
-  }
-  if (lead.assignedBdrId && lead.assignedBdrId !== userId && !(await isAdmin(userId))) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "Not authorized to edit this lead" }, { status: 403 }),
-    };
-  }
-  return { ok: true };
-}
 
 // PATCH /api/leads/[id] — field edits + lifecycle transitions.
 // Transitions are validated server-side by the lead service; an illegal
@@ -70,7 +45,7 @@ export async function PATCH(
       return NextResponse.json({ error: "invalid_body" }, { status: 400 });
     }
 
-    const auth = await authorize(id, user.id);
+    const auth = await authorizeLead(id, user.id);
     if (!auth.ok) return auth.response;
 
     // ---- Field edits (applied before any transition) ----
@@ -173,7 +148,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const auth = await authorize(id, user.id);
+    const auth = await authorizeLead(id, user.id);
     if (!auth.ok) return auth.response;
 
     await prisma.lead.delete({ where: { id } });
