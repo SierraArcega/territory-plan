@@ -2165,6 +2165,7 @@ enum SignatureStatus {
   declined
   canceled
   error
+  rendered
 
   @@map("signature_status")
 }
@@ -2184,6 +2185,15 @@ model GeneratedDocument {
   districtLeaId      String?         @map("district_lea_id") @db.VarChar(7)
   ownerProfileId     String          @map("owner_profile_id") @db.Uuid
   opportunityId      String?         @map("opportunity_id") @db.Text
+  payload            Json?           @db.JsonB
+  orderTotal         Decimal?        @map("order_total") @db.Decimal(12, 2)
+  paymentType        String?         @map("payment_type") @db.Text
+  startDate          DateTime?       @map("start_date") @db.Date
+  endDate            DateTime?       @map("end_date") @db.Date
+  schoolYear         String?         @map("school_year") @db.Text
+  quoteNumber        String?         @map("quote_number") @db.Text
+  executedPdfUrl     String?         @map("executed_pdf_url") @db.Text
+  executedPdfFileId  String?         @map("executed_pdf_file_id") @db.Text
   sentAt             DateTime?       @map("sent_at") @db.Timestamptz
   signedAt           DateTime?       @map("signed_at") @db.Timestamptz
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz
