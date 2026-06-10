@@ -16,12 +16,15 @@ export const FIELD_ERROR_CLASS =
   "w-full rounded-lg border border-[#F58D85] bg-[#FEF6F5] px-3 py-[9px] text-[13.5px] text-[#403770] outline-none placeholder:text-[#A69DC0] focus:border-[#403770]";
 export const SELECT_CLASS = `${FIELD_CLASS} cursor-pointer`;
 
+// Footer CTA variants per Primitives.jsx: primary is plum (#403770 →
+// #322a5a), danger is the outline variant (white bg, coral text/border,
+// #FEF1F0 hover). Page-level "Add lead" and the panel's Accept stay coral.
 export const BTN_PRIMARY =
-  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#F37167] px-4 py-2 text-sm font-medium text-white transition-colors duration-[120ms] hover:bg-[#e25f55] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#403770] px-4 py-2 text-sm font-medium text-white transition-colors duration-[120ms] hover:bg-[#322a5a] active:bg-[#322a5a] disabled:cursor-not-allowed disabled:opacity-50";
 export const BTN_GHOST =
   "whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium text-[#403770] transition-colors duration-[120ms] hover:bg-[#EFEDF5]";
 export const BTN_DANGER =
-  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#C25A52] px-4 py-2 text-sm font-medium text-white transition-colors duration-[120ms] hover:bg-[#ad4a43] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#F58D85] bg-white px-4 py-2 text-sm font-medium text-[#C25A52] transition-colors duration-[120ms] hover:bg-[#FEF1F0] disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Field label (Lbl in the prototype) — 11/600 muted plum, coral dot when required. */
 export function FieldLabel({ children, req }: { children: ReactNode; req?: boolean }) {
