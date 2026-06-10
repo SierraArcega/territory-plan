@@ -185,3 +185,19 @@ describe("assemblePayload — deal.today injection", () => {
     expect(p.deal.today).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   });
 });
+
+describe("assemblePayload — deal.cc_emails", () => {
+  it("emits normalized comma-joined cc_emails", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.ccEmails = " ap@x.com ; AP@x.com, boss@y.org ";
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.cc_emails).toBe("ap@x.com,boss@y.org");
+  });
+  it("emits empty string when no CCs", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.cc_emails).toBe("");
+  });
+});

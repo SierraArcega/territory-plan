@@ -2,6 +2,7 @@ import type {
   DocFormState, ContactRef, ContractPayload, BocesQuotePayload, DocPayload,
 } from "./payload-types";
 import { computeTotals } from "./quote";
+import { parseCcEmails } from "./validation";
 
 function resolveRole(state: DocFormState, role: "signer" | "billing"): ContactRef | null {
   if (role === "signer") return state.signerSameAsClient ? state.clientContact : state.signerContact;
@@ -94,6 +95,7 @@ export function assemblePayload(state: DocFormState, today: string = formatToday
       sender_last: state.senderLast,
       sender_title: state.senderTitle,
       sender_email: state.senderEmail,
+      cc_emails: parseCcEmails(state.ccEmails).join(","),
       today,
     },
     quote: {

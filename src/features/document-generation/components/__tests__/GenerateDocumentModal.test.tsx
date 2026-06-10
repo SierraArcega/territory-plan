@@ -6,9 +6,13 @@ import GenerateDocumentModal from "../GenerateDocumentModal";
 vi.mock("../form/ContactRolePicker", () => ({ default: () => <div>picker</div> }));
 vi.mock("../form/SkuPicker", () => ({ default: () => <div>sku</div> }));
 // Make the form always appear complete so we can exercise the render path
-vi.mock("@/features/document-generation/lib/validation", () => ({
-  getCompleteness: () => ({ isComplete: true, missing: [] }),
-}));
+vi.mock("@/features/document-generation/lib/validation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/document-generation/lib/validation")>();
+  return {
+    ...actual,
+    getCompleteness: () => ({ isComplete: true, missing: [] }),
+  };
+});
 
 const completePrefill = {
   docType: "contract" as const, districtLeaId: "x", companyName: "Barstow", billingAddress: "1 Main St",
