@@ -42,14 +42,56 @@ describe("buildHeaderMapping", () => {
     expect(mapping.byField.leadType).toBe("Lead Type");
     expect(mapping.unmapped).toEqual(["Type"]);
   });
+
+  it("maps marketing-export headers: Company Name → district name, NCES ID → leaid, State", () => {
+    // The post-parseCsv header shape of a real MQL export (empty header
+    // dropped, duplicate "Phone Number"/"Company name" suffixed).
+    const headers = [
+      "First Name", "Last Name", "Job Title", "Combined Fit & Engagement Score",
+      "Last marketing email name", "Email", "Company Name", "NCES ID", "State",
+      "Phone Number", "Company name", "Phone Number (2)", "City", "Country/Region",
+    ];
+    const mapping = buildHeaderMapping(headers, LEAD_FIELD_DEFS);
+    expect(mapping.byField).toMatchObject({
+      email: "Email",
+      first: "First Name",
+      last: "Last Name",
+      title: "Job Title",
+      score: "Combined Fit & Engagement Score",
+      leaid: "NCES ID",
+      districtName: "Company Name",
+      state: "State",
+      phone: "Phone Number",
+    });
+    // Duplicate columns and junk stay visibly ignored, never silently merged.
+    expect(mapping.unmapped).toEqual([
+      "Last marketing email name", "Company name", "Phone Number (2)", "City", "Country/Region",
+    ]);
+    expect(mapping.missingRequired).toEqual([]);
+  });
+
+  it("falls back to any unclaimed header ending in 'score' for the score field", () => {
+    const mapping = buildHeaderMapping(["Email", "Total Lead Score"], LEAD_FIELD_DEFS);
+    expect(mapping.byField.score).toBe("Total Lead Score");
+  });
+
+  it("suffix fallback never steals a header from an exact alias", () => {
+    // "Engagement Score" is an exact alias — the loose -score header stays unmapped.
+    const mapping = buildHeaderMapping(
+      ["Email", "Engagement Score", "Some Other Score"],
+      LEAD_FIELD_DEFS,
+    );
+    expect(mapping.byField.score).toBe("Engagement Score");
+    expect(mapping.unmapped).toEqual(["Some Other Score"]);
+  });
 });
 
 describe("toLeadImportRows", () => {
   const csv = parseCsv(
     [
-      "Email,First Name,Last Name,Title,District NCES ID,Lead Type,Engagement Score,Sequence",
-      "k@x.org,Karen,Whitfield,Director,0802940,MQL,138,Superintendent — Special Ed",
-      "t@y.org,Tom,Becker,,0410192,inbound,,",
+      "Email,First Name,Last Name,Title,District NCES ID,State,Lead Type,Engagement Score,Sequence",
+      "k@x.org,Karen,Whitfield,Director,0802940,Colorado,MQL,138,Superintendent — Special Ed",
+      "t@y.org,Tom,Becker,,0410192,,inbound,,",
     ].join("\n"),
   );
   const mapping = buildHeaderMapping(csv.headers, LEAD_FIELD_DEFS);
@@ -62,6 +104,7 @@ describe("toLeadImportRows", () => {
       last: "Whitfield",
       title: "Director",
       leaid: "0802940",
+      state: "Colorado",
       leadType: "mql",
       score: 138,
       sequence: "Superintendent — Special Ed",

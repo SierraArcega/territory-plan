@@ -34,6 +34,8 @@ interface RowResolutionBase {
   district: ResolvedDistrict | null;
   /** District resolved from the school's NCES id. */
   viaNces: boolean;
+  /** District resolved by name + state match. */
+  viaName: boolean;
 }
 
 export interface ActivityRowResolution extends RowResolutionBase {
@@ -83,6 +85,7 @@ export interface LeadImportRowInput {
   phone?: string;
   leaid?: string;
   districtName?: string;
+  state?: string;
   schoolNcessch?: string;
   leadType?: string;
   sequence?: string;
@@ -100,6 +103,7 @@ export interface ActivityImportRowInput {
   points?: number;
   leaid?: string;
   districtName?: string;
+  state?: string;
   schoolNcessch?: string;
   first?: string;
   last?: string;
@@ -114,6 +118,12 @@ export interface FieldDef {
   label: string;
   /** Accepted header spellings (normalized). */
   aliases: string[];
+  /**
+   * Loose fallback: after every field's exact aliases are claimed, an
+   * unclaimed header whose normalized form ENDS WITH this suffix maps here
+   * (e.g. "Combined Fit & Engagement Score" → score).
+   */
+  suffixFallback?: string;
   required?: boolean;
 }
 
@@ -132,8 +142,14 @@ export const LEAD_FIELD_DEFS: FieldDef[] = [
   {
     key: "districtName",
     label: "District Name",
-    aliases: ["district name", "district", "school district", "organization", "org"],
+    // Marketing exports call the org column "Company Name" — and it often
+    // holds a school name; the server's name fallback handles both shapes.
+    aliases: [
+      "district name", "district", "school district", "organization", "org",
+      "company name", "company", "account name",
+    ],
   },
+  { key: "state", label: "State", aliases: ["state", "st", "state province", "state region"] },
   {
     key: "schoolNcessch",
     label: "School NCES",
@@ -142,7 +158,14 @@ export const LEAD_FIELD_DEFS: FieldDef[] = [
   { key: "leadType", label: "Lead Type", aliases: ["lead type", "type"] },
   { key: "sequence", label: "Sequence", aliases: ["sequence", "outreach sequence"] },
   { key: "marketingOwner", label: "Marketing Owner", aliases: ["marketing owner"] },
-  { key: "score", label: "Engagement Score", aliases: ["engagement score", "score", "points"] },
+  {
+    key: "score",
+    label: "Engagement Score",
+    aliases: [
+      "engagement score", "score", "points", "combined fit engagement score",
+    ],
+    suffixFallback: "score",
+  },
 ];
 
 export const ACTIVITY_FIELD_DEFS: FieldDef[] = [
@@ -171,8 +194,12 @@ export const ACTIVITY_FIELD_DEFS: FieldDef[] = [
   {
     key: "districtName",
     label: "School / District",
-    aliases: ["school district", "district name", "district", "organization", "org"],
+    aliases: [
+      "school district", "district name", "district", "organization", "org",
+      "company name", "company", "account name",
+    ],
   },
+  { key: "state", label: "State", aliases: ["state", "st", "state province", "state region"] },
 ];
 
 /** Lowercase, collapse every non-alphanumeric run to one space. */
@@ -206,6 +233,18 @@ export function buildHeaderMapping(headers: string[], defs: FieldDef[]): HeaderM
       match = headers.find((h) => !claimed.has(h) && normalizeHeader(h) === alias);
       if (match) break;
     }
+    if (match) {
+      byField[def.key] = match;
+      claimed.add(match);
+    }
+  }
+  // Suffix fallbacks run only after every exact alias has claimed its header,
+  // so the loose match can never steal a column from an exact one.
+  for (const def of defs) {
+    if (byField[def.key] !== undefined || !def.suffixFallback) continue;
+    const match = headers.find(
+      (h) => !claimed.has(h) && normalizeHeader(h).endsWith(def.suffixFallback!),
+    );
     if (match) {
       byField[def.key] = match;
       claimed.add(match);
@@ -252,6 +291,7 @@ export function toLeadImportRows(
       phone: cell(r, mapping, "phone"),
       leaid: cell(r, mapping, "leaid"),
       districtName: cell(r, mapping, "districtName"),
+      state: cell(r, mapping, "state"),
       schoolNcessch: cell(r, mapping, "schoolNcessch"),
       leadType: cell(r, mapping, "leadType")?.toLowerCase(),
       // Rows enroll in the General BDR sequence unless the file says otherwise.
@@ -279,6 +319,7 @@ export function toActivityImportRows(
       points: Number.isFinite(pointsRaw) ? Math.round(pointsRaw) : undefined,
       leaid: cell(r, mapping, "leaid"),
       districtName: cell(r, mapping, "districtName"),
+      state: cell(r, mapping, "state"),
       schoolNcessch: cell(r, mapping, "schoolNcessch"),
       first: cell(r, mapping, "first"),
       last: cell(r, mapping, "last"),
@@ -301,6 +342,7 @@ export function leadTemplateCsv(): string {
         Phone: "(970) 555-0142",
         "District NCES ID": "0802940",
         "District Name": "Mesa Valley USD 51",
+        State: "CO",
         "School NCES": "",
         "Lead Type": "mql",
         Sequence: "Superintendent — Special Ed",
@@ -327,6 +369,7 @@ export function activityTemplateCsv(): string {
         "School NCES": "",
         "District NCES ID": "0802940",
         "School / District": "Mesa Valley USD 51",
+        State: "CO",
       },
     ],
   );
@@ -337,7 +380,8 @@ export function activityTemplateCsv(): string {
 /** Human copy for resolver/import failure codes shown in the preview rows. */
 export const IMPORT_ERROR_COPY: Record<string, string> = {
   invalid_email: "Missing or invalid email",
-  unresolved_district: "No district — add a District NCES ID or School NCES",
+  unresolved_district: "No district match — add an NCES ID or a district name + state",
+  ambiguous_district: "Multiple districts match this name — add an NCES ID",
   duplicate_in_batch: "Duplicate email in this file",
   contact_has_active_lead: "Contact already has an active lead",
 };
