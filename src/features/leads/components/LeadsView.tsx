@@ -464,6 +464,25 @@ export default function LeadsView() {
               </button>
             </div>
           </div>
+        ) : filtered.length === 0 && leads.length > 0 ? (
+          // Filtered to zero (search and/or filter pills) — board and table.
+          <div className="mx-auto mt-12 max-w-md text-center">
+            <div className="text-[15px] font-semibold text-[#403770]">No leads match</div>
+            <p className="mt-1.5 text-[13px] text-[#8A80A8]">
+              Nothing in {scope === "mine" ? "your leads" : "the team's leads"} matches the
+              current search and filters.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setFilters([]);
+              }}
+              className="mt-4 whitespace-nowrap rounded-lg border border-[#D4CFE2] bg-white px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#F7F5FA]"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : view === "table" ? (
           <LeadsTable
             leads={filtered}

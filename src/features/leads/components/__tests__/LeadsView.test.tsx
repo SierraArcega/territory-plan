@@ -141,6 +141,24 @@ describe("LeadsView drag-to-restage", () => {
   });
 });
 
+describe("LeadsView filtered-to-zero state", () => {
+  it("shows the No-leads-match state and recovers via Clear filters", () => {
+    renderView();
+    fireEvent.change(screen.getByLabelText("Search leads"), {
+      target: { value: "zzz-no-such-lead" },
+    });
+    expect(screen.getByText("No leads match")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open lead: Karen Whitfield" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.queryByText("No leads match")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Open lead: Karen Whitfield" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("LeadsView stat strip", () => {
   it("derives counts from the active scope's leads", () => {
     setLeads([
