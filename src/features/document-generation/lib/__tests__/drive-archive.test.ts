@@ -39,6 +39,7 @@ describe("uploadExecutedPdf", () => {
   it("uploads into the executed folder and returns id + link", async () => {
     const out = await uploadExecutedPdf(Buffer.from("%PDF"), "Acme — signed.pdf");
     expect(mockFilesCreate).toHaveBeenCalledWith(expect.objectContaining({
+      supportsAllDrives: true,
       requestBody: expect.objectContaining({ name: "Acme — signed.pdf", parents: ["FOLDER123"] }),
       fields: "id, webViewLink",
     }));

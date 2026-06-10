@@ -130,6 +130,15 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     expect(mockFindUnique).not.toHaveBeenCalled();
   });
 
+  it("retries the archive when the downloadable event lands after a not-ready first attempt", async () => {
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
+    mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
+    mockUpload.mockResolvedValue({ fileId: "F2", url: "https://drive/f2" });
+    const res = await POST(eventForm("signature_request_downloadable", "sig_1"));
+    expect(res.status).toBe(200);
+    expect(mockUpload).toHaveBeenCalled();
+  });
+
   it("leaves columns untouched when the PDF is not ready yet (null)", async () => {
     mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
     mockFetchPdf.mockResolvedValue(null);

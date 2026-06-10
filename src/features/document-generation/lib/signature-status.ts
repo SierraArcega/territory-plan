@@ -15,6 +15,7 @@ const EVENT_TO_STATUS: Record<string, SignatureStatusValue> = {
   signature_request_canceled: "canceled",
   signature_request_email_bounce: "error",
   signature_request_invalid: "error",
+  signature_request_downloadable: "signed", // fires when the executed file is ready — also the natural archive retry for a 409-not-ready first attempt
 };
 
 export function mapEventToStatus(eventType: string): SignatureStatusValue | null {

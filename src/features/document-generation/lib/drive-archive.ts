@@ -10,6 +10,7 @@ export async function uploadExecutedPdf(pdf: Buffer, filename: string): Promise<
   const folderId = requireEnv("GOOGLE_DOC_EXECUTED_FOLDER_ID");
   const drive = google.drive({ version: "v3", auth: buildJwt() });
   const res = await drive.files.create({
+    supportsAllDrives: true,
     requestBody: { name: filename, parents: [folderId] },
     media: { mimeType: "application/pdf", body: Readable.from(pdf) },
     fields: "id, webViewLink",
