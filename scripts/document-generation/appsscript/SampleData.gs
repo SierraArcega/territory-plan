@@ -8,6 +8,7 @@ var PAYLOAD_FULL = {
     sender_last:    'Smith',
     sender_title:   'Account Executive',
     sender_email:   'jane.smith@fullmindlearning.com',
+    cc_emails:      'ops@fullmindlearning.com',
     client_first:   'Robert',
     client_last:    'Johnson',
     client_title:   'Superintendent',

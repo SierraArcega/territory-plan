@@ -16,10 +16,12 @@ export default function PaymentSection({ state, onChange }: Props) {
   // from state so the checkbox can't drift out of sync with state.invoiceDate.
   const [wantsDate, setWantsDate] = useState(false);
   const showInvoiceDate = wantsDate || state.invoiceDate.trim() !== "";
+  const isBoces = state.docType === "boces_quote";
   return (
     <div className="space-y-2 text-sm">
       <select aria-label="Payment type" value={state.paymentType} onChange={(e) => onChange({ paymentType: e.target.value as PaymentType })}
-        className="rounded border border-[#C2BBD4] px-2 py-1">
+        disabled={isBoces}
+        className="rounded border border-[#C2BBD4] px-2 py-1 disabled:opacity-50">
         {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
 
@@ -61,6 +63,10 @@ export default function PaymentSection({ state, onChange }: Props) {
         PO required
       </label>
 
+      <input aria-label="PO number" placeholder="PO number (if known)" value={state.poNumber}
+        onChange={(e) => onChange({ poNumber: e.target.value })}
+        className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+
       {state.paymentType === "B" && (
         <>
           <input placeholder="Additional terms" value={state.addTerms}
@@ -73,9 +79,6 @@ export default function PaymentSection({ state, onChange }: Props) {
       )}
       {state.paymentType === "C" && (
         <>
-          <input placeholder="PO number" value={state.poNumber}
-            onChange={(e) => onChange({ poNumber: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
           <input placeholder="BOCES name" value={state.bocesName}
             onChange={(e) => onChange({ bocesName: e.target.value })}
             className="w-full rounded border border-[#C2BBD4] px-2 py-1" />

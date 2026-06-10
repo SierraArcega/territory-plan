@@ -40,15 +40,21 @@ describe("POST /api/document-generation/send", () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it("sends and writes a 'sent' row keyed by signatureRequestId", async () => {
+  it("writes the row as processing on synchronous accept", async () => {
     const res = await POST(req({ payload: CONTRACT, districtLeaId: "0601234" }));
     expect(res.status).toBe(200);
     expect(mockSend).toHaveBeenCalledWith(CONTRACT);
+    expect(mockCreate.mock.calls[0][0].data.status).toBe("processing");
     expect(mockCreate).toHaveBeenCalledWith({ data: expect.objectContaining({
-      status: "sent", signatureRequestId: "sig_1", recipientEmail: "s@acme.org",
+      status: "processing", signatureRequestId: "sig_1", recipientEmail: "s@acme.org",
       companyName: "Acme ISD", districtLeaId: "0601234", ownerProfileId: "user-uuid", docId: "D",
     }) });
-    expect(await res.json()).toMatchObject({ status: "sent", signatureRequestId: "sig_1", recipientEmail: "s@acme.org" });
+    const body = await res.json();
+    expect(body.status).toBe("processing");
+    expect(body.id).toBe(1);
+    expect(body.signatureRequestId).toBe("sig_1");
+    expect(body.recipientEmail).toBe("s@acme.org");
+    expect(body.docUrl).toBe("https://docs.google.com/d/D/edit");
   });
 
   it("writes an 'error' row (no signatureRequestId) when the script could not send", async () => {

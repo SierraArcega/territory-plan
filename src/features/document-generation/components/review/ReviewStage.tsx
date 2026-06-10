@@ -1,6 +1,8 @@
 "use client";
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { RenderResult, DocType } from "@/features/document-generation/lib/payload-types";
+import type { SendBanner } from "@/features/document-generation/lib/send-banner";
+export type { SendBanner };
 
 interface Props {
   result: RenderResult;
@@ -9,7 +11,7 @@ interface Props {
   onSend: () => void | Promise<void>;
   onBack: () => void;
   busy?: boolean;
-  sendState?: { status: "sent" | "error"; recipientEmail?: string; sendError?: string } | null;
+  sendState?: SendBanner | null;
 }
 
 export default function ReviewStage({ result, orderTotal, docType, onSend, onBack, busy, sendState }: Props) {
@@ -24,20 +26,29 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
         </a>
       )}
 
-      {sendState?.status === "sent" && (
-        <div className="rounded-lg bg-[#EAF5EE] px-3 py-2 text-sm text-[#2C6E49]">
+      {sendState?.phase === "processing" && (
+        <div role="status" className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">Sending…</div>
+      )}
+      {sendState?.phase === "sent" && (
+        <div role="status" className="rounded-lg bg-[#EAF5EE] px-3 py-2 text-sm text-[#2C6E49]">
           Sent ✓{sendState.recipientEmail ? ` to ${sendState.recipientEmail}` : ""}
         </div>
       )}
-      {sendState?.status === "error" && (
-        <div className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm text-[#F37167]">
+      {sendState?.phase === "error" && (
+        <div role="alert" className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm text-[#F37167]">
           Send failed: {sendState.sendError ?? "unknown error"}
+        </div>
+      )}
+      {sendState?.phase === "unconfirmed" && (
+        <div role="status" className="rounded-lg bg-[#F7F5FA] px-3 py-2 text-sm text-[#6E6390]">
+          Send accepted — awaiting confirmation. Check back shortly.
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
         {docType === "contract" && (
-          <button type="button" onClick={onSend} disabled={busy}
+          <button type="button" onClick={onSend}
+            disabled={busy || (sendState != null && sendState.phase !== "error")}
             className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white whitespace-nowrap disabled:opacity-50">
             {busy ? "Sending…" : "Send for signature"}
           </button>

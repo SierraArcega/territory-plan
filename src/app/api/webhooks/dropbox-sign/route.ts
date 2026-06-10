@@ -49,6 +49,7 @@ export async function POST(request: Request) {
         data: {
           status,
           ...(status === "signed" ? { signedAt: new Date() } : {}),
+          ...(status === "error" ? { errorMessage: ev.event_type } : {}),
         },
       });
       console.log(`Dropbox Sign event: ${ev.event_type} → ${status} for ${sigId}`);

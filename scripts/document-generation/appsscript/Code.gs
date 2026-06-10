@@ -75,20 +75,37 @@ function generateFullContract(payload) {
                            .getAs('application/pdf')
                            .setName(docName + '.pdf');
         var signerName = payload.deal.signer_salut + ' ' + payload.deal.signer_first + ' ' + payload.deal.signer_last;
+        var dsPayload = {
+          'test_mode':                 props[PROP.DROPBOX_SIGN_TEST_MODE] || '1',
+          'title':                     docName,
+          'subject':                   'Please sign your Fullmind contract',
+          'message':                   'Please review and sign your Fullmind agreement for the ' + payload.deal.school_year + ' school year.',
+          'signers[0][email_address]': payload.deal.signer_email || payload.deal.client_email,
+          'signers[0][name]':          signerName,
+          'use_text_tags':             '1',
+          'hide_text_tags':            '1',
+          'files[0]':                  pdfBlob,
+        };
+        // CC the sender + any rep-entered emails so they receive the executed copy.
+        // Dropbox Sign rejects a CC that duplicates a signer, so the signer is
+        // excluded; duplicate CC addresses are collapsed case-insensitively.
+        var signerEmail = String(payload.deal.signer_email || payload.deal.client_email || '').trim().toLowerCase();
+        var ccCandidates = [String(payload.deal.sender_email || '')]
+          .concat(String(payload.deal.cc_emails || '').split(','));
+        var ccSeen = {};
+        var ccIndex = 0;
+        for (var ci = 0; ci < ccCandidates.length; ci++) {
+          var cc = ccCandidates[ci].trim();
+          var ccKey = cc.toLowerCase();
+          if (!cc || ccSeen[ccKey] || ccKey === signerEmail) continue;
+          ccSeen[ccKey] = true;
+          dsPayload['cc_email_addresses[' + ccIndex + ']'] = cc;
+          ccIndex++;
+        }
         var dsResponse = UrlFetchApp.fetch('https://api.hellosign.com/v3/signature_request/send', {
           method:  'post',
           headers: { 'Authorization': 'Basic ' + Utilities.base64Encode(props[PROP.DROPBOX_SIGN_API_KEY] + ':') },
-          payload: {
-            'test_mode':                 props[PROP.DROPBOX_SIGN_TEST_MODE] || '1',
-            'title':                     docName,
-            'subject':                   'Please sign your Fullmind contract',
-            'message':                   'Please review and sign your Fullmind agreement for the ' + payload.deal.school_year + ' school year.',
-            'signers[0][email_address]': payload.deal.signer_email || payload.deal.client_email,
-            'signers[0][name]':          signerName,
-            'use_text_tags':             '1',
-            'hide_text_tags':            '1',
-            'files[0]':                  pdfBlob,
-          },
+          payload: dsPayload,
           muteHttpExceptions: true,
         });
         var dsResult = JSON.parse(dsResponse.getContentText());

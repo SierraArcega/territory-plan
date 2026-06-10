@@ -62,6 +62,7 @@ export interface DocFormState {
   senderLast: string;
   senderTitle: string;
   senderEmail: string;
+  ccEmails: string;
   schoolYear: string;
   startDate: string;
   endDate: string;
@@ -172,6 +173,7 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     senderLast: "",
     senderTitle: "",
     senderEmail: "",
+    ccEmails: "",
     schoolYear: "",
     startDate: "",
     endDate: "",

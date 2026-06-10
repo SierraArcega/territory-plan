@@ -2,6 +2,7 @@ import type {
   DocFormState, ContactRef, ContractPayload, BocesQuotePayload, DocPayload,
 } from "./payload-types";
 import { computeTotals } from "./quote";
+import { parseCcEmails } from "./validation";
 
 function resolveRole(state: DocFormState, role: "signer" | "billing"): ContactRef | null {
   if (role === "signer") return state.signerSameAsClient ? state.clientContact : state.signerContact;
@@ -38,7 +39,7 @@ export function assemblePayload(state: DocFormState, today: string = formatToday
     imp_detail: state.paymentType === "B" ? state.impDetail : "",
     pay_prepost: state.paymentType === "C" ? state.payPrePost : "",
     boces_name: state.paymentType === "C" ? state.bocesName : "",
-    po_number: state.paymentType === "C" ? state.poNumber : "",
+    po_number: state.poNumber, // doc's PO row slot exists for every payment type
     // Blank invoice date renders as "time of signing"; otherwise the chosen date.
     invoice_date: state.invoiceDate.trim() === "" ? "time of signing" : state.invoiceDate,
   };
@@ -94,6 +95,7 @@ export function assemblePayload(state: DocFormState, today: string = formatToday
       sender_last: state.senderLast,
       sender_title: state.senderTitle,
       sender_email: state.senderEmail,
+      cc_emails: parseCcEmails(state.ccEmails).join(","),
       today,
     },
     quote: {

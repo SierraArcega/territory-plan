@@ -9,6 +9,8 @@ import { computeTotals } from "@/features/document-generation/lib/quote";
 import { stubRenderClient } from "@/features/document-generation/lib/render-client";
 import type { PrefillResult } from "@/features/document-generation/lib/prefill";
 import { sendForSignatureRequest } from "@/features/document-generation/lib/send-client";
+import { useGeneratedDocumentStatus } from "@/features/document-generation/lib/queries";
+import { deriveSendBanner } from "@/features/document-generation/lib/send-banner";
 
 interface Props {
   prefill: PrefillResult;
@@ -38,9 +40,17 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   const [state, setState] = useState<DocFormState>(() => seedState(prefill));
   const [result, setResult] = useState<RenderResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sendState, setSendState] = useState<{ status: "sent" | "error"; recipientEmail?: string; sendError?: string } | null>(null);
+  const [sendId, setSendId] = useState<number | null>(null);
+  const [syncSend, setSyncSend] = useState<{ recipientEmail?: string; sendError?: string } | null>(null);
 
-  async function render(tags: boolean): Promise<RenderResult> {
+  const statusQuery = useGeneratedDocumentStatus(sendId);
+
+  // Derive the send banner BEFORE handleSend so the retry guard can use it
+  const sendState = deriveSendBanner(syncSend, sendId, statusQuery.data, statusQuery.pollTimedOut);
+
+  const canSend = !busy && (sendId == null || sendState?.phase === "error");
+
+  async function doRender(tags: boolean): Promise<RenderResult> {
     setBusy(true);
     try {
       const res = await renderClient(assemblePayload(state), { tags });
@@ -52,16 +62,21 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   }
 
   async function handleSend() {
-    if (busy) return;
+    if (!canSend) return;
     setBusy(true);
+    setSendId(null);       // retry path: clear prior tracking before a fresh POST
+    setSyncSend(null);
     try {
       const payload = assemblePayload(state);
       const res = await sendForSignatureRequest(payload, state.districtLeaId);
-      setSendState(res.status === "sent"
-        ? { status: "sent", recipientEmail: res.recipientEmail }
-        : { status: "error", sendError: res.sendError });
+      if (res.status === "processing" && res.id != null) {
+        setSendId(res.id);
+        setSyncSend({ recipientEmail: res.recipientEmail });
+      } else {
+        setSyncSend({ sendError: res.sendError ?? "send failed" });
+      }
     } catch {
-      setSendState({ status: "error", sendError: "Send request failed" });
+      setSyncSend({ sendError: "Send request failed" });
     } finally {
       setBusy(false);
     }
@@ -82,14 +97,14 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
             busy={busy}
             sendState={sendState}
             onSend={handleSend}
-            onBack={() => { setResult(null); setSendState(null); }}
+            onBack={() => { setResult(null); setSendId(null); setSyncSend(null); }}
           />
         ) : (
           <DocumentPayloadForm
             value={state}
             onChange={setState}
             busy={busy}
-            onRender={() => { if (!busy) void render(false); }}  // preview is always clean (tags off); "Send for signature" re-renders tagged + sends
+            onRender={() => { if (!busy) void doRender(false); }}  // preview is always clean (tags off); "Send for signature" re-renders tagged + sends
             bookingReference={prefill.bookingReference}
           />
         )}

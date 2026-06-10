@@ -38,14 +38,14 @@ describe("assemblePayload (contract)", () => {
     expect(p.payment.invoice_date).toBe("2026-07-15");
   });
 
-  it("clears type-B/C fields when payment type is A", () => {
+  it("clears type-B fields when payment type is A; po_number always emits", () => {
     const s = emptyFormState("contract", "x");
     s.clientContact = jane;
     s.paymentType = "A";
     s.addTerms = "leftover"; s.poNumber = "leftover";
     const p = assemblePayload(s);
     expect(p.payment.add_terms).toBe("");
-    expect(p.payment.po_number).toBe("");
+    expect(p.payment.po_number).toBe("leftover");
   });
 });
 
@@ -183,5 +183,32 @@ describe("assemblePayload — deal.today injection", () => {
     const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
     expect(p.deal.today).not.toBe("");
     expect(p.deal.today).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+  });
+});
+
+describe("assemblePayload — deal.cc_emails", () => {
+  it("emits normalized comma-joined cc_emails", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.ccEmails = " ap@x.com ; AP@x.com, boss@y.org ";
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.cc_emails).toBe("ap@x.com,boss@y.org");
+  });
+  it("emits empty string when no CCs", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.deal.cc_emails).toBe("");
+  });
+});
+
+describe("assemblePayload — payment.po_number", () => {
+  it("emits po_number on the boces_quote payload too (shared payment record)", () => {
+    const s = emptyFormState("boces_quote", "x");
+    s.clientContact = jane;
+    s.paymentType = "A";
+    s.poNumber = "PO-123";
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "boces_quote" }>;
+    expect(p.payment.po_number).toBe("PO-123");
   });
 });

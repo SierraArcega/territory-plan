@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PartiesContactsSection from "../PartiesContactsSection";
 import { emptyFormState } from "@/features/document-generation/lib/payload-types";
@@ -53,5 +53,15 @@ describe("PartiesContactsSection", () => {
     const input = screen.getByPlaceholderText(/Billing address/i);
     expect(input.className).toContain("border-[#C2BBD4]");
     expect(input.className).not.toContain("border-[#F37167]");
+  });
+  it("shows the CC field for contracts and forwards changes", () => {
+    const { onChange } = setup();
+    const input = screen.getByLabelText("CC executed copy to");
+    fireEvent.change(input, { target: { value: "ap@x.com" } });
+    expect(onChange).toHaveBeenCalledWith({ ccEmails: "ap@x.com" });
+  });
+  it("hides the CC field for BOCES quotes", () => {
+    setup({ docType: "boces_quote" });
+    expect(screen.queryByLabelText("CC executed copy to")).toBeNull();
   });
 });

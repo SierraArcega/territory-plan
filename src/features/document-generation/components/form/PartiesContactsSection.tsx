@@ -46,6 +46,14 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
           className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
       )}
 
+      {!isBoces && (
+        <input aria-label="CC executed copy to"
+          placeholder="CC executed copy to (comma-separated emails)"
+          value={state.ccEmails}
+          onChange={(e) => onChange({ ccEmails: e.target.value })}
+          className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+      )}
+
       <div className="flex flex-wrap gap-2">
         <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
           Start date
