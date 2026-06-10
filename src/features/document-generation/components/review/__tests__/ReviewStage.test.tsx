@@ -56,7 +56,7 @@ describe("ReviewStage", () => {
   });
   it("explains that manual edits do not flow into Send", () => {
     render(<ReviewStage {...props({ docType: "contract" })} />);
-    expect(screen.getByText(/Send re-renders a clean copy/i)).toBeInTheDocument();
+    expect(screen.getByText(/send for signature via Google instead/i)).toBeInTheDocument();
   });
 
   // New phase-based banner tests

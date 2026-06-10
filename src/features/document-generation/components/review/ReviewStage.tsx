@@ -63,7 +63,7 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
 
       {docType === "contract" && (
         <p className="text-xs text-[#6E6390]">
-          Manual doc edits don&apos;t carry into sending — Send re-renders a clean copy. The PDF always shows the doc&apos;s current state.
+          If you Edit in Google Docs, send for signature via Google instead to ensure your changes are retained, then upload later manually!
         </p>
       )}
 
