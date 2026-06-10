@@ -75,4 +75,17 @@ describe("POST /api/webhooks/dropbox-sign", () => {
       where: expect.objectContaining({ signatureRequestId: "sig_1", status: { notIn: ["signed", "declined", "canceled"] } }),
     }));
   });
+
+  it("stamps errorMessage with the event type on error events", async () => {
+    await POST(eventForm("signature_request_invalid", "sig_1"));
+    expect(mockUpdateMany.mock.calls[0][0].data).toMatchObject({
+      status: "error",
+      errorMessage: "signature_request_invalid",
+    });
+  });
+
+  it("does not touch errorMessage on non-error transitions", async () => {
+    await POST(eventForm("signature_request_viewed", "sig_1"));
+    expect(mockUpdateMany.mock.calls[0][0].data).not.toHaveProperty("errorMessage");
+  });
 });
