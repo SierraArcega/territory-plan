@@ -2,6 +2,7 @@
 import { formatCurrency } from "@/features/shared/lib/format";
 import type { RenderResult, DocType } from "@/features/document-generation/lib/payload-types";
 import type { SendBanner } from "@/features/document-generation/lib/send-banner";
+import { docIdFromUrl } from "@/features/document-generation/lib/ids";
 export type { SendBanner };
 
 interface Props {
@@ -15,10 +16,30 @@ interface Props {
 }
 
 export default function ReviewStage({ result, orderTotal, docType, onSend, onBack, busy, sendState }: Props) {
+  const docId = docIdFromUrl(result.docUrl);
   return (
     <div className="space-y-3">
-      <a href={result.docUrl} target="_blank" rel="noreferrer"
-        className="text-[#403770] underline whitespace-nowrap">Open the rendered document ↗</a>
+      <div className="flex flex-wrap items-center gap-2">
+        {docId && (
+          <a
+            href={`https://docs.google.com/document/d/${docId}/export?format=pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white whitespace-nowrap"
+          >View PDF ↓</a>
+        )}
+        <a
+          href={result.docUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm text-[#403770] underline whitespace-nowrap"
+        >Edit in Google Docs ↗</a>
+      </div>
+      {docType === "contract" && (
+        <p className="text-xs text-[#6E6390]">
+          Manual doc edits don&apos;t carry into sending — Send re-renders a clean copy. The PDF always shows the doc&apos;s current state.
+        </p>
+      )}
       <div className="text-sm">Order total: {formatCurrency(orderTotal)}</div>
       {result.agreementUrl && (
         <a href={result.agreementUrl} target="_blank" rel="noreferrer" className="block text-sm text-[#403770] underline">

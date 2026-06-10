@@ -39,9 +39,24 @@ describe("ReviewStage", () => {
     render(<ReviewStage {...props({ sendState: { phase: "error", sendError: "domain not allowed" } })} />);
     expect(screen.getByText(/domain not allowed/i)).toBeInTheDocument();
   });
-  it("links to the rendered doc", () => {
+  it("links to the rendered doc via Edit in Google Docs", () => {
     render(<ReviewStage {...props()} />);
-    expect(screen.getByRole("link", { name: /rendered document/i })).toHaveAttribute("href", "https://docs.google.com/document/d/X/edit");
+    expect(screen.getByRole("link", { name: /edit in google docs/i })).toHaveAttribute("href", "https://docs.google.com/document/d/X/edit");
+  });
+
+  // Task 8: PDF-first review actions
+  it("offers a View PDF primary action derived from the doc URL", () => {
+    render(<ReviewStage {...props()} />);
+    const pdf = screen.getByRole("link", { name: /view pdf/i });
+    expect(pdf).toHaveAttribute("href", "https://docs.google.com/document/d/X/export?format=pdf");
+  });
+  it("keeps the Google Doc link as the manual-edit escape hatch", () => {
+    render(<ReviewStage {...props()} />);
+    expect(screen.getByRole("link", { name: /edit in google docs/i })).toHaveAttribute("href", "https://docs.google.com/document/d/X/edit");
+  });
+  it("explains that manual edits do not flow into Send", () => {
+    render(<ReviewStage {...props({ docType: "contract" })} />);
+    expect(screen.getByText(/Send re-renders a clean copy/i)).toBeInTheDocument();
   });
 
   // New phase-based banner tests
