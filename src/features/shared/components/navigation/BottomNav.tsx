@@ -11,6 +11,7 @@ import {
   Apple,
   BookOpen,
   User,
+  UserCheck,
   Settings,
 } from "lucide-react";
 import type { TabId } from "./Sidebar";
@@ -25,6 +26,7 @@ const MAIN_ITEMS: NavItem[] = [
   { id: "home",             label: "Home",      icon: <Home className="w-5 h-5" /> },
   { id: "map",              label: "Map",        icon: <Map className="w-5 h-5" /> },
   { id: "plans",            label: "Plans",      icon: <ClipboardList className="w-5 h-5" /> },
+  { id: "leads",            label: "Leads",      icon: <UserCheck className="w-5 h-5" /> },
   { id: "activities",       label: "Activities", icon: <Calendar className="w-5 h-5" /> },
   { id: "tasks",            label: "Tasks",      icon: <ListChecks className="w-5 h-5" /> },
   { id: "reports",          label: "Reports",    icon: <BarChart2 className="w-5 h-5" /> },

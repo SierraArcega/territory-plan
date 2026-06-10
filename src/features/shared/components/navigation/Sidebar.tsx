@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Apple } from "lucide-react";
+import { Apple, UserCheck } from "lucide-react";
 import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardNavWidget";
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 import MyViewsSection from "@/features/views/components/MyViewsSection";
@@ -12,7 +12,7 @@ import { CopilotNavButton } from "@/features/copilot/components/CopilotNavButton
 // The 'id' matches the activeTab state values we'll use throughout the app.
 // "views" is a sentinel passed from /views/* routes so no main tab is highlighted —
 // it never appears in MAIN_TABS or BOTTOM_TABS.
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "reports" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin" | "views";
+type TabId = "home" | "map" | "plans" | "leads" | "activities" | "tasks" | "reports" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin" | "views";
 
 interface Tab {
   id: TabId;
@@ -123,6 +123,9 @@ const ReportsIcon = () => (
 
 const LowHangingFruitIcon = () => <Apple className="w-5 h-5" />;
 
+// Leads icon — person + check, matching the prototype's LeadsIcon glyph
+const LeadsIcon = () => <UserCheck className="w-5 h-5" />;
+
 // Admin gear icon
 const AdminIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,6 +168,7 @@ const MAIN_TABS: Tab[] = [
   { id: "home", label: "Home", icon: <HomeIcon /> },
   { id: "map", label: "Map", icon: <MapIcon /> },
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
+  { id: "leads", label: "Leads", icon: <LeadsIcon /> },
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
   { id: "reports", label: "Reports", icon: <ReportsIcon /> },
