@@ -709,6 +709,26 @@ vi.mock("@/features/document-generation/lib/queries", () => ({
 
 ---
 
+### Task 11 (addendum 2026-06-10): PO number input for all payment types
+
+**Files:**
+- Modify: `src/features/document-generation/components/form/PaymentSection.tsx`
+- Modify: `src/features/document-generation/lib/payload.ts` (line ~42)
+- Test: `src/features/document-generation/lib/__tests__/payload.test.ts`, `src/features/document-generation/components/form/__tests__/PaymentSection.test.tsx` (create if missing)
+
+- [ ] **Step 1: failing payload test** — type A state with `s.poNumber = "PO-123"` → `p.payment.po_number === "PO-123"` (currently blanked for non-C).
+- [ ] **Step 2: failing UI test** — PaymentSection with default (type A) state shows `placeholder="PO number (if known)"` input and forwards `{ poNumber: "PO-123" }` on change.
+- [ ] **Step 3: implement** — payload: `po_number: state.poNumber,` (drop the C gate; `boces_name`/`pay_prepost` STAY gated). PaymentSection: remove the `PO number` input from the type-C block; add directly under the "PO required" checkbox label:
+
+```tsx
+<input placeholder="PO number (if known)" value={state.poNumber}
+  onChange={(e) => onChange({ poNumber: e.target.value })}
+  className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+```
+
+- [ ] **Step 4: verify** — `npx vitest run src/features/document-generation` all green.
+- [ ] **Step 5: commit** — `git add -A && git commit -m "fix(doc-gen): PO number input available for all payment types"`
+
 ## Deployment + e2e verification (manual, after suite green — driven from this worktree)
 
 1. **Deploy the Apps Script:**
