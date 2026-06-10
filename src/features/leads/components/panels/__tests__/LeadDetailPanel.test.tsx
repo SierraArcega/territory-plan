@@ -164,7 +164,7 @@ describe("LeadDetailPanel action zone per status", () => {
       }),
     );
     expect(screen.getByTestId("action-zone")).toHaveTextContent(
-      "Sales Qualified Lead · opportunity in the sales pipeline",
+      "Sales Qualified Lead · Jun 1 · opportunity in the sales pipeline",
     );
     expect(
       screen.queryByRole("button", { name: /Disqualify lead/ }),

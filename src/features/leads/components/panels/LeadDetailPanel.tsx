@@ -157,7 +157,7 @@ export default function LeadDetailPanel({
         role="dialog"
         aria-modal="true"
         aria-label={`Lead: ${contactName}`}
-        className="absolute inset-y-0 right-0 z-[41] flex w-full flex-col border-l border-[#D4CFE2] bg-white shadow-[-8px_0_24px_-8px_rgba(64,55,112,0.18)] sm:w-[min(640px,calc(100vw-24px))]"
+        className="absolute inset-y-0 right-0 z-[41] flex w-full flex-col border-l border-[#D4CFE2] bg-white shadow-[-10px_0_28px_-8px_rgba(64,55,112,0.22)] sm:w-[min(640px,calc(100vw-24px))]"
         style={{ animation: PANEL_SLIDE_ANIMATION }}
       >
         {/* Header */}
@@ -746,7 +746,8 @@ function ActionZone({
     );
   }
 
-  // SALES QUALIFIED — terminal.
+  // SALES QUALIFIED — terminal. updatedAt ≈ qualification time (terminal
+  // status means the last write was the qualifying transition).
   if (lead.status === "sales_qualified") {
     return (
       <ZoneCard>
@@ -754,6 +755,7 @@ function ActionZone({
           <CheckCircle2 size={18} className="shrink-0 text-[#56792F]" aria-hidden />
           <div className="text-[13px] font-semibold text-[#403770]">
             Sales Qualified Lead
+            {` · ${fmtDate(lead.updatedAt, now)}`}
             {lead.opportunity ? " · opportunity in the sales pipeline" : ""}
           </div>
         </div>
