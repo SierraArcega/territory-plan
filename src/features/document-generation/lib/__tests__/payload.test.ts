@@ -38,14 +38,14 @@ describe("assemblePayload (contract)", () => {
     expect(p.payment.invoice_date).toBe("2026-07-15");
   });
 
-  it("clears type-B/C fields when payment type is A", () => {
+  it("clears type-B fields when payment type is A; po_number always emits", () => {
     const s = emptyFormState("contract", "x");
     s.clientContact = jane;
     s.paymentType = "A";
     s.addTerms = "leftover"; s.poNumber = "leftover";
     const p = assemblePayload(s);
     expect(p.payment.add_terms).toBe("");
-    expect(p.payment.po_number).toBe("");
+    expect(p.payment.po_number).toBe("leftover");
   });
 });
 
@@ -199,5 +199,16 @@ describe("assemblePayload — deal.cc_emails", () => {
     s.clientContact = jane;
     const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
     expect(p.deal.cc_emails).toBe("");
+  });
+});
+
+describe("assemblePayload — payment.po_number", () => {
+  it("emits po_number for non-C payment types (doc slot always exists)", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.paymentType = "A";
+    s.poNumber = "PO-123";
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.payment.po_number).toBe("PO-123");
   });
 });

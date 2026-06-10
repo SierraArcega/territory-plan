@@ -39,7 +39,7 @@ export function assemblePayload(state: DocFormState, today: string = formatToday
     imp_detail: state.paymentType === "B" ? state.impDetail : "",
     pay_prepost: state.paymentType === "C" ? state.payPrePost : "",
     boces_name: state.paymentType === "C" ? state.bocesName : "",
-    po_number: state.paymentType === "C" ? state.poNumber : "",
+    po_number: state.poNumber, // doc's PO row slot exists for every payment type
     // Blank invoice date renders as "time of signing"; otherwise the chosen date.
     invoice_date: state.invoiceDate.trim() === "" ? "time of signing" : state.invoiceDate,
   };

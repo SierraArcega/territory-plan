@@ -60,6 +60,9 @@ export default function PaymentSection({ state, onChange }: Props) {
         <input type="checkbox" checked={state.poRequired} onChange={(e) => onChange({ poRequired: e.target.checked })} />
         PO required
       </label>
+      <input placeholder="PO number (if known)" value={state.poNumber}
+        onChange={(e) => onChange({ poNumber: e.target.value })}
+        className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
 
       {state.paymentType === "B" && (
         <>
@@ -73,9 +76,6 @@ export default function PaymentSection({ state, onChange }: Props) {
       )}
       {state.paymentType === "C" && (
         <>
-          <input placeholder="PO number" value={state.poNumber}
-            onChange={(e) => onChange({ poNumber: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
           <input placeholder="BOCES name" value={state.bocesName}
             onChange={(e) => onChange({ bocesName: e.target.value })}
             className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
