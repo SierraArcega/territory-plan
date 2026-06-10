@@ -61,6 +61,9 @@ describe("parseCcEmails", () => {
     expect(parseCcEmails("")).toEqual([]);
     expect(parseCcEmails("  ")).toEqual([]);
   });
+  it("drops whitespace-only tokens between separators", () => {
+    expect(parseCcEmails("a@x.com,   ,b@y.com")).toEqual(["a@x.com", "b@y.com"]);
+  });
 });
 
 describe("getCompleteness — ccEmails", () => {

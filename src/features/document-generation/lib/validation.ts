@@ -1,6 +1,7 @@
 import type { DocFormState } from "./payload-types";
 import { computeTotals } from "./quote";
 
+// Intentionally loose — requires local@domain.tld shape; rejects whitespace and bare domains.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Split a freeform CC field on commas/semicolons into trimmed, case-insensitively deduped emails. */
