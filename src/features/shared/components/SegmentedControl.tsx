@@ -3,9 +3,10 @@
 // SegmentedControl — a labeled pill group for switching between a small set
 // of mutually exclusive options (e.g. "My leads / Team", "Board / Table").
 // Complements ViewToggle (icon-only); this one carries text labels and is
-// generic over the option value type. Active segment: plum bg + white text.
-// Container: white, border #D4CFE2, radius 8 (per tokens.md selected-state
-// plum convention, consistent with ViewToggle).
+// generic over the option value type. Visuals follow the leads design
+// prototype's recessed style: #EFEDF5 track (radius 9, 3px padding), active
+// segment = white card with plum text + subtle shadow, inactive = muted
+// text on the track; active icons tint coral.
 
 import type { ReactNode } from "react";
 
@@ -36,7 +37,7 @@ export default function SegmentedControl<V extends string>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-[#D4CFE2] bg-white p-0.5 ${className ?? ""}`}
+      className={`inline-flex shrink-0 items-center gap-[2px] rounded-[9px] bg-[#EFEDF5] p-[3px] ${className ?? ""}`}
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -46,13 +47,20 @@ export default function SegmentedControl<V extends string>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(option.value)}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-[120ms] ${
+            className={`inline-flex items-center gap-1.5 rounded-[7px] px-[11px] py-[5px] text-[12.5px] font-semibold transition-all duration-[120ms] ${
               active
-                ? "bg-[#403770] text-white"
-                : "bg-transparent text-[#5C5277] hover:bg-[#F7F5FA]"
+                ? "bg-white text-[#403770] shadow-[0_1px_2px_rgba(64,55,112,0.12)]"
+                : "bg-transparent text-[#8A80A8] hover:text-[#5C5277]"
             }`}
           >
-            {option.icon}
+            {option.icon && (
+              <span
+                className={`inline-flex ${active ? "text-[#F37167]" : "text-current"}`}
+                aria-hidden
+              >
+                {option.icon}
+              </span>
+            )}
             <span className="whitespace-nowrap">{option.label}</span>
           </button>
         );

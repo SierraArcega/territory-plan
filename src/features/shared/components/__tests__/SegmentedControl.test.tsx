@@ -24,7 +24,7 @@ describe("SegmentedControl", () => {
     expect(screen.getByRole("button", { name: "Table" })).toBeInTheDocument();
   });
 
-  it("marks the active segment with aria-pressed and plum styling", () => {
+  it("marks the active segment with aria-pressed and the white-card styling", () => {
     render(
       <SegmentedControl<View>
         options={[...OPTIONS]}
@@ -36,7 +36,8 @@ describe("SegmentedControl", () => {
     const active = screen.getByRole("button", { name: "Table" });
     const inactive = screen.getByRole("button", { name: "Board" });
     expect(active).toHaveAttribute("aria-pressed", "true");
-    expect(active.className).toContain("bg-[#403770]");
+    expect(active.className).toContain("bg-white");
+    expect(active.className).toContain("text-[#403770]");
     expect(inactive).toHaveAttribute("aria-pressed", "false");
     expect(inactive.className).toContain("bg-transparent");
   });
