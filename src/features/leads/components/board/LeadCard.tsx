@@ -47,7 +47,7 @@ function FooterSignal({ lead, now }: { lead: Lead; now?: Date }) {
     return (
       <span className="inline-flex items-center gap-[5px] whitespace-nowrap text-[11px] font-semibold text-[#5A4F9E]">
         <Calendar size={12} aria-hidden />
-        {fmtDate(new Date(lead.updatedAt), now)}
+        {fmtDate(new Date(lead.meetingAt ?? lead.updatedAt), now)}
       </span>
     );
   }

@@ -55,6 +55,7 @@ export interface Lead {
   sequence: string | null;
   marketingOwner: string | null;
   unqualifiedReason: string | null;
+  meetingAt: string | null;
   assignedAt: string;
   acceptedAt: string | null;
   createdAt: string;

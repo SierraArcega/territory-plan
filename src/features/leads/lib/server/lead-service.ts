@@ -82,6 +82,7 @@ export function serializeLead(lead: LeadWithRelations) {
     sequence: lead.sequence,
     marketingOwner: lead.marketingOwner,
     unqualifiedReason: lead.unqualifiedReason,
+    meetingAt: lead.meetingAt?.toISOString() ?? null,
     assignedAt: lead.assignedAt.toISOString(),
     acceptedAt: lead.acceptedAt?.toISOString() ?? null,
     createdAt: lead.createdAt.toISOString(),
@@ -353,10 +354,13 @@ export interface TransitionLeadInput {
   status?: string;
   /** Required when transitioning to unqualified. */
   reason?: string | null;
+  /** Optional meeting date (ISO string) when transitioning to meeting_scheduled. */
+  meetingAt?: string | null;
 }
 
 interface TransitionOptions {
   reason?: string | null;
+  meetingAt?: string | null;
 }
 
 /**
@@ -416,6 +420,15 @@ async function applyTransition(
     });
   } else {
     events.push({ kind: "restaged", payload: { from, to: target } });
+    if (target === "meeting_scheduled" && opts.meetingAt != null) {
+      const meetingAt = new Date(opts.meetingAt);
+      if (Number.isNaN(meetingAt.getTime())) {
+        throw new ServiceError("meetingAt must be a valid date", 400);
+      }
+      data.meetingAt = meetingAt;
+    }
+    // Leaving meeting_scheduled (back to working or onward) keeps meetingAt —
+    // it's history; the UI only surfaces it while in stage.
     if (target === "meeting_scheduled" && !lead.opportunityId) {
       const opp = await createStage0Opportunity(tx, lead, userId, {});
       data.opportunityId = opp.id;
@@ -465,7 +478,13 @@ export async function transitionLead(
       include: { district: { select: { leaid: true, name: true } } },
     });
     if (!lead) throw new ServiceError("Lead not found", 404);
-    return applyTransition(tx, lead, input.status as LeadStatus, { reason: input.reason }, userId);
+    return applyTransition(
+      tx,
+      lead,
+      input.status as LeadStatus,
+      { reason: input.reason, meetingAt: input.meetingAt },
+      userId,
+    );
   });
 }
 

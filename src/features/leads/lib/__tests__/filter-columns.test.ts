@@ -18,6 +18,7 @@ function makeLead(overrides: Partial<Lead> = {}): Lead {
     sequence: "General BDR Sequence",
     marketingOwner: "Jules Okafor",
     unqualifiedReason: null,
+    meetingAt: null,
     assignedAt: new Date("2026-06-02T03:30:00").toISOString(),
     acceptedAt: null,
     createdAt: new Date("2026-05-22T09:00:00").toISOString(),

@@ -30,6 +30,7 @@ function makeLead(overrides: Partial<Lead> = {}): Lead {
     sequence: null,
     marketingOwner: null,
     unqualifiedReason: null,
+    meetingAt: null,
     assignedAt: new Date().toISOString(),
     acceptedAt: null,
     createdAt: new Date().toISOString(),

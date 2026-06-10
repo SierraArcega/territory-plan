@@ -53,6 +53,7 @@ function leadFixture(overrides: Record<string, unknown> = {}) {
     assignedBdrId: "user-1",
     unqualifiedReason: null,
     opportunityId: null,
+    meetingAt: null,
     assignedAt: new Date("2026-06-01T10:00:00Z"),
     acceptedAt: null,
     createdAt: new Date("2026-06-01T10:00:00Z"),
@@ -173,6 +174,47 @@ describe("PATCH /api/leads/[id]", () => {
   it("returns 400 when there is nothing to update", async () => {
     const res = await PATCH(patchRequest({}), routeParams);
     expect(res.status).toBe(400);
+  });
+
+  it("passes meetingAt through to the service on a transition", async () => {
+    const res = await PATCH(
+      patchRequest({ status: "meeting_scheduled", meetingAt: "2026-06-15T14:00:00Z" }),
+      routeParams,
+    );
+    expect(res.status).toBe(200);
+    expect(mockTransitionLead).toHaveBeenCalledWith(
+      "lead-1",
+      { status: "meeting_scheduled", reason: undefined, meetingAt: "2026-06-15T14:00:00Z" },
+      "user-1",
+    );
+    // meetingAt rode the transition — no separate field-edit write
+    expect(mockPrisma.lead.update).not.toHaveBeenCalled();
+  });
+
+  it("updates meetingAt as a standalone field edit", async () => {
+    const res = await PATCH(patchRequest({ meetingAt: "2026-06-20T09:30:00Z" }), routeParams);
+    expect(res.status).toBe(200);
+    const data = mockPrisma.lead.update.mock.calls[0][0].data as { meetingAt: Date };
+    expect(data.meetingAt).toBeInstanceOf(Date);
+    expect(data.meetingAt.toISOString()).toBe("2026-06-20T09:30:00.000Z");
+    expect(mockTransitionLead).not.toHaveBeenCalled();
+  });
+
+  it("allows clearing meetingAt with null", async () => {
+    const res = await PATCH(patchRequest({ meetingAt: null }), routeParams);
+    expect(res.status).toBe(200);
+    expect(mockPrisma.lead.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { meetingAt: null } }),
+    );
+  });
+
+  it("rejects a garbage meetingAt with 400", async () => {
+    for (const meetingAt of ["not-a-date", 12345, true]) {
+      const res = await PATCH(patchRequest({ meetingAt }), routeParams);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid_meeting_at" });
+    }
+    expect(mockPrisma.lead.update).not.toHaveBeenCalled();
   });
 });
 

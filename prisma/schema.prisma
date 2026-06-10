@@ -2186,6 +2186,7 @@ model Lead {
   assignedBdrId     String?   @map("assigned_bdr_id") @db.Uuid
   unqualifiedReason String?   @map("unqualified_reason") @db.VarChar(255)
   opportunityId     String?   @map("opportunity_id") // Stage 0 opp created at meeting_scheduled (or linked)
+  meetingAt         DateTime? @map("meeting_at") @db.Timestamptz // meeting date set at meeting_scheduled; kept on later stages (history)
   assignedAt        DateTime  @default(now()) @map("assigned_at") // SLA clock start (2 business days)
   acceptedAt        DateTime? @map("accepted_at")
   createdAt         DateTime  @default(now()) @map("created_at")

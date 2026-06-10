@@ -16,7 +16,9 @@ import {
   transitionLead,
   logEngagement,
   linkOpportunity,
+  serializeLead,
   type LeadStatus,
+  type LeadWithRelations,
 } from "../lead-service";
 
 const USER_ID = "user-1";
@@ -63,6 +65,7 @@ function baseLead(status: LeadStatus, overrides: Record<string, unknown> = {}) {
     assignedBdrId: USER_ID,
     unqualifiedReason: null,
     opportunityId: null,
+    meetingAt: null,
     assignedAt: new Date("2026-06-01T10:00:00Z"),
     acceptedAt: null,
     createdAt: new Date("2026-06-01T10:00:00Z"),
@@ -194,6 +197,55 @@ describe("transitionLead — side effects", () => {
 
     const kinds = db.leadEvent.create.mock.calls.map((c) => c[0].data.kind);
     expect(kinds).toEqual(["restaged", "opp_created"]);
+  });
+
+  it("meeting_scheduled stores meetingAt when provided", async () => {
+    db.lead.findUnique.mockResolvedValue(baseLead("working"));
+    db.opportunity.create.mockResolvedValue({ id: "opp-new" });
+
+    await transitionLead(
+      "lead-1",
+      { status: "meeting_scheduled", meetingAt: "2026-06-15T14:00:00Z" },
+      USER_ID,
+      asDb(db),
+    );
+
+    const updateData = db.lead.update.mock.calls[0][0].data;
+    expect(updateData.meetingAt).toBeInstanceOf(Date);
+    expect((updateData.meetingAt as Date).toISOString()).toBe("2026-06-15T14:00:00.000Z");
+  });
+
+  it("meeting_scheduled without meetingAt leaves the field untouched", async () => {
+    db.lead.findUnique.mockResolvedValue(baseLead("working"));
+    db.opportunity.create.mockResolvedValue({ id: "opp-new" });
+
+    await transitionLead("lead-1", { status: "meeting_scheduled" }, USER_ID, asDb(db));
+    expect(db.lead.update.mock.calls[0][0].data).not.toHaveProperty("meetingAt");
+  });
+
+  it("rejects a garbage meetingAt with 400", async () => {
+    db.lead.findUnique.mockResolvedValue(baseLead("working"));
+    await expectServiceError(
+      transitionLead(
+        "lead-1",
+        { status: "meeting_scheduled", meetingAt: "not-a-date" },
+        USER_ID,
+        asDb(db),
+      ),
+      400,
+    );
+  });
+
+  it("leaving meeting_scheduled keeps the meetingAt timestamp (history)", async () => {
+    db.lead.findUnique.mockResolvedValue(
+      baseLead("meeting_scheduled", {
+        opportunityId: "opp-1",
+        meetingAt: new Date("2026-06-15T14:00:00Z"),
+      }),
+    );
+    await transitionLead("lead-1", { status: "working" }, USER_ID, asDb(db));
+    // No clearing write — the column simply isn't part of the update.
+    expect(db.lead.update.mock.calls[0][0].data).not.toHaveProperty("meetingAt");
   });
 
   it("meeting_scheduled does NOT create a second opp when one is already linked", async () => {
@@ -470,5 +522,33 @@ describe("linkOpportunity", () => {
       LEAD_OPP_STAGE_MEETING_BOOKED,
     );
     expect(db.leadEvent.create.mock.calls[0][0].data.payload.mode).toBe("created");
+  });
+});
+
+describe("serializeLead", () => {
+  function fullLead(overrides: Record<string, unknown> = {}) {
+    return {
+      ...baseLead("meeting_scheduled"),
+      contact: { id: 11, name: "Renee Alvarado", title: null, email: null, phone: null },
+      school: null,
+      district: {
+        leaid: "0612480",
+        name: "East Side Union HSD",
+        cityLocation: "San Jose",
+        stateAbbrev: "CA",
+      },
+      assignedBdr: null,
+      opportunity: null,
+      ...overrides,
+    } as unknown as LeadWithRelations;
+  }
+
+  it("includes meetingAt as an ISO string", () => {
+    const json = serializeLead(fullLead({ meetingAt: new Date("2026-06-15T14:00:00Z") }));
+    expect(json.meetingAt).toBe("2026-06-15T14:00:00.000Z");
+  });
+
+  it("serializes meetingAt as null when unset", () => {
+    expect(serializeLead(fullLead()).meetingAt).toBeNull();
   });
 });

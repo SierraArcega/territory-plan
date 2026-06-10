@@ -56,6 +56,7 @@ export async function PATCH(
     let body: {
       status?: string;
       reason?: string | null;
+      meetingAt?: string | null;
       leadType?: string | null;
       sequence?: string | null;
       marketingOwner?: string | null;
@@ -116,9 +117,22 @@ export async function PATCH(
       }
       data.score = body.score;
     }
+    const hasTransition = body.status !== undefined;
+    // meetingAt rides along with a meeting_scheduled transition (handled by the
+    // service); standalone it's a field edit (e.g. rescheduling in-stage).
+    if (body.meetingAt !== undefined && !hasTransition) {
+      if (body.meetingAt === null) {
+        data.meetingAt = null;
+      } else {
+        const meetingAt = new Date(body.meetingAt);
+        if (typeof body.meetingAt !== "string" || Number.isNaN(meetingAt.getTime())) {
+          return NextResponse.json({ error: "invalid_meeting_at" }, { status: 400 });
+        }
+        data.meetingAt = meetingAt;
+      }
+    }
 
     const hasFieldEdits = Object.keys(data).length > 0;
-    const hasTransition = body.status !== undefined;
     if (!hasFieldEdits && !hasTransition) {
       return NextResponse.json({ error: "no_updates" }, { status: 400 });
     }
@@ -128,7 +142,11 @@ export async function PATCH(
       updated = await prisma.lead.update({ where: { id }, data, include: LEAD_INCLUDE });
     }
     if (hasTransition) {
-      updated = await transitionLead(id, { status: body.status, reason: body.reason }, user.id);
+      updated = await transitionLead(
+        id,
+        { status: body.status, reason: body.reason, meetingAt: body.meetingAt },
+        user.id,
+      );
     }
 
     return NextResponse.json(serializeLead(updated!));

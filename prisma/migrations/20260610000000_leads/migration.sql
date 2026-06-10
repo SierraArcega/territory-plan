@@ -40,6 +40,7 @@ CREATE TABLE "leads" (
     "assigned_bdr_id" UUID,
     "unqualified_reason" VARCHAR(255),
     "opportunity_id" TEXT,
+    "meeting_at" TIMESTAMPTZ,
     "assigned_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "accepted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
