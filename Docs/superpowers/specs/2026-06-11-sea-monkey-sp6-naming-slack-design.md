@@ -67,7 +67,7 @@ The webhook route (`src/app/api/webhooks/dropbox-sign/route.ts`) calls
 
 ```
 SY26-27 — Gary Community Schools — Contract — 2026-06-10        (contract)
-Gary Community Schools — BOCES Quote 123445 — 2026-06-10        (BOCES quote)
+BOCES Quote 123445 — Gary Community Schools — 2026-06-10        (BOCES quote)
 ```
 
 - Date is ISO, computed at render time via
