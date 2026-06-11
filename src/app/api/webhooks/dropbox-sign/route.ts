@@ -63,8 +63,10 @@ export async function POST(request: Request) {
       // Drive, then announce it in Slack. Each leg has its own catch — a Drive
       // failure must not kill the Slack post and vice versa, and Dropbox Sign must
       // always get the ack. Idempotency rides the executedPdfFileId guard; the
-      // known rare signed/all_signed double-fire can double-run this block (spare
-      // Drive file + duplicate Slack post) — accepted at current volume.
+      // known rare signed/all_signed/downloadable double-fire can double-run this
+      // block (spare Drive file + duplicate Slack post) — accepted at current
+      // volume. signature_request_downloadable also maps to signed.
+      // All of this is awaited before the ack (Dropbox Sign retries slow acks; the stamp guard absorbs them) — move to next/server after() if retries ever get noisy.
       if (status === "signed") {
         try {
           const row = await prisma.generatedDocument.findUnique({

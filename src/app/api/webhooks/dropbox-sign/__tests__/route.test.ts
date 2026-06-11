@@ -225,4 +225,20 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(mockSlackPost).not.toHaveBeenCalled();
   });
+
+  it("posts with null total/SY/rep for pre-SP5 rows (null payload, no school year)", async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 2, companyName: "Acme ISD", schoolYear: null,
+      orderTotal: null, payload: null, executedPdfFileId: null,
+    });
+    mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
+    mockUpload.mockResolvedValue({ fileId: "F1", url: "https://drive/f1" });
+    await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(mockSlackPost).toHaveBeenCalledTimes(1);
+    const notice = mockSlackPost.mock.calls[0][0];
+    expect(notice.orderTotal).toBeNull();
+    expect(notice.schoolYearShort).toBeNull();
+    expect(notice.repName).toBeNull();
+    expect(notice.filename).toMatch(/^Acme ISD — Contract — signed/);
+  });
 });
