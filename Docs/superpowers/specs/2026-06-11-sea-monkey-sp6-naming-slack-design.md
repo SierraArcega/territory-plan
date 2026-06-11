@@ -138,7 +138,7 @@ connection.
 New module `src/features/document-generation/lib/slack-notify.ts`:
 
 - `postExecutedAgreement({ pdf, filename, companyName, orderTotal, schoolYear, repName, signedDate, driveUrl })`
-- Uses Slack's external upload flow: `files.getUploadURLExternal` → HTTP PUT of
+- Uses Slack's external upload flow: `files.getUploadURLExternal` → HTTP POST of
   the PDF bytes → `files.completeUploadExternal` with `channel_id` +
   `initial_comment`. (`files.upload` is deprecated; the external flow is the
   supported path.)
