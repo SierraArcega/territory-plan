@@ -152,7 +152,8 @@ function generateBocesQuote(payload) {
   var props  = PropertiesService.getScriptProperties().getProperties();
   var folder = DriveApp.getFolderById(props[PROP.OUTPUT_FOLDER_ID]);
 
-  var docName = payload.deal.client_company + ' — BOCES Quote ' + payload.deal.today;
+  var qn = String(payload.deal.quote_number || '').trim();
+  var docName = payload.deal.client_company + ' — BOCES Quote' + (qn ? ' ' + qn : '') + ' — ' + isoToday();
   var copy    = DriveApp.getFileById(props[PROP.TEMPLATE_BOCES_QUOTE_ID]).makeCopy(docName, folder);
   var doc     = DocumentApp.openById(copy.getId());
   var body    = doc.getBody();
