@@ -2,14 +2,15 @@
 
 // Pipeline board — three switchable layouts per the design handoff §3:
 //   columns   — one drop-zone column per stage; HTML5 drag-to-restage
-//   swimlanes — manager grid: BDR rows × stage columns (excludes New),
-//               sticky header row + sticky first column
+//   swimlanes — manager grid: BDR rows × stage columns (all stages, New first),
+//               sticky header row + sticky first column; each cell pages one
+//               card at a time with a "N of M" pager to keep rows short
 //   grouped   — compact stacked list by stage, each group a white card
 // Drag-to-restage calls onMove(leadId, status); the caller owns the optimistic
 // mutation (server validates transitions — 422 rolls back with a toast).
 
 import { useMemo, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import InfoTip from "@/features/shared/components/InfoTip";
 import UserAvatar from "@/features/shared/components/UserAvatar";
 import { PIPELINE, STATUS_CONFIG } from "@/features/leads/lib/status-config";
@@ -173,31 +174,51 @@ function SwimlaneCell({
   firstRow: boolean;
   now?: Date;
 }) {
-  const [visible, setVisible] = useState(RENDER_PAGE_SIZE);
+  const [page, setPage] = useState(0);
+  // Clamp instead of effect-reset so a shrinking cell (lead restaged away)
+  // never points past the end.
+  const idx = Math.min(page, Math.max(0, cell.length - 1));
+  const lead = cell[idx];
   return (
     <div
       className={`flex min-h-16 flex-col gap-[7px] border-l border-[#EFEDF5] bg-[#FAF8FC] p-2 ${
         firstRow ? "" : "border-t border-t-[#EFEDF5]"
       }`}
     >
-      {cell.slice(0, visible).map((l) => (
+      {lead && (
         <LeadCard
-          key={l.id}
-          lead={l}
+          key={lead.id}
+          lead={lead}
           selectedId={selectedId}
           onOpen={onSelectLead}
           dense
           now={now}
         />
-      ))}
-      {cell.length > visible && (
-        <button
-          type="button"
-          onClick={() => setVisible((v) => v + RENDER_PAGE_SIZE)}
-          className="self-start whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-bold text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770]"
-        >
-          +{cell.length - visible} more
-        </button>
+      )}
+      {cell.length > 1 && (
+        <div className="flex items-center justify-center gap-1">
+          <button
+            type="button"
+            aria-label="Previous lead"
+            disabled={idx === 0}
+            onClick={() => setPage(idx - 1)}
+            className="rounded-md p-0.5 text-[#6E6390] transition-colors duration-[120ms] hover:bg-[#EFEDF5] hover:text-[#403770] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[#6E6390]"
+          >
+            <ChevronLeft size={14} aria-hidden />
+          </button>
+          <span className="whitespace-nowrap text-[11px] font-bold tabular-nums text-[#6E6390]">
+            {idx + 1} of {cell.length}
+          </span>
+          <button
+            type="button"
+            aria-label="Next lead"
+            disabled={idx >= cell.length - 1}
+            onClick={() => setPage(idx + 1)}
+            className="rounded-md p-0.5 text-[#6E6390] transition-colors duration-[120ms] hover:bg-[#EFEDF5] hover:text-[#403770] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[#6E6390]"
+          >
+            <ChevronRight size={14} aria-hidden />
+          </button>
+        </div>
       )}
     </div>
   );

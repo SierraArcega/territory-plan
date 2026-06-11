@@ -157,10 +157,23 @@ describe("LeadsBoard pagination at 50", () => {
       makeLead({ id: `lw${i}`, status: "working" }),
     );
 
-  it("swimlane cells cap at 50 with a compact +N more affordance", () => {
+  it("swimlane cells show one card at a time with a count and prev/next pager", () => {
+    const leads = Array.from({ length: 55 }, (_, i) =>
+      makeLead({
+        id: `lw${i}`,
+        status: "working",
+        contact: {
+          id: i,
+          name: `Lead Person ${i}`,
+          title: null,
+          email: null,
+          phone: null,
+        },
+      }),
+    );
     render(
       <LeadsBoard
-        leads={manyWorking(55)}
+        leads={leads}
         layout="swimlanes"
         selectedId={null}
         onSelectLead={() => {}}
@@ -169,11 +182,32 @@ describe("LeadsBoard pagination at 50", () => {
         now={NOW}
       />,
     );
-    expect(screen.getAllByRole("button", { name: /Open lead/ })).toHaveLength(50);
-    const more = screen.getByRole("button", { name: "+5 more" });
-    fireEvent.click(more);
-    expect(screen.getAllByRole("button", { name: /Open lead/ })).toHaveLength(55);
-    expect(screen.queryByRole("button", { name: /\+\d+ more/ })).not.toBeInTheDocument();
+    // One card visible, pager shows position + total
+    expect(screen.getAllByRole("button", { name: /Open lead/ })).toHaveLength(1);
+    expect(screen.getByText("Lead Person 0")).toBeInTheDocument();
+    expect(screen.getByText("1 of 55")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous lead" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next lead" }));
+    expect(screen.getByText("Lead Person 1")).toBeInTheDocument();
+    expect(screen.getByText("2 of 55")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Previous lead" })).toBeEnabled();
+  });
+
+  it("swimlane cells with a single lead render no pager chrome", () => {
+    render(
+      <LeadsBoard
+        leads={[makeLead({ id: "solo", status: "working" })]}
+        layout="swimlanes"
+        selectedId={null}
+        onSelectLead={() => {}}
+        onMove={() => {}}
+        currentUserId="u1"
+        now={NOW}
+      />,
+    );
+    expect(screen.getAllByRole("button", { name: /Open lead/ })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Next lead" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/of 1/)).not.toBeInTheDocument();
   });
 
   it("grouped lists cap at 50 with a Show more row", () => {
