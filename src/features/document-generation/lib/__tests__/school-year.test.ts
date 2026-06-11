@@ -33,11 +33,15 @@ describe("defaultSchoolYear", () => {
 });
 
 describe("schoolYearOptions", () => {
-  it("offers prev + current + next 4 around the FY rule", () => {
+  it("offers the current SY + next 4 — never a past year", () => {
     expect(schoolYearOptions(new Date(2026, 5, 11))).toEqual([
-      "2024 - 2025", "2025 - 2026", "2026 - 2027",
-      "2027 - 2028", "2028 - 2029", "2029 - 2030",
+      "2025 - 2026", "2026 - 2027", "2027 - 2028",
+      "2028 - 2029", "2029 - 2030",
     ]);
+  });
+  it("rolls the window forward at the July-1 FY boundary", () => {
+    expect(schoolYearOptions(new Date(2026, 6, 1))[0]).toBe("2026 - 2027");
+    expect(schoolYearOptions(new Date(2026, 5, 30))[0]).toBe("2025 - 2026");
   });
   it("always contains the default", () => {
     const today = new Date(2026, 10, 2);
@@ -78,10 +82,10 @@ describe("joinSchoolYear", () => {
 });
 
 describe("startYearOptions", () => {
-  it("returns 6 consecutive start years matching the schoolYearOptions window", () => {
+  it("returns 5 consecutive start years matching the schoolYearOptions window", () => {
     const today = new Date(2026, 5, 11);
     const starts = startYearOptions(today);
-    expect(starts).toHaveLength(6);
+    expect(starts).toHaveLength(5);
     // Should be consecutive integers
     for (let i = 1; i < starts.length; i++) {
       expect(starts[i]).toBe(starts[i - 1] + 1);
@@ -96,7 +100,7 @@ describe("startYearOptions", () => {
   it("works for a different date (year-proof)", () => {
     const today = new Date(2028, 2, 15); // March 2028
     const starts = startYearOptions(today);
-    expect(starts).toHaveLength(6);
+    expect(starts).toHaveLength(5);
     // All should be integers
     for (const s of starts) {
       expect(Number.isInteger(s)).toBe(true);

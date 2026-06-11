@@ -106,9 +106,9 @@ describe("PartiesContactsSection — school-year selector (pair)", () => {
     expect(startSelect).toBeInTheDocument();
     expect(endSelect).toBeInTheDocument();
 
-    // Left select has 6 start-year options (year-proof — use startYearOptions())
+    // Left select shows the window start-years (year-proof — use startYearOptions())
     const starts = startYearOptions();
-    expect(starts).toHaveLength(6);
+    expect(starts).toHaveLength(5);
     for (const yr of starts) {
       expect(
         Array.from(startSelect.options).some((o) => o.value === String(yr)),

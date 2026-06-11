@@ -217,8 +217,8 @@ The contract form's free-text school-year input caused typo risk in the SY
 filename segment. Approved changes (contract form only; BOCES untouched):
 
 1. **Selector**: the input becomes a `<select>` of 6 generated school years in
-   the canonical `"2026 - 2027"` format — previous, current (July-1 FY rule),
-   and next 4. A loaded value outside that window is prepended as an extra
+   the canonical `"2026 - 2027"` format — current (July-1 FY rule — never a past
+   year) and next 4. A loaded value outside that window is prepended as an extra
    option so saved state is never misrepresented.
 2. **Derivation + default**: new pure module
    `src/features/document-generation/lib/school-year.ts` (deliberately separate
@@ -250,7 +250,7 @@ filename segment. Approved changes (contract form only; BOCES untouched):
 ## Addendum 3 (2026-06-11) — Split year-pair selects
 
 The single combined SY select becomes two side-by-side selects: **left = start
-year** (same 6-year window as before, expressed as start years), **right = end
+year** (same window as before, expressed as start years), **right = end
 year**, offering start+1 through start+3 (multi-year deals), defaulting to
 start+1. Changing the left year resets the right to start+1. The serialized
 value stays the canonical `"<start> - <end>"` string — payload, persist,
