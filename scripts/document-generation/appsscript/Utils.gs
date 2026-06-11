@@ -7,7 +7,7 @@
  */
 function formatEachCell(qty, unit) {
   var u = String(unit || '').trim();
-  if (u === 'Flat') return 'One-time';
+  if (u === 'Flat') return Number(qty) > 1 ? String(qty) + '\u00d7 One-time' : 'One-time';
   if (!u) return String(qty);
   return String(qty) + ' ' + (Number(qty) === 1 ? u : u + 's');
 }
