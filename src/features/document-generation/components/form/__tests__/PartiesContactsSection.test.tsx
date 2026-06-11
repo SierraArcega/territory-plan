@@ -159,10 +159,12 @@ describe("PartiesContactsSection — school-year selector", () => {
       startDate: "2026-09-01",
       schoolYearManual: false,
     });
+    // Pick the last option in the generated window (always in-window, never expires)
+    const target = schoolYearOptions().at(-1)!;
     // User picks a different year from the selector (marks syTouched)
     const select = screen.getByRole("combobox", { name: /School year/i });
-    fireEvent.change(select, { target: { value: "2028 - 2029" } });
-    expect(onChange).toHaveBeenCalledWith({ schoolYear: "2028 - 2029" });
+    fireEvent.change(select, { target: { value: target } });
+    expect(onChange).toHaveBeenCalledWith({ schoolYear: target });
 
     // Count only pure schoolYear calls (no schoolYearManual key) before rerender
     const syCallsBefore = onChange.mock.calls.filter(
@@ -171,7 +173,7 @@ describe("PartiesContactsSection — school-year selector", () => {
 
     // Rerender with a changed startDate — should NOT trigger another schoolYear onChange
     rerenderState({
-      schoolYear: "2028 - 2029",
+      schoolYear: target,
       startDate: "2027-09-01",
       schoolYearManual: false,
     });

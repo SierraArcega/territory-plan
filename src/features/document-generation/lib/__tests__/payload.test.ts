@@ -212,3 +212,27 @@ describe("assemblePayload — payment.po_number", () => {
     expect(p.payment.po_number).toBe("PO-123");
   });
 });
+
+describe("assemblePayload — meta field", () => {
+  it("contract payload includes meta.school_year_manual: false by default", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.meta).toEqual({ school_year_manual: false });
+  });
+
+  it("contract payload includes meta.school_year_manual: true when state.schoolYearManual is true", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.schoolYearManual = true;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.meta).toEqual({ school_year_manual: true });
+  });
+
+  it("boces_quote payload has no meta property", () => {
+    const s = emptyFormState("boces_quote", "x");
+    s.clientContact = jane;
+    const bocesPayload = assemblePayload(s);
+    expect("meta" in bocesPayload).toBe(false);
+  });
+});

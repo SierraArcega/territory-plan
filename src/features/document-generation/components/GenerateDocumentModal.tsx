@@ -9,6 +9,7 @@ import { computeTotals } from "@/features/document-generation/lib/quote";
 import { stubRenderClient } from "@/features/document-generation/lib/render-client";
 import type { PrefillResult } from "@/features/document-generation/lib/prefill";
 import { sendForSignatureRequest } from "@/features/document-generation/lib/send-client";
+import { schoolYearFromDate } from "@/features/document-generation/lib/school-year";
 import { useGeneratedDocumentStatus } from "@/features/document-generation/lib/queries";
 import { deriveSendBanner } from "@/features/document-generation/lib/send-banner";
 
@@ -33,6 +34,7 @@ function seedState(p: PrefillResult): DocFormState {
     senderLast: p.sender.last,
     senderTitle: p.sender.title,
     senderEmail: p.sender.email,
+    schoolYear: schoolYearFromDate(p.startDate) ?? base.schoolYear,
   };
 }
 

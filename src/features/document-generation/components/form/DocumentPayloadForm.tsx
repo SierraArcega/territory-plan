@@ -6,6 +6,7 @@ import PaymentSection from "./PaymentSection";
 import SectionsToggles from "./SectionsToggles";
 import { getCompleteness } from "@/features/document-generation/lib/validation";
 import type { DocFormState, DocType } from "@/features/document-generation/lib/payload-types";
+import { defaultSchoolYear } from "@/features/document-generation/lib/school-year";
 
 interface Props {
   value: DocFormState;
@@ -24,6 +25,9 @@ export default function DocumentPayloadForm({ value, onChange, onRender, booking
       // BOCES forces type C; switching back to a contract drops the BOCES-only
       // C back to the standard default so the contract doesn't carry a BOCES payment block.
       paymentType: docType === "boces_quote" ? "C" : value.paymentType === "C" ? "A" : value.paymentType,
+      // Seed schoolYear when flipping into contract mode with no year set yet.
+      // Flipping to boces_quote leaves schoolYear alone (it is ignored at payload time).
+      schoolYear: docType === "contract" && value.schoolYear === "" ? defaultSchoolYear() : value.schoolYear,
     });
   const { isComplete, missing } = getCompleteness(value);
 
