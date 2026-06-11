@@ -1,5 +1,6 @@
 "use client";
 import { X, Plus } from "lucide-react";
+import NumberInput from "./NumberInput";
 import { newRowId } from "@/features/document-generation/lib/ids";
 import type { OrderAdjustment, AdjustmentType, AdjustmentMode } from "@/features/document-generation/lib/payload-types";
 
@@ -48,13 +49,12 @@ export default function AdjustmentsSection({ adjustments, onChange }: Props) {
             <option value="percent">%</option>
             <option value="amount">$</option>
           </select>
-          <input
+          <NumberInput
             aria-label="Adjustment value"
-            type="number"
-            min="0"
+            min={0}
             step="0.01"
             value={a.value}
-            onChange={(e) => update(a.id, { value: e.target.value === "" ? 0 : Number(e.target.value) })}
+            onValue={(n) => update(a.id, { value: n })}
             className="h-8 w-20 rounded border border-[#C2BBD4] px-2 text-sm text-[#403770]"
           />
           <button
