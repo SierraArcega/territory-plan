@@ -99,4 +99,9 @@ describe("PaymentSection", () => {
     const select = screen.getByLabelText("Payment type") as HTMLSelectElement;
     expect(select).not.toBeDisabled();
   });
+
+  it("renders a visible label for the PO number field", () => {
+    render_();
+    expect(screen.getByText("PO number (if known)")).toBeInTheDocument();
+  });
 });

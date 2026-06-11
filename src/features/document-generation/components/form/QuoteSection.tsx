@@ -43,12 +43,18 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
     <div className="space-y-2">
       {isBoces && (
         <div className="flex flex-wrap gap-2">
-          <input aria-label="Quote number" placeholder="Quote number" value={state.quoteNumber}
-            onChange={(e) => onChange({ quoteNumber: e.target.value })}
-            className="flex-1 rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
-          <input aria-label="Fee percent" type="number" step="0.1" value={state.feePct}
-            onChange={(e) => onChange({ feePct: num(e.target.value) })}
-            className="w-28 rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          <label className="flex flex-1 flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Quote number</span>
+            <input aria-label="Quote number" placeholder="Quote number" value={state.quoteNumber}
+              onChange={(e) => onChange({ quoteNumber: e.target.value })}
+              className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Fee %</span>
+            <input aria-label="Fee percent" type="number" step="0.1" value={state.feePct}
+              onChange={(e) => onChange({ feePct: num(e.target.value) })}
+              className="w-28 rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          </label>
         </div>
       )}
 
