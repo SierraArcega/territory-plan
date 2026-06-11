@@ -33,15 +33,19 @@ describe("defaultSchoolYear", () => {
 });
 
 describe("schoolYearOptions", () => {
-  it("offers the current SY + next 4 — never a past year", () => {
+  it("offers the SY starting this calendar year + next 4 — no past start years", () => {
     expect(schoolYearOptions(new Date(2026, 5, 11))).toEqual([
-      "2025 - 2026", "2026 - 2027", "2027 - 2028",
-      "2028 - 2029", "2029 - 2030",
+      "2026 - 2027", "2027 - 2028", "2028 - 2029",
+      "2029 - 2030", "2030 - 2031",
     ]);
   });
-  it("rolls the window forward at the July-1 FY boundary", () => {
-    expect(schoolYearOptions(new Date(2026, 6, 1))[0]).toBe("2026 - 2027");
-    expect(schoolYearOptions(new Date(2026, 5, 30))[0]).toBe("2025 - 2026");
+  it("is calendar-year based all year (June and December agree)", () => {
+    expect(schoolYearOptions(new Date(2026, 11, 15))[0]).toBe("2026 - 2027");
+    expect(schoolYearOptions(new Date(2027, 0, 2))[0]).toBe("2027 - 2028");
+  });
+  it("first option always equals the default", () => {
+    const today = new Date(2026, 5, 11);
+    expect(schoolYearOptions(today)[0]).toBe(defaultSchoolYear(today));
   });
   it("always contains the default", () => {
     const today = new Date(2026, 10, 2);

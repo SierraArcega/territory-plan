@@ -89,7 +89,9 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       </label>
 
       {!isBoces && (
-        <label className="flex flex-col gap-1">
+        // div, NOT label: a label-wrapped button becomes the label's activation
+        // target, so clicking anywhere on the header row would toggle manual mode.
+        <div className="flex flex-col gap-1">
           <span className="flex items-center justify-between text-xs uppercase tracking-wide text-[#6E6390]">
             School year *
             <button type="button"
@@ -143,7 +145,7 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
               </select>
             </div>
           )}
-        </label>
+        </div>
       )}
 
       {!isBoces && (
@@ -159,15 +161,17 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       <div className="flex flex-wrap gap-2">
         <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
           Start date
+          {/* Browsers render an empty date input with a today-ish placeholder,
+              so the red border is the only honest "missing" signal here. */}
           <input aria-label="Start date" type="date" value={state.startDate}
             onChange={(e) => onChange({ startDate: e.target.value })}
-            className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+            className={`mt-0.5 rounded border px-2 py-1 text-sm text-[#403770] ${state.startDate.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
         </label>
         <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
           End date
           <input aria-label="End date" type="date" value={state.endDate}
             onChange={(e) => onChange({ endDate: e.target.value })}
-            className="mt-0.5 rounded border border-[#C2BBD4] px-2 py-1 text-sm text-[#403770]" />
+            className={`mt-0.5 rounded border px-2 py-1 text-sm text-[#403770] ${state.endDate.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
         </label>
       </div>
     </div>

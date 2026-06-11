@@ -21,10 +21,13 @@ export function defaultSchoolYear(today: Date = new Date()): string {
   return syForEndYear(today.getFullYear() + 1);
 }
 
-/** Selector window: current SY (FY rule — never a past year) + next 4. */
+/** Selector window: the SY starting in the current calendar year + next 4 —
+ *  no start year ever reads as past. The in-progress SY (Jan–Jun, started last
+ *  calendar year) is still expressible: start-date derivation produces it and
+ *  the selects inject out-of-window values as extra options. */
 export function schoolYearOptions(today: Date = new Date()): string[] {
-  const currentEnd = getCurrentFY(today);
-  return Array.from({ length: 5 }, (_, i) => syForEndYear(currentEnd + i));
+  const firstEnd = today.getFullYear() + 1;
+  return Array.from({ length: 5 }, (_, i) => syForEndYear(firstEnd + i));
 }
 
 /** Parse a canonical-ish SY string into its year pair; null when it lacks two 4-digit years. */
