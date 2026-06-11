@@ -87,7 +87,7 @@ function buildQuoteTableFromScratch(body, quote) {
   var newTable = body.insertTable(tableIdx + 1, [headerRow].concat(dataRows).concat(footerRows));
 
   // Proportional column widths scaled to 540pt (8.5" − 0.5" margins each side).
-  var naturalWidths = { service: 235, count: 55, each: 85, net_rate: 95, total: 100 };
+  var naturalWidths = { service: 215, count: 62, each: 80, net_rate: 105, total: 98 };
   var rawWidths = cols.map(function(c) { return naturalWidths[c.key] || 60; });
   var rawTotal  = rawWidths.reduce(function(s, w) { return s + w; }, 0);
   rawWidths.forEach(function(w, i) {

@@ -112,7 +112,7 @@ function buildBocesQuoteTable(body, quote) {
   var allRows = [headerRow].concat(dataRows).concat(footerRows);
   var newTable = body.insertTable(markerIdx + 1, allRows);
 
-  var naturalWidths = [200, 55, 85, 95, 105];
+  var naturalWidths = [207, 62, 78, 105, 88]; // Jakarta Sans runs wide: Needed >=62, Rate >=105 ($4,000.00/Day)
   var rawTotal = naturalWidths.reduce(function(s, w) { return s + w; }, 0);
   naturalWidths.forEach(function(w, i) {
     newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
