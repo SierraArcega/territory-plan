@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PartiesContactsSection from "../PartiesContactsSection";
 import { emptyFormState } from "@/features/document-generation/lib/payload-types";
+import { schoolYearOptions } from "@/features/document-generation/lib/school-year";
 
 vi.mock("../ContactRolePicker", () => ({
   default: ({ label }: { label: string }) => <div>picker:{label}</div>,
@@ -63,5 +64,128 @@ describe("PartiesContactsSection", () => {
   it("hides the CC field for BOCES quotes", () => {
     setup({ docType: "boces_quote" });
     expect(screen.queryByLabelText("CC executed copy to")).toBeNull();
+  });
+});
+
+describe("PartiesContactsSection — school-year selector", () => {
+  // Helper: renders the component inside a QueryClientProvider, returns { onChange, rerender }
+  function setupSY(stateOverride: Record<string, unknown> = {}) {
+    const baseState = { ...emptyFormState("contract", "0612345"), ...stateOverride };
+    const onChange = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <PartiesContactsSection state={baseState} onChange={onChange} />
+      </QueryClientProvider>,
+    );
+    // rerender helper that keeps the same QueryClient and lets you pass a new state
+    function rerenderState(nextOverride: Record<string, unknown>) {
+      const nextState = { ...emptyFormState("contract", "0612345"), ...nextOverride };
+      rerender(
+        <QueryClientProvider client={qc}>
+          <PartiesContactsSection state={nextState} onChange={onChange} />
+        </QueryClientProvider>,
+      );
+    }
+    return { onChange, rerenderState, baseState };
+  }
+
+  it("(a) contract renders a combobox labeled 'School year *' with the 6 generated options", () => {
+    setupSY();
+    // The label text contains "School year *"
+    expect(screen.getByText(/School year \*/i)).toBeInTheDocument();
+    // The select element (combobox role)
+    const select = screen.getByRole("combobox", { name: /School year/i });
+    expect(select).toBeInTheDocument();
+    // All 6 options are present
+    const opts = schoolYearOptions();
+    expect(opts).toHaveLength(6);
+    for (const sy of opts) {
+      expect(screen.getByRole("option", { name: sy })).toBeInTheDocument();
+    }
+  });
+
+  it("(b) a value outside the window renders as an extra (first) option and stays selected", () => {
+    const legacySY = "2020 - 2021";
+    setupSY({ schoolYear: legacySY });
+    const select = screen.getByRole("combobox", { name: /School year/i }) as HTMLSelectElement;
+    // Legacy option exists and is selected
+    expect(screen.getByRole("option", { name: legacySY })).toBeInTheDocument();
+    expect(select.value).toBe(legacySY);
+    // Total options = 6 window + 1 legacy = 7
+    expect(select.options).toHaveLength(7);
+    // The legacy option is first
+    expect(select.options[0].value).toBe(legacySY);
+  });
+
+  it("(c) clicking 'Type manually' swaps to a textbox and fires onChange({ schoolYearManual: true })", () => {
+    const { onChange } = setupSY({ schoolYearManual: false });
+    // Initially shows select
+    expect(screen.getByRole("combobox", { name: /School year/i })).toBeInTheDocument();
+    // The toggle button is inside a <label> so query by visible text
+    const toggleBtn = screen.getByText("Type manually");
+    fireEvent.click(toggleBtn);
+    expect(onChange).toHaveBeenCalledWith({ schoolYearManual: true });
+  });
+
+  it("(c) in manual mode the button reads 'Use selector' and shows a textbox", () => {
+    setupSY({ schoolYearManual: true, schoolYear: "2026 - 2027" });
+    expect(screen.queryByRole("combobox", { name: /School year/i })).toBeNull();
+    // The text input in manual mode has placeholder text
+    expect(screen.getByPlaceholderText("e.g. 2026 - 2027")).toBeInTheDocument();
+    expect(screen.getByText("Use selector")).toBeInTheDocument();
+  });
+
+  it("(d) changing startDate re-derives schoolYear via onChange when untouched", () => {
+    // Start with a state whose schoolYear matches the derived value for the initial date
+    const { onChange, rerenderState } = setupSY({
+      schoolYear: "2026 - 2027",
+      startDate: "2026-09-01",
+      schoolYearManual: false,
+    });
+    // Rerender with a different startDate that would derive a different SY
+    rerenderState({
+      schoolYear: "2026 - 2027",
+      startDate: "2027-09-01",
+      schoolYearManual: false,
+    });
+    // Should have called onChange with the newly derived schoolYear
+    expect(onChange).toHaveBeenCalledWith({ schoolYear: "2027 - 2028" });
+  });
+
+  it("(d) does NOT re-derive schoolYear after user manually picked from the select", () => {
+    const { onChange, rerenderState } = setupSY({
+      schoolYear: "2026 - 2027",
+      startDate: "2026-09-01",
+      schoolYearManual: false,
+    });
+    // User picks a different year from the selector (marks syTouched)
+    const select = screen.getByRole("combobox", { name: /School year/i });
+    fireEvent.change(select, { target: { value: "2028 - 2029" } });
+    expect(onChange).toHaveBeenCalledWith({ schoolYear: "2028 - 2029" });
+
+    // Count only pure schoolYear calls (no schoolYearManual key) before rerender
+    const syCallsBefore = onChange.mock.calls.filter(
+      (call) => "schoolYear" in call[0] && !("schoolYearManual" in call[0]),
+    ).length;
+
+    // Rerender with a changed startDate — should NOT trigger another schoolYear onChange
+    rerenderState({
+      schoolYear: "2028 - 2029",
+      startDate: "2027-09-01",
+      schoolYearManual: false,
+    });
+
+    const syCallsAfter = onChange.mock.calls.filter(
+      (call) => "schoolYear" in call[0] && !("schoolYearManual" in call[0]),
+    ).length;
+    // No additional schoolYear-only calls after the rerender
+    expect(syCallsAfter).toBe(syCallsBefore);
+  });
+
+  it("(e) empty value in manual mode gets the red border class", () => {
+    setupSY({ schoolYearManual: true, schoolYear: "" });
+    const input = screen.getByPlaceholderText("e.g. 2026 - 2027");
+    expect(input.className).toContain("border-[#F37167]");
   });
 });

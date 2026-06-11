@@ -1,6 +1,12 @@
 "use client";
+import { useEffect, useMemo, useRef } from "react";
 import ContactRolePicker from "./ContactRolePicker";
 import type { DocFormState, ContactRef } from "@/features/document-generation/lib/payload-types";
+import {
+  schoolYearFromDate,
+  defaultSchoolYear,
+  schoolYearOptions,
+} from "@/features/document-generation/lib/school-year";
 
 interface Props {
   state: DocFormState;
@@ -9,6 +15,29 @@ interface Props {
 
 export default function PartiesContactsSection({ state, onChange }: Props) {
   const isBoces = state.docType === "boces_quote";
+
+  const syOptions = useMemo(() => {
+    const opts = schoolYearOptions();
+    // A draft/legacy value outside the window must stay visible and selected.
+    return state.schoolYear && !opts.includes(state.schoolYear)
+      ? [state.schoolYear, ...opts]
+      : opts;
+  }, [state.schoolYear]);
+
+  // Start-date sync: derive until the rep takes over. A loaded draft whose SY
+  // already disagrees with its derived value counts as taken-over.
+  const syTouched = useRef(
+    state.schoolYearManual ||
+      (state.schoolYear !== "" &&
+        schoolYearFromDate(state.startDate) !== null &&
+        state.schoolYear !== schoolYearFromDate(state.startDate)),
+  );
+  useEffect(() => {
+    if (isBoces || state.schoolYearManual || syTouched.current) return;
+    const derived = schoolYearFromDate(state.startDate);
+    if (derived && derived !== state.schoolYear) onChange({ schoolYear: derived });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.startDate]);
   return (
     <div className="space-y-3">
       <ContactRolePicker label="Client contact" leaid={state.districtLeaId}
@@ -45,10 +74,36 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
 
       {!isBoces && (
         <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-[#6E6390]">School year</span>
-          <input placeholder="e.g. 2026 - 2027" value={state.schoolYear}
-            onChange={(e) => onChange({ schoolYear: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          <span className="flex items-center justify-between text-xs uppercase tracking-wide text-[#6E6390]">
+            School year *
+            <button type="button"
+              className="text-[10px] normal-case tracking-normal text-[#6E6390] underline hover:text-[#403770]"
+              onClick={() => {
+                if (state.schoolYearManual) {
+                  // Back to the selector: re-derive (or default) and resume syncing.
+                  syTouched.current = false;
+                  onChange({
+                    schoolYearManual: false,
+                    schoolYear: schoolYearFromDate(state.startDate) ?? defaultSchoolYear(),
+                  });
+                } else {
+                  onChange({ schoolYearManual: true });
+                }
+              }}>
+              {state.schoolYearManual ? "Use selector" : "Type manually"}
+            </button>
+          </span>
+          {state.schoolYearManual ? (
+            <input placeholder="e.g. 2026 - 2027" value={state.schoolYear}
+              onChange={(e) => onChange({ schoolYear: e.target.value })}
+              className={`w-full rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
+          ) : (
+            <select aria-label="School year" value={state.schoolYear}
+              onChange={(e) => { syTouched.current = true; onChange({ schoolYear: e.target.value }); }}
+              className={`w-full rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`}>
+              {syOptions.map((sy) => (<option key={sy} value={sy}>{sy}</option>))}
+            </select>
+          )}
         </label>
       )}
 
