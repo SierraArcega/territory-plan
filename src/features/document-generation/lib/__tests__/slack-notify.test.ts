@@ -22,6 +22,11 @@ describe("buildExecutedMessage", () => {
     expect(msg).toContain("signed 2026-06-10");
     expect(msg).toContain("https://drive.google.com/file/d/F1/view");
   });
+  it("escapes Slack mrkdwn control characters in names", () => {
+    const msg = buildExecutedMessage({ ...NOTICE, companyName: "A&B <County> ISD" });
+    expect(msg).toContain("A&amp;B &lt;County&gt; ISD");
+    expect(msg).not.toContain("<County>");
+  });
   it("omits null segments without dangling separators", () => {
     const msg = buildExecutedMessage({
       ...NOTICE,
