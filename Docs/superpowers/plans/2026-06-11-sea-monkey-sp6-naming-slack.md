@@ -820,3 +820,249 @@ Not a plan task — checklist for the live verification session:
 - Slack app: `files:write` scope + reinstall → new bot token.
 - Create `#contracts-signed`, invite the bot, capture channel id.
 - Vercel Production: `SLACK_BOT_TOKEN` (Sensitive) + `SLACK_EXECUTED_CHANNEL_ID` (alongside pending `GOOGLE_DOC_EXECUTED_FOLDER_ID`, `DROPBOX_SIGN_API_KEY` rotation, callback URL, Apps Script test-mode flip).
+
+---
+
+## Addendum tasks (2026-06-11, smoke-test feedback) — see spec Addendum 2
+
+### Task 7A: School-year data layer (helpers, state, payload meta, promoted column, registry)
+
+**Files:**
+- Create: `src/features/document-generation/lib/school-year.ts`
+- Test: `src/features/document-generation/lib/__tests__/school-year.test.ts`
+- Modify: `src/features/document-generation/lib/payload-types.ts` (DocFormState, ContractPayload, emptyFormState)
+- Modify: `src/features/document-generation/lib/payload.ts` (emit meta)
+- Modify: `src/features/document-generation/lib/validation.ts` (+ its test)
+- Modify: `src/features/document-generation/lib/persist.ts` (+ promoted field; tests)
+- Modify: `prisma/schema.prisma` + new migration `prisma/migrations/20260611210000_sp6_school_year_manual/migration.sql`
+- Modify: `src/lib/district-column-metadata.ts` (GENERATED_DOCUMENT_COLUMNS entry)
+
+- [ ] **Step 1: failing tests for school-year.ts**
+
+```ts
+// src/features/document-generation/lib/__tests__/school-year.test.ts
+import { describe, it, expect } from "vitest";
+import { schoolYearFromDate, defaultSchoolYear, schoolYearOptions } from "../school-year";
+
+describe("schoolYearFromDate", () => {
+  it("maps a fall start to the SY it opens (July-1 boundary)", () => {
+    expect(schoolYearFromDate("2026-09-01")).toBe("2026 - 2027");
+  });
+  it("maps a mid-year (spring) start into the SY in progress", () => {
+    expect(schoolYearFromDate("2027-03-01")).toBe("2026 - 2027");
+  });
+  it("July 1 starts the new SY; June 30 belongs to the old one", () => {
+    expect(schoolYearFromDate("2026-07-01")).toBe("2026 - 2027");
+    expect(schoolYearFromDate("2026-06-30")).toBe("2025 - 2026");
+  });
+  it("returns null for empty/invalid input", () => {
+    expect(schoolYearFromDate("")).toBeNull();
+    expect(schoolYearFromDate("not-a-date")).toBeNull();
+  });
+});
+
+describe("defaultSchoolYear", () => {
+  it("is the SY starting in the current calendar year, all year long", () => {
+    expect(defaultSchoolYear(new Date(2026, 5, 11))).toBe("2026 - 2027"); // June
+    expect(defaultSchoolYear(new Date(2026, 9, 1))).toBe("2026 - 2027"); // October
+  });
+});
+
+describe("schoolYearOptions", () => {
+  it("offers prev + current + next 4 around the FY rule", () => {
+    expect(schoolYearOptions(new Date(2026, 5, 11))).toEqual([
+      "2024 - 2025", "2025 - 2026", "2026 - 2027",
+      "2027 - 2028", "2028 - 2029", "2029 - 2030",
+    ]);
+  });
+  it("always contains the default", () => {
+    const today = new Date(2026, 10, 2);
+    expect(schoolYearOptions(today)).toContain(defaultSchoolYear(today));
+  });
+});
+```
+
+- [ ] **Step 2: run → FAIL (module not found)**
+
+- [ ] **Step 3: implement school-year.ts** (separate module from fiscal-year.ts ON PURPOSE — fiscal-year.ts pulls the pricebook import chain; this stays dependency-light. Form dates are ISO from `<input type=date>`, so parseLocalDate suffices.)
+
+```ts
+// src/features/document-generation/lib/school-year.ts
+import { getCurrentFY } from "@/lib/fiscal-year";
+import { parseLocalDate } from "@/features/shared/lib/date-utils";
+
+/** Canonical school-year string for the SY ending in `end` (e.g. 2027 → "2026 - 2027").
+ *  This is the format the SP6 naming regex and existing rows use. */
+const syForEndYear = (end: number) => `${end - 1} - ${end}`;
+
+/** SY containing the given ISO date (July-1 boundary via the canonical FY rule);
+ *  null for empty/unparseable input. */
+export function schoolYearFromDate(dateStr: string): string | null {
+  const t = dateStr.trim();
+  if (!t) return null;
+  const d = parseLocalDate(t);
+  if (Number.isNaN(d.getTime())) return null;
+  return syForEndYear(getCurrentFY(d));
+}
+
+/** Pre-dates fallback: the SY that STARTS in the current calendar year —
+ *  in June reps quote next fall, in October they're in it; both resolve here. */
+export function defaultSchoolYear(today: Date = new Date()): string {
+  return syForEndYear(today.getFullYear() + 1);
+}
+
+/** Selector window: previous + current (FY rule) + next 4. */
+export function schoolYearOptions(today: Date = new Date()): string[] {
+  const currentEnd = getCurrentFY(today);
+  return Array.from({ length: 6 }, (_, i) => syForEndYear(currentEnd - 1 + i));
+}
+```
+
+- [ ] **Step 4: run → PASS (7 tests)**
+
+- [ ] **Step 5: state + payload + validation (TDD where there are existing suites)**
+
+`payload-types.ts`: `DocFormState` gains `schoolYearManual: boolean;` (next to `schoolYear`). `ContractPayload` gains `meta: { school_year_manual: boolean };`. `emptyFormState` seeds:
+
+```ts
+schoolYear: docType === "contract" ? defaultSchoolYear() : "",
+schoolYearManual: false,
+```
+
+(import `defaultSchoolYear` from `./school-year` — no cycle: school-year.ts only imports `@/lib/fiscal-year` + shared date-utils).
+
+`payload.ts` contract branch: after `sections`, add
+
+```ts
+meta: { school_year_manual: state.schoolYearManual },
+```
+
+`validation.ts` inside the `docType === "contract"` block:
+
+```ts
+if (!state.schoolYear.trim()) missing.push("School year");
+```
+
+Add to the existing validation test file: contract with empty schoolYear → missing contains "School year"; BOCES with empty schoolYear → does not.
+
+- [ ] **Step 6: promoted column**
+
+`prisma/schema.prisma` GeneratedDocument, after `quoteNumber`:
+
+```prisma
+schoolYearManual   Boolean         @default(false) @map("school_year_manual")
+```
+
+`prisma/migrations/20260611210000_sp6_school_year_manual/migration.sql`:
+
+```sql
+-- SP6 Addendum 2: track manual school-year entry (vs the selector)
+ALTER TABLE "generated_documents" ADD COLUMN "school_year_manual" BOOLEAN NOT NULL DEFAULT false;
+```
+
+Run `npx prisma migrate deploy` (applies to the live DB — additive with default, safe; confirm it reports the migration applied) then `npx prisma generate`.
+
+`persist.ts`: `PromotedFields` gains `schoolYearManual: boolean;`; `promotedFields()` adds
+
+```ts
+schoolYearManual: (payload as { meta?: { school_year_manual?: boolean } }).meta?.school_year_manual === true,
+```
+
+Extend the existing persist tests: payload with `meta.school_year_manual: true` → field true; payload without meta → false. Verify both write paths (send route create + BOCES upsert) compile — they spread PromotedFields, so the new field flows automatically; if either constructs fields explicitly, add it there.
+
+`district-column-metadata.ts` GENERATED_DOCUMENT_COLUMNS: add an entry next to school_year, mirroring an existing boolean column's shape, description: "True when the rep typed the school year manually instead of picking from the selector — tracks how often the dropdown fails its job (SP6 Addendum 2)."
+
+- [ ] **Step 7: run the full doc-gen suite + registry/schema-coverage test; commit**
+
+```bash
+npx vitest run src/features/document-generation src/lib 2>&1 | tail -3
+git add -A && git commit -m "feat(doc-gen): school-year helpers, payload meta + promoted school_year_manual column"
+```
+
+### Task 7B: School-year selector UI (select, manual toggle, sync, required styling)
+
+**Files:**
+- Modify: `src/features/document-generation/components/form/PartiesContactsSection.tsx`
+- Test: `src/features/document-generation/components/form/__tests__/PartiesContactsSection.test.tsx`
+
+- [ ] **Step 1: failing tests** — add to the existing section test file: (a) contract renders a combobox labeled "School year *" with the 6 generated options; (b) a value outside the window renders as an extra (first) option and stays selected; (c) clicking "Type manually" swaps to a textbox and fires `onChange({ schoolYearManual: true })`; in manual mode the button reads "Use selector"; (d) changing startDate prop re-derives (component fires `onChange({ schoolYear: <derived> })`) when untouched, but NOT after the user picked a year manually from the select; (e) empty value in manual mode gets the red border class `border-[#F37167]`.
+
+- [ ] **Step 2: implement** — replace the school-year block (the `{!isBoces && (...)}` label at ~line 47) with:
+
+```tsx
+{!isBoces && (
+  <label className="flex flex-col gap-1">
+    <span className="flex items-center justify-between text-xs uppercase tracking-wide text-[#6E6390]">
+      School year *
+      <button type="button"
+        className="text-[10px] normal-case tracking-normal text-[#6E6390] underline hover:text-[#403770]"
+        onClick={() => {
+          if (state.schoolYearManual) {
+            // Back to the selector: re-derive (or default) and resume syncing.
+            syTouched.current = false;
+            onChange({
+              schoolYearManual: false,
+              schoolYear: schoolYearFromDate(state.startDate) ?? defaultSchoolYear(),
+            });
+          } else {
+            onChange({ schoolYearManual: true });
+          }
+        }}>
+        {state.schoolYearManual ? "Use selector" : "Type manually"}
+      </button>
+    </span>
+    {state.schoolYearManual ? (
+      <input placeholder="e.g. 2026 - 2027" value={state.schoolYear}
+        onChange={(e) => onChange({ schoolYear: e.target.value })}
+        className={`w-full rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
+    ) : (
+      <select aria-label="School year" value={state.schoolYear}
+        onChange={(e) => { syTouched.current = true; onChange({ schoolYear: e.target.value }); }}
+        className={`w-full rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`}>
+        {syOptions.map((sy) => (<option key={sy} value={sy}>{sy}</option>))}
+      </select>
+    )}
+  </label>
+)}
+```
+
+with, above the return (hooks only meaningful for contracts; cheap for BOCES):
+
+```tsx
+const syOptions = useMemo(() => {
+  const opts = schoolYearOptions();
+  // A draft/legacy value outside the window must stay visible and selected.
+  return state.schoolYear && !opts.includes(state.schoolYear)
+    ? [state.schoolYear, ...opts]
+    : opts;
+}, [state.schoolYear]);
+
+// Start-date sync: derive until the rep takes over. A loaded draft whose SY
+// already disagrees with its derived value counts as taken-over.
+const syTouched = useRef(
+  state.schoolYearManual ||
+    (state.schoolYear !== "" &&
+      schoolYearFromDate(state.startDate) !== null &&
+      state.schoolYear !== schoolYearFromDate(state.startDate)),
+);
+useEffect(() => {
+  if (isBoces || state.schoolYearManual || syTouched.current) return;
+  const derived = schoolYearFromDate(state.startDate);
+  if (derived && derived !== state.schoolYear) onChange({ schoolYear: derived });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [state.startDate]);
+```
+
+imports: `{ useEffect, useMemo, useRef }` from react; `{ schoolYearFromDate, defaultSchoolYear, schoolYearOptions }` from `@/features/document-generation/lib/school-year`.
+
+- [ ] **Step 3: run section tests + the form/modal suites** (state-shape change may touch fixtures):
+
+```bash
+npx vitest run src/features/document-generation/components 2>&1 | tail -3
+```
+
+- [ ] **Step 4: eslint changed files; commit**
+
+```bash
+git commit -m "feat(doc-gen): mandatory school-year selector with manual-entry toggle"
+```
