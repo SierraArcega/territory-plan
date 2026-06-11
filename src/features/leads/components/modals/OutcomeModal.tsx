@@ -80,7 +80,6 @@ export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) 
   // Single-select — only one outcome persists (outcomeType), so the pills
   // behave like a radio group with deselect (click the active pill to clear).
   const [pick, setPick] = useState<string | null>(null);
-  const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<LeadStatus>(
     lead.status === "meeting_scheduled" ? "meeting_scheduled" : "working",
@@ -208,25 +207,14 @@ export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) 
             );
           })}
         </div>
-        {!showNote ? (
-          <button
-            type="button"
-            onClick={() => setShowNote(true)}
-            className="mt-3 whitespace-nowrap text-[12.5px] font-semibold text-[#A69DC0] hover:text-[#403770]"
-          >
-            + Add notes or details
-          </button>
-        ) : (
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            autoFocus
-            rows={3}
-            placeholder="Key takeaways, next steps…"
-            aria-label="Notes"
-            className="mt-3 w-full resize-none rounded-lg border border-[#C2BBD4] px-3 py-2.5 text-[13px] text-[#403770] outline-none placeholder:text-[#A69DC0] focus:border-[#403770]"
-          />
-        )}
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder="Notes or details — key takeaways, next steps…"
+          aria-label="Notes"
+          className="mt-3 w-full resize-none rounded-lg border border-[#C2BBD4] px-3 py-2.5 text-[13px] text-[#403770] outline-none placeholder:text-[#A69DC0] focus:border-[#403770]"
+        />
       </div>
 
       {/* Resulting lead status */}

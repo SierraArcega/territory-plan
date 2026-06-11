@@ -66,6 +66,27 @@ describe("OutcomeModal", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it("shows the notes textarea immediately (no reveal click) and submits its text", async () => {
+    renderModal();
+    const notes = screen.getByLabelText("Notes");
+    expect(notes).toBeInTheDocument();
+    expect(screen.queryByText("+ Add notes or details")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3 stars" }));
+    fireEvent.change(notes, { target: { value: "  Left a voicemail with the EA.  " } });
+    fireEvent.click(save());
+    await waitFor(() => expect(logEngagementMock).toHaveBeenCalled());
+    expect(logEngagementMock.mock.calls[0][0].notes).toBe("Left a voicemail with the EA.");
+  });
+
+  it("offers a No Response outcome pill", async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "2 stars" }));
+    fireEvent.click(screen.getByRole("button", { name: /No Response/ }));
+    fireEvent.click(save());
+    await waitFor(() => expect(logEngagementMock).toHaveBeenCalled());
+    expect(logEngagementMock.mock.calls[0][0].outcomeType).toBe("no_response");
+  });
+
   it("outcome pills are single-select: a new pick replaces, re-clicking clears", async () => {
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: "4 stars" }));

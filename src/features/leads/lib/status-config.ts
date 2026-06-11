@@ -170,6 +170,7 @@ export const OUTCOME_PILLS = [
   { key: "neutral", label: "Good Chat", icon: "💬", color: "#4D7285", bg: "#EEF5F8" },
   { key: "negative", label: "Went Cold", icon: "❄️", color: "#8A80A8", bg: "#F3F2F6" },
   { key: "follow_up_needed", label: "Follow Up", icon: "📌", color: "#C25A52", bg: "#FEF2F1" },
+  { key: "no_response", label: "No Response", icon: "📭", color: "#6E6390", bg: "#F3F2F6" },
 ] as const;
 
 /**
