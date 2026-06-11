@@ -131,4 +131,29 @@ describe("QuoteSection", () => {
     fireEvent.change(screen.getByLabelText("Maximum budget"), { target: { value: "" } });
     expect(onChange).toHaveBeenCalledWith({ maxAmt: null });
   });
+
+  describe("show-pricing toggle (contract only)", () => {
+    it("renders the show-pricing checkbox for contract doc type", () => {
+      setup({}, null);
+      expect(screen.getByLabelText("Show per-line pricing")).toBeInTheDocument();
+    });
+
+    it("show-pricing checkbox is checked by default", () => {
+      setup({}, null);
+      expect(screen.getByLabelText<HTMLInputElement>("Show per-line pricing").checked).toBe(true);
+    });
+
+    it("unchecking show-pricing calls onChange with { showPricing: false }", () => {
+      const { onChange } = setup({}, null);
+      const checkbox = screen.getByLabelText("Show per-line pricing");
+      fireEvent.click(checkbox);
+      expect(onChange).toHaveBeenCalledWith({ showPricing: false });
+    });
+
+    it("does not render the show-pricing checkbox for boces_quote", () => {
+      const onChange = vi.fn();
+      render(<QuoteSection state={{ ...makeState(), docType: "boces_quote" }} bookingReference={null} onChange={onChange} />);
+      expect(screen.queryByLabelText("Show per-line pricing")).not.toBeInTheDocument();
+    });
+  });
 });

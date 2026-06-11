@@ -72,6 +72,13 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
           </select>
           {state.fiscalYear === "auto" && <span>· {effectiveFY}</span>}
         </label>
+        {!isBoces && (
+          <label className="flex items-center gap-1 text-xs text-[#6E6390] whitespace-nowrap">
+            <input type="checkbox" checked={state.showPricing}
+              onChange={(e) => onChange({ showPricing: e.target.checked })} />
+            Show per-line pricing
+          </label>
+        )}
       </div>
 
       <div className="space-y-2">
