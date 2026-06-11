@@ -255,3 +255,21 @@ describe("PartiesContactsSection — school-year selector (pair)", () => {
     expect(input.className).toContain("border-[#F37167]");
   });
 });
+
+describe("PartiesContactsSection — required date inputs", () => {
+  it("empty date shows the 'Select date' hint, transparent ghost text, and red border", () => {
+    setup({ startDate: "", endDate: "2027-06-30" });
+    const hints = screen.getAllByText("Select date");
+    expect(hints).toHaveLength(1); // only the empty one
+    const start = screen.getByLabelText("Start date");
+    expect(start.className).toContain("text-transparent");
+    expect(start.className).toContain("border-[#F37167]");
+    const end = screen.getByLabelText("End date");
+    expect(end.className).not.toContain("text-transparent");
+    expect(end.className).toContain("border-[#C2BBD4]");
+  });
+  it("filled dates show no hint", () => {
+    setup({ startDate: "2026-09-01", endDate: "2027-06-30" });
+    expect(screen.queryByText("Select date")).toBeNull();
+  });
+});

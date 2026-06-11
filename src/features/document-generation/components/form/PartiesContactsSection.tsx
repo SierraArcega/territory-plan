@@ -15,6 +15,28 @@ interface Props {
   onChange: (patch: Partial<DocFormState>) => void;
 }
 
+/** Native date inputs can't show a placeholder — browsers paint MM/DD/YYYY (or
+ *  today's date on Safari) in an EMPTY box, which reads as filled. While empty
+ *  and unfocused, the ghost text is made transparent and a real hint overlays
+ *  it; focus reveals the segments for typing. */
+function RequiredDateInput({ label, value, onValue }: { label: string; value: string; onValue: (v: string) => void }) {
+  const empty = value.trim() === "";
+  return (
+    <div className="relative mt-0.5">
+      <input aria-label={label} type="date" value={value}
+        onChange={(e) => onValue(e.target.value)}
+        className={`peer w-full rounded border px-2 py-1 text-sm focus:text-[#403770] ${
+          empty ? "border-[#F37167] text-transparent" : "border-[#C2BBD4] text-[#403770]"
+        }`} />
+      {empty && (
+        <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm normal-case tracking-normal text-[#6E6390] peer-focus:hidden">
+          Select date
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function PartiesContactsSection({ state, onChange }: Props) {
   const isBoces = state.docType === "boces_quote";
 
@@ -161,17 +183,13 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       <div className="flex flex-wrap gap-2">
         <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
           Start date
-          {/* Browsers render an empty date input with a today-ish placeholder,
-              so the red border is the only honest "missing" signal here. */}
-          <input aria-label="Start date" type="date" value={state.startDate}
-            onChange={(e) => onChange({ startDate: e.target.value })}
-            className={`mt-0.5 rounded border px-2 py-1 text-sm text-[#403770] ${state.startDate.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
+          <RequiredDateInput label="Start date" value={state.startDate}
+            onValue={(v) => onChange({ startDate: v })} />
         </label>
         <label className="flex flex-1 flex-col text-xs uppercase tracking-wide text-[#6E6390]">
           End date
-          <input aria-label="End date" type="date" value={state.endDate}
-            onChange={(e) => onChange({ endDate: e.target.value })}
-            className={`mt-0.5 rounded border px-2 py-1 text-sm text-[#403770] ${state.endDate.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
+          <RequiredDateInput label="End date" value={state.endDate}
+            onValue={(v) => onChange({ endDate: v })} />
         </label>
       </div>
     </div>
