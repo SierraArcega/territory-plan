@@ -9,6 +9,7 @@ import { verifyEventHash } from "@/features/document-generation/lib/dropbox-sign
 import { mapEventToStatus } from "@/features/document-generation/lib/signature-status";
 import { fetchExecutedPdf } from "@/features/document-generation/lib/dropbox-files";
 import { uploadExecutedPdf } from "@/features/document-generation/lib/drive-archive";
+import { buildExecutedPdfName } from "@/features/document-generation/lib/naming";
 
 export const dynamic = "force-dynamic";
 
@@ -69,13 +70,20 @@ export async function POST(request: Request) {
         try {
           const row = await prisma.generatedDocument.findUnique({
             where: { signatureRequestId: sigId },
-            select: { id: true, companyName: true, executedPdfFileId: true },
+            select: {
+              id: true, companyName: true, schoolYear: true,
+              orderTotal: true, payload: true, executedPdfFileId: true,
+            },
           });
           if (row && !row.executedPdfFileId) {
             const pdf = await fetchExecutedPdf(sigId);
             if (pdf) {
-              const today = new Date().toISOString().slice(0, 10);
-              const name = `${row.companyName || "Contract"} — signed ${today} (${sigId.slice(0, 8)}).pdf`;
+              const name = buildExecutedPdfName({
+                companyName: row.companyName,
+                schoolYear: row.schoolYear,
+                signatureRequestId: sigId,
+                date: new Date(),
+              });
               const uploaded = await uploadExecutedPdf(pdf, name);
               await prisma.generatedDocument.update({
                 where: { id: row.id },

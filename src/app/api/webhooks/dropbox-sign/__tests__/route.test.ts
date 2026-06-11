@@ -99,7 +99,7 @@ describe("POST /api/webhooks/dropbox-sign", () => {
   });
 
   it("archives the executed PDF on all_signed", async () => {
-    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme ISD", executedPdfFileId: null });
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme ISD", schoolYear: null, orderTotal: null, payload: null, executedPdfFileId: null });
     mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
     mockUpload.mockResolvedValue({ fileId: "F1", url: "https://drive/f1" });
     const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
@@ -112,13 +112,13 @@ describe("POST /api/webhooks/dropbox-sign", () => {
   });
 
   it("skips archiving when the row already has an executed file (idempotent across signed events)", async () => {
-    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: "F-old" });
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", schoolYear: null, orderTotal: null, payload: null, executedPdfFileId: "F-old" });
     await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(mockFetchPdf).not.toHaveBeenCalled();
   });
 
   it("still acks when archiving fails", async () => {
-    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", schoolYear: null, orderTotal: null, payload: null, executedPdfFileId: null });
     mockFetchPdf.mockRejectedValue(new Error("boom"));
     const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(res.status).toBe(200);
@@ -131,7 +131,7 @@ describe("POST /api/webhooks/dropbox-sign", () => {
   });
 
   it("retries the archive when the downloadable event lands after a not-ready first attempt", async () => {
-    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", schoolYear: null, orderTotal: null, payload: null, executedPdfFileId: null });
     mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
     mockUpload.mockResolvedValue({ fileId: "F2", url: "https://drive/f2" });
     const res = await POST(eventForm("signature_request_downloadable", "sig_1"));
@@ -140,10 +140,22 @@ describe("POST /api/webhooks/dropbox-sign", () => {
   });
 
   it("leaves columns untouched when the PDF is not ready yet (null)", async () => {
-    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", executedPdfFileId: null });
+    mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme", schoolYear: null, orderTotal: null, payload: null, executedPdfFileId: null });
     mockFetchPdf.mockResolvedValue(null);
     const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(res.status).toBe(200);
     expect(mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("names the archived PDF with the SP6 convention", async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 5, companyName: "Acme ISD", schoolYear: "2026 - 2027",
+      orderTotal: null, payload: null, executedPdfFileId: null,
+    });
+    mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
+    mockUpload.mockResolvedValue({ fileId: "F1", url: "https://drive/f1" });
+    await POST(eventForm("signature_request_all_signed", "sig_12345678"));
+    const name = mockUpload.mock.calls[0][1] as string;
+    expect(name).toMatch(/^SY26-27 — Acme ISD — Contract — signed \d{4}-\d{2}-\d{2} \(sig_1234\)\.pdf$/);
   });
 });
