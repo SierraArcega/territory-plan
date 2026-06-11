@@ -1,30 +1,45 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "node:crypto";
 
-const { mockUpdateMany, mockFindUnique, mockRowUpdate, mockFetchPdf, mockUpload } = vi.hoisted(() => ({
+const { mockUpdateMany, mockFindUnique, mockRowUpdate, mockFetchPdf, mockUpload, mockSlackPost } = vi.hoisted(() => ({
   mockUpdateMany: vi.fn(),
   mockFindUnique: vi.fn(),
   mockRowUpdate: vi.fn(),
   mockFetchPdf: vi.fn(),
   mockUpload: vi.fn(),
+  mockSlackPost: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ default: { generatedDocument: { updateMany: mockUpdateMany, findUnique: mockFindUnique, update: mockRowUpdate } } }));
 vi.mock("@/features/document-generation/lib/dropbox-files", () => ({ fetchExecutedPdf: mockFetchPdf }));
 vi.mock("@/features/document-generation/lib/drive-archive", () => ({ uploadExecutedPdf: mockUpload }));
+vi.mock("@/features/document-generation/lib/slack-notify", () => ({ postExecutedAgreement: mockSlackPost }));
 
 import { POST } from "../route";
 
 const API_KEY = "wh-key";
-function eventForm(eventType: string, sigId: string | null, opts: { tamper?: boolean } = {}) {
+function eventForm(eventType: string, sigId: string | null, opts: { tamper?: boolean; testMode?: boolean } = {}) {
   const eventTime = "1700000000";
   const hash = createHmac("sha256", API_KEY).update(eventTime + eventType).digest("hex");
   const event = {
     event: { event_time: eventTime, event_type: eventType, event_hash: opts.tamper ? "deadbeef" : hash },
-    ...(sigId ? { signature_request: { signature_request_id: sigId } } : {}),
+    ...(sigId
+      ? { signature_request: { signature_request_id: sigId, ...(opts.testMode ? { test_mode: true } : {}) } }
+      : {}),
   };
   const form = new FormData();
   form.set("json", JSON.stringify(event));
   return new Request("http://localhost/api/webhooks/dropbox-sign", { method: "POST", body: form });
+}
+
+function signedRow() {
+  mockFindUnique.mockResolvedValue({
+    id: 5, companyName: "Acme ISD", schoolYear: "2026 - 2027",
+    orderTotal: { toString: () => "20211.18" }, // Prisma Decimal duck-type; Number() coerces via toString
+    payload: { deal: { sender_first: "Aston", sender_last: "Arcega" } },
+    executedPdfFileId: null,
+  });
+  mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
+  mockUpload.mockResolvedValue({ fileId: "F1", url: "https://drive/f1" });
 }
 
 describe("POST /api/webhooks/dropbox-sign", () => {
@@ -33,6 +48,7 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     process.env.DROPBOX_SIGN_API_KEY = API_KEY;
     mockUpdateMany.mockResolvedValue({ count: 1 });
     mockFindUnique.mockResolvedValue(null);
+    mockSlackPost.mockResolvedValue(undefined);
   });
 
   it("advances status and returns the magic ack string", async () => {
@@ -123,6 +139,7 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("Hello API Event Received");
+    expect(mockSlackPost).not.toHaveBeenCalled();
   });
 
   it("does not archive on non-signed events", async () => {
@@ -157,5 +174,55 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     await POST(eventForm("signature_request_all_signed", "sig_12345678"));
     const name = mockUpload.mock.calls[0][1] as string;
     expect(name).toMatch(/^SY26-27 — Acme ISD — Contract — signed \d{4}-\d{2}-\d{2} \(sig_1234\)\.pdf$/);
+  });
+
+  it("posts the executed agreement to Slack after archiving", async () => {
+    signedRow();
+    await POST(eventForm("signature_request_all_signed", "sig_12345678"));
+    expect(mockSlackPost).toHaveBeenCalledTimes(1);
+    const notice = mockSlackPost.mock.calls[0][0];
+    expect(notice.companyName).toBe("Acme ISD");
+    expect(notice.orderTotal).toBeCloseTo(20211.18);
+    expect(notice.schoolYearShort).toBe("SY26-27");
+    expect(notice.repName).toBe("Aston Arcega");
+    expect(notice.driveUrl).toBe("https://drive/f1");
+    expect(notice.filename).toMatch(/^SY26-27 — Acme ISD — Contract — signed/);
+  });
+
+  it("skips Slack entirely for test-mode signings (still archives)", async () => {
+    signedRow();
+    await POST(eventForm("signature_request_all_signed", "sig_1", { testMode: true }));
+    expect(mockUpload).toHaveBeenCalled();
+    expect(mockSlackPost).not.toHaveBeenCalled();
+  });
+
+  it("still acks and keeps the archive stamp when Slack throws", async () => {
+    signedRow();
+    mockSlackPost.mockRejectedValue(new Error("slack down"));
+    const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("Hello API Event Received");
+    expect(mockRowUpdate).toHaveBeenCalled(); // archive stamp happened before Slack
+  });
+
+  it("posts to Slack with a null Drive link when the Drive upload fails", async () => {
+    signedRow();
+    mockUpload.mockRejectedValue(new Error("drive down"));
+    const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(res.status).toBe(200);
+    expect(mockSlackPost).toHaveBeenCalledTimes(1);
+    expect(mockSlackPost.mock.calls[0][0].driveUrl).toBeNull();
+  });
+
+  it("does not post to Slack on non-signed events", async () => {
+    await POST(eventForm("signature_request_viewed", "sig_1"));
+    expect(mockSlackPost).not.toHaveBeenCalled();
+  });
+
+  it("does not post to Slack when the PDF is not ready", async () => {
+    signedRow();
+    mockFetchPdf.mockResolvedValue(null);
+    await POST(eventForm("signature_request_all_signed", "sig_1"));
+    expect(mockSlackPost).not.toHaveBeenCalled();
   });
 });
