@@ -149,6 +149,7 @@ export interface RenderResult {
 }
 export interface RenderOptions {
   tags: boolean;
+  districtLeaId?: string;
 }
 export type RenderClient = (
   payload: DocPayload,

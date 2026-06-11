@@ -1,7 +1,8 @@
 // Maps Dropbox Sign event_type values to our SignatureStatus. Returns null for
 // events that should be acknowledged but not change a row (callback_test, etc.).
-// Intentionally excludes "processing" — that value is only written by the send
-// route on synchronous accept; no Dropbox Sign event ever maps to it.
+// Intentionally excludes "processing" (only written by the send route on
+// synchronous accept) and "rendered" (only written by the render route for
+// BOCES quotes) — no Dropbox Sign event ever maps to either.
 export type SignatureStatusValue =
   | "sent" | "viewed" | "signed" | "declined" | "canceled" | "error";
 
@@ -14,6 +15,7 @@ const EVENT_TO_STATUS: Record<string, SignatureStatusValue> = {
   signature_request_canceled: "canceled",
   signature_request_email_bounce: "error",
   signature_request_invalid: "error",
+  signature_request_downloadable: "signed", // fires when the executed file is ready — also the natural archive retry for a 409-not-ready first attempt
 };
 
 export function mapEventToStatus(eventType: string): SignatureStatusValue | null {

@@ -12,6 +12,9 @@ describe("mapEventToStatus", () => {
     expect(mapEventToStatus("signature_request_signed")).toBe("signed");
     expect(mapEventToStatus("signature_request_all_signed")).toBe("signed");
   });
+  it("maps signature_request_downloadable → signed", () => {
+    expect(mapEventToStatus("signature_request_downloadable")).toBe("signed");
+  });
   it("maps declined and canceled", () => {
     expect(mapEventToStatus("signature_request_declined")).toBe("declined");
     expect(mapEventToStatus("signature_request_canceled")).toBe("canceled");

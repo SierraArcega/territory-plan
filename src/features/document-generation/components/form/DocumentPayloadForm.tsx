@@ -42,9 +42,20 @@ export default function DocumentPayloadForm({ value, onChange, onRender, booking
         <SectionsToggles state={value} onChange={patch} /></section>
 
       <div className="sticky bottom-0 flex flex-col gap-2 border-t border-[#E2DEEC] bg-white py-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs text-[#6E6390]">
-          {isComplete ? "All required fields complete ✓" : `Missing: ${missing.join(", ")}`}
-        </span>
+        <div className="min-w-0 flex-1">
+          {isComplete ? (
+            <span className="text-xs text-[#6E6390]">All required fields complete ✓</span>
+          ) : (
+            <div role="status" className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm">
+              <span className="font-medium text-[#F37167]">Missing before render:</span>
+              <span className="ml-2 inline-flex flex-wrap gap-1">
+                {missing.map((m) => (
+                  <span key={m} className="rounded-full bg-white px-2 py-0.5 text-xs text-[#F37167] whitespace-nowrap">{m}</span>
+                ))}
+              </span>
+            </div>
+          )}
+        </div>
         <button type="button" onClick={onRender} disabled={!isComplete || busy}
           className="shrink-0 rounded-lg bg-[#403770] px-3 py-1 text-sm text-white disabled:opacity-50 whitespace-nowrap">
           {busy ? "Generating… (~15–20s)" : "Render document →"}

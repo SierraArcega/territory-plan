@@ -17,7 +17,13 @@ function req(body: unknown) {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
 }
-const CONTRACT = { doc_type: "contract", deal: { client_company: "Acme ISD", client_email: "c@acme.org", signer_email: "s@acme.org" } };
+const CONTRACT = {
+  doc_type: "contract",
+  deal: { client_company: "Acme ISD", client_email: "c@acme.org", signer_email: "s@acme.org" },
+  quote: { order_total: 5869, include: true, show_pricing: true, line_items: [], min_amt: null, max_amt: null, billable_days: 0, billable_hours: 0, adjustments: [], savings: 0, gross_subtotal: 0 },
+  payment: { type: "A" },
+  sections: {},
+} as const;
 
 describe("POST /api/document-generation/send", () => {
   beforeEach(() => {
@@ -77,5 +83,13 @@ describe("POST /api/document-generation/send", () => {
     mockSend.mockRejectedValue(new Error("renderer exploded"));
     const res = await POST(req({ payload: CONTRACT }));
     expect(res.status).toBe(500);
+  });
+
+  it("persists the payload and promoted report columns", async () => {
+    await POST(req({ payload: CONTRACT, districtLeaId: "0601234" }));
+    const data = mockCreate.mock.calls[0][0].data;
+    expect(data.payload).toEqual(CONTRACT);
+    expect(data.orderTotal).toBe(CONTRACT.quote.order_total);
+    expect(data.paymentType).toBe(CONTRACT.payment.type);
   });
 });

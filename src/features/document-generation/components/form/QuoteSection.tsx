@@ -2,6 +2,7 @@
 import { Plus, X } from "lucide-react";
 import SkuPicker from "./SkuPicker";
 import AdjustmentsSection from "./AdjustmentsSection";
+import NumberInput from "./NumberInput";
 import { computeTotals } from "@/features/document-generation/lib/quote";
 import { resolveFiscalYear } from "@/features/document-generation/lib/fiscal-year";
 import type { FiscalYearSelection } from "@/features/document-generation/lib/fiscal-year";
@@ -11,7 +12,6 @@ import { newRowId } from "@/features/document-generation/lib/ids";
 import { formatCurrency } from "@/features/shared/lib/format";
 
 const usd = (n: number) => formatCurrency(n);
-const num = (v: string) => (v === "" ? 0 : Number(v));
 
 const FY_OPTIONS: { value: FiscalYearSelection; label: string }[] = [
   { value: "auto", label: "Auto" },
@@ -43,12 +43,18 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
     <div className="space-y-2">
       {isBoces && (
         <div className="flex flex-wrap gap-2">
-          <input aria-label="Quote number" placeholder="Quote number" value={state.quoteNumber}
-            onChange={(e) => onChange({ quoteNumber: e.target.value })}
-            className="flex-1 rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
-          <input aria-label="Fee percent" type="number" step="0.1" value={state.feePct}
-            onChange={(e) => onChange({ feePct: num(e.target.value) })}
-            className="w-28 rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          <label className="flex flex-1 flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Quote number</span>
+            <input value={state.quoteNumber}
+              onChange={(e) => onChange({ quoteNumber: e.target.value })}
+              className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Fee %</span>
+            <NumberInput aria-label="Fee percent" step="0.1" value={state.feePct}
+              onValue={(n) => onChange({ feePct: n })}
+              className="w-28 rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+          </label>
         </div>
       )}
 
@@ -66,6 +72,13 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
           </select>
           {state.fiscalYear === "auto" && <span>· {effectiveFY}</span>}
         </label>
+        {!isBoces && (
+          <label className="flex items-center gap-1 text-xs text-[#6E6390] whitespace-nowrap">
+            <input type="checkbox" checked={state.showPricing}
+              onChange={(e) => onChange({ showPricing: e.target.checked })} />
+            Show per-line pricing
+          </label>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -90,14 +103,14 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
             <div className="mt-2 flex flex-wrap items-end gap-3">
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 Count
-                <input aria-label="Count" type="number" min="1" value={l.count ?? 1}
-                  onChange={(e) => updateRow(l.id, { count: num(e.target.value) })}
+                <NumberInput aria-label="Count" min={1} value={l.count ?? 1} inputMode="numeric"
+                  onValue={(n) => updateRow(l.id, { count: n })}
                   className="mt-0.5 w-16 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
               </label>
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 Qty
-                <input aria-label="Quantity" type="number" min="0" value={l.qty}
-                  onChange={(e) => updateRow(l.id, { qty: num(e.target.value) })}
+                <NumberInput aria-label="Quantity" min={0} value={l.qty} inputMode="numeric"
+                  onValue={(n) => updateRow(l.id, { qty: n })}
                   className="mt-0.5 w-20 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
               </label>
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
@@ -111,8 +124,8 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 List rate
                 {l.sku === null ? (
-                  <input aria-label="Rate" type="number" min="0" step="0.01" value={l.listRate}
-                    onChange={(e) => updateRow(l.id, { listRate: num(e.target.value) })}
+                  <NumberInput aria-label="Rate" min={0} step="0.01" value={l.listRate}
+                    onValue={(n) => updateRow(l.id, { listRate: n })}
                     className="mt-0.5 w-24 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
                 ) : (
                   <span className="mt-0.5 py-1 text-sm text-[#403770]">${l.listRate}</span>
@@ -121,8 +134,8 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
               {!isBoces && (
                 <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                   Disc %
-                  <input aria-label="Discount %" type="number" min="0" max="100" value={l.discountPct}
-                    onChange={(e) => updateRow(l.id, { discountPct: num(e.target.value) })}
+                  <NumberInput aria-label="Discount %" min={0} max={100} value={l.discountPct}
+                    onValue={(n) => updateRow(l.id, { discountPct: n })}
                     className="mt-0.5 w-16 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
                 </label>
               )}

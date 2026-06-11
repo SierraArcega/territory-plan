@@ -25,9 +25,12 @@ export default function PaymentSection({ state, onChange }: Props) {
         {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
       </select>
 
-      <input placeholder="Payment terms (e.g. Net 30)" value={state.payTerms}
-        onChange={(e) => onChange({ payTerms: e.target.value })}
-        className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+      <label className="flex flex-col gap-1">
+        <span className="text-xs uppercase tracking-wide text-[#6E6390]">Payment terms</span>
+        <input placeholder="e.g. Net 30" value={state.payTerms}
+          onChange={(e) => onChange({ payTerms: e.target.value })}
+          className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+      </label>
       <label className="flex flex-col gap-1">
         <span className="text-xs uppercase tracking-wide text-[#6E6390]">Unused funds</span>
         <select aria-label="Unused funds" value={state.unusedFunds}
@@ -63,28 +66,43 @@ export default function PaymentSection({ state, onChange }: Props) {
         PO required
       </label>
 
-      <input aria-label="PO number" placeholder="PO number (if known)" value={state.poNumber}
-        onChange={(e) => onChange({ poNumber: e.target.value })}
-        className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+      <label className="flex flex-col gap-1">
+        <span className="text-xs uppercase tracking-wide text-[#6E6390]">PO number (if known)</span>
+        <input value={state.poNumber}
+          onChange={(e) => onChange({ poNumber: e.target.value })}
+          className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+      </label>
 
       {state.paymentType === "B" && (
         <>
-          <input placeholder="Additional terms" value={state.addTerms}
-            onChange={(e) => onChange({ addTerms: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
-          <input placeholder="Implementation detail" value={state.impDetail}
-            onChange={(e) => onChange({ impDetail: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Additional terms</span>
+            <input value={state.addTerms}
+              onChange={(e) => onChange({ addTerms: e.target.value })}
+              className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Implementation detail</span>
+            <input value={state.impDetail}
+              onChange={(e) => onChange({ impDetail: e.target.value })}
+              className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+          </label>
         </>
       )}
       {state.paymentType === "C" && (
         <>
-          <input placeholder="BOCES name" value={state.bocesName}
-            onChange={(e) => onChange({ bocesName: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
-          <input placeholder="Pre/post (pre|post)" value={state.payPrePost}
-            onChange={(e) => onChange({ payPrePost: e.target.value })}
-            className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">BOCES name</span>
+            <input value={state.bocesName}
+              onChange={(e) => onChange({ bocesName: e.target.value })}
+              className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Pre/post</span>
+            <input placeholder="Pre/post (pre|post)" aria-label="Pre/post" value={state.payPrePost}
+              onChange={(e) => onChange({ payPrePost: e.target.value })}
+              className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
+          </label>
         </>
       )}
     </div>

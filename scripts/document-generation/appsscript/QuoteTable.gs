@@ -18,10 +18,10 @@ function handleQuoteSection(body, quote) {
 /**
  * Builds the quote table from scratch at the placeholder table (identified by
  * '[QUOTE_ROW_1_SERVICE]'), then removes the placeholder. Columns:
- * Service | Needed | Per | Unit | Rate | Total. Rate (net rate) is shown only
- * when show_pricing. Description is folded into the Service cell. The footer
- * (Subtotal → adjustments → TOTAL → savings) comes from the shared
- * buildQuoteFooterRows helper.
+ * Service | Needed | Each | Rate | Total. Rate (net rate + per-unit suffix) is
+ * shown only when show_pricing. Each merges qty+unit. Description is folded
+ * into the Service cell. The footer (Subtotal → adjustments → TOTAL → savings)
+ * comes from the shared buildQuoteFooterRows helper.
  * @param {GoogleAppsScript.Document.Body} body
  * @param {Object} quote  payload.quote
  */
@@ -29,14 +29,14 @@ function buildQuoteTableFromScratch(body, quote) {
   var items     = quote.line_items;
   var showPrice = quote.show_pricing;
 
-  // Approved layout: Service | Needed | Per | Unit | Rate | Total.
-  // Rate = net_rate (post per-line discount); shown only when pricing is shown.
+  // Approved layout: Service | Needed | Each | Rate | Total.
+  // Each = merged qty+unit cell (e.g. "5 Days", "1 Hour", "One-time").
+  // Rate = net_rate (post per-line discount) + per-unit suffix; shown only when pricing is shown.
   // Description is folded into the Service cell (second line) to save width.
   var cols = [
     { key: 'service',  label: 'Service', include: true },
     { key: 'count',    label: 'Needed',  include: true },
-    { key: 'qty',      label: 'Per',     include: true },
-    { key: 'unit',     label: 'Unit',    include: true },
+    { key: 'each',     label: 'Each',    include: true },
     { key: 'net_rate', label: 'Rate',    include: showPrice },
     { key: 'total',    label: 'Total',   include: true },
   ].filter(function(c) { return c.include; });
@@ -65,9 +65,8 @@ function buildQuoteTableFromScratch(body, quote) {
         return item.description ? item.service + '\n' + item.description : item.service;
       }
       if (col.key === 'count')    return String(item.count != null ? item.count : 1);
-      if (col.key === 'qty')      return String(item.qty);
-      if (col.key === 'unit')     return String(item.unit != null ? item.unit : '');
-      if (col.key === 'net_rate') return formatCurrency(item.net_rate);
+      if (col.key === 'each')     return formatEachCell(item.qty, item.unit);
+      if (col.key === 'net_rate') return formatCurrency(item.net_rate) + rateUnitSuffix(item.unit);
       if (col.key === 'total')    return formatCurrency(item.total);
       return '';
     });
@@ -88,7 +87,7 @@ function buildQuoteTableFromScratch(body, quote) {
   var newTable = body.insertTable(tableIdx + 1, [headerRow].concat(dataRows).concat(footerRows));
 
   // Proportional column widths scaled to 540pt (8.5" − 0.5" margins each side).
-  var naturalWidths = { service: 200, count: 55, qty: 50, unit: 55, net_rate: 80, total: 100 };
+  var naturalWidths = { service: 215, count: 62, each: 80, net_rate: 105, total: 98 };
   var rawWidths = cols.map(function(c) { return naturalWidths[c.key] || 60; });
   var rawTotal  = rawWidths.reduce(function(s, w) { return s + w; }, 0);
   rawWidths.forEach(function(w, i) {

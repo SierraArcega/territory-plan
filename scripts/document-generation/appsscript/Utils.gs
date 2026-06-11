@@ -1,4 +1,28 @@
 /**
+ * Merged qty+unit cell for quote tables: "188 Days", "1 Hour", "One-time" (Flat).
+ * Unit vocabulary: Hour | Day | Session | Year | Flat. Defensively handles ''/unknown.
+ * @param {number} qty
+ * @param {string} unit
+ * @returns {string}
+ */
+function formatEachCell(qty, unit) {
+  var u = String(unit || '').trim();
+  if (u === 'Flat') return Number(qty) > 1 ? String(qty) + '\u00d7 One-time' : 'One-time';
+  if (!u) return String(qty);
+  return String(qty) + ' ' + (Number(qty) === 1 ? u : u + 's');
+}
+
+/**
+ * Per-unit suffix for the Rate column: "/Day", "/Hr", "" for Flat/unknown.
+ * @param {string} unit
+ * @returns {string}
+ */
+function rateUnitSuffix(unit) {
+  var map = { Day: '/Day', Hour: '/Hr', Session: '/Session', Year: '/Yr' };
+  return map[String(unit || '').trim()] || '';
+}
+
+/**
  * Formats a number as USD currency string. Returns '' for null/undefined.
  * Uses manual formatting instead of toLocaleString() — V8 Apps Script runtime
  * does not reliably respect locale parameters.

@@ -3,6 +3,7 @@ import {
   HigherGovOpportunitySchema,
   type HigherGovOpportunity,
 } from "./types";
+import { requireEnv } from "@/features/shared/lib/env";
 
 const BASE_URL = "https://www.highergov.com/api-external/opportunity/";
 const DEFAULT_PAGE_SIZE = 100;
@@ -15,12 +16,6 @@ export interface FetchOpportunitiesArgs {
   pageSize?: number;
   maxRetries?: number;
   retryDelayMs?: number;
-}
-
-function requireEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is required`);
-  return v;
 }
 
 function isoDate(d: Date): string {

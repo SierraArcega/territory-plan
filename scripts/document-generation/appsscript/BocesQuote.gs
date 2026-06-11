@@ -93,10 +93,11 @@ function buildBocesQuoteTable(body, quote) {
     return;
   }
 
-  // Columns mirror the contract table: Product | Needed | Per | Unit | Rate | Total.
-  var headerRow = ['Product', 'Needed', 'Per', 'Unit', 'Rate', 'Total'];
+  // Columns mirror the contract table: Product | Needed | Each | Rate | Total.
+  // Each merges qty+unit; Rate carries a per-unit suffix (e.g. "/Day", "/Hr").
+  var headerRow = ['Product', 'Needed', 'Each', 'Rate', 'Total'];
   var dataRows  = t.rows.map(function(r) {
-    return [r.product, String(r.count), String(r.qty), String(r.unit || ''), formatCurrency(r.rate), formatCurrency(r.total)];
+    return [r.product, String(r.count), formatEachCell(r.qty, r.unit), formatCurrency(r.rate) + rateUnitSuffix(r.unit), formatCurrency(r.total)];
   });
 
   // Footer: Subtotal → Fee (extraRow) → adjustments → TOTAL (forwarded order_total) → savings.
@@ -111,13 +112,23 @@ function buildBocesQuoteTable(body, quote) {
   var allRows = [headerRow].concat(dataRows).concat(footerRows);
   var newTable = body.insertTable(markerIdx + 1, allRows);
 
-  var naturalWidths = [200, 55, 50, 55, 80, 100];
+  var naturalWidths = [207, 62, 78, 105, 88]; // Jakarta Sans runs wide: Needed >=62, Rate >=105 ($4,000.00/Day)
   var rawTotal = naturalWidths.reduce(function(s, w) { return s + w; }, 0);
   naturalWidths.forEach(function(w, i) {
     newTable.setColumnWidth(i, Math.round(w / rawTotal * 540));
   });
 
   applyFullmindTableStyle(newTable);
+
+  // Five columns at 540pt: the default 14pt side padding wraps the bold "Needed"
+  // header — tighten this table to 8pt (precedent: the contract quote table
+  // overrides to 5pt for the same reason).
+  for (var pr = 0; pr < newTable.getNumRows(); pr++) {
+    var prow = newTable.getRow(pr);
+    for (var pc = 0; pc < prow.getNumCells(); pc++) {
+      prow.getCell(pc).setPaddingLeft(8).setPaddingRight(8);
+    }
+  }
 
   // Bold every footer row.
   var n = newTable.getNumRows();
