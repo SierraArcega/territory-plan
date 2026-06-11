@@ -2192,6 +2192,7 @@ model GeneratedDocument {
   endDate            DateTime?       @map("end_date") @db.Date
   schoolYear         String?         @map("school_year") @db.Text
   quoteNumber        String?         @map("quote_number") @db.Text
+  schoolYearManual   Boolean         @default(false) @map("school_year_manual")
   executedPdfUrl     String?         @map("executed_pdf_url") @db.Text
   executedPdfFileId  String?         @map("executed_pdf_file_id") @db.Text
   sentAt             DateTime?       @map("sent_at") @db.Timestamptz

@@ -40,4 +40,19 @@ describe("promotedFields", () => {
     expect(f.startDate).toBeNull();
     expect(f.schoolYear).toBeNull(); // BOCES has no school year
   });
+  it("extracts schoolYearManual true from a contract payload with meta.school_year_manual=true", () => {
+    const s = emptyFormState("contract", "0601234");
+    s.clientContact = jane;
+    s.schoolYearManual = true;
+    const p = assemblePayload(s);
+    const f = promotedFields(p);
+    expect(f.schoolYearManual).toBe(true);
+  });
+  it("defaults schoolYearManual false when payload has no meta", () => {
+    const s = emptyFormState("boces_quote", "0601234");
+    s.clientContact = jane;
+    const p = assemblePayload(s);
+    const f = promotedFields(p);
+    expect(f.schoolYearManual).toBe(false);
+  });
 });

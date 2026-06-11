@@ -50,6 +50,19 @@ describe("getCompleteness", () => {
   });
 });
 
+describe("getCompleteness — schoolYear", () => {
+  it("requires a non-empty school year for contracts", () => {
+    const s = emptyFormState("contract", "0601234");
+    s.schoolYear = "";
+    expect(getCompleteness(s).missing).toContain("School year");
+  });
+  it("does not require school year for BOCES quotes", () => {
+    const s = emptyFormState("boces_quote", "0601234");
+    s.schoolYear = "";
+    expect(getCompleteness(s).missing).not.toContain("School year");
+  });
+});
+
 describe("parseCcEmails", () => {
   it("splits on commas and semicolons, trims, drops empties", () => {
     expect(parseCcEmails(" a@x.com, b@y.org ;; c@z.io ,")).toEqual(["a@x.com", "b@y.org", "c@z.io"]);

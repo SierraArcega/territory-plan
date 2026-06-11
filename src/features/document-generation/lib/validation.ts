@@ -41,6 +41,7 @@ export function getCompleteness(state: DocFormState): Completeness {
   if (!state.endDate.trim()) missing.push("End date");
   if (state.docType === "boces_quote" && !state.quoteNumber.trim()) missing.push("Quote number");
   if (state.docType === "contract") {
+    if (!state.schoolYear.trim()) missing.push("School year");
     for (const email of parseCcEmails(state.ccEmails)) {
       if (!EMAIL_RE.test(email)) missing.push(`Invalid CC email: ${email}`);
     }
