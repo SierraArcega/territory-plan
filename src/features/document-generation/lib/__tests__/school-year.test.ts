@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { schoolYearFromDate, defaultSchoolYear, schoolYearOptions } from "../school-year";
+import {
+  schoolYearFromDate,
+  defaultSchoolYear,
+  schoolYearOptions,
+  splitSchoolYear,
+  joinSchoolYear,
+  startYearOptions,
+} from "../school-year";
 
 describe("schoolYearFromDate", () => {
   it("maps a fall start to the SY it opens (July-1 boundary)", () => {
@@ -35,5 +42,64 @@ describe("schoolYearOptions", () => {
   it("always contains the default", () => {
     const today = new Date(2026, 10, 2);
     expect(schoolYearOptions(today)).toContain(defaultSchoolYear(today));
+  });
+});
+
+describe("splitSchoolYear", () => {
+  it("parses a standard hyphen-separated SY string", () => {
+    expect(splitSchoolYear("2026 - 2027")).toEqual({ start: 2026, end: 2027 });
+  });
+  it("round-trips a joined value", () => {
+    const sy = "2025 - 2026";
+    const split = splitSchoolYear(sy);
+    expect(split).not.toBeNull();
+    expect(joinSchoolYear(split!.start, split!.end)).toBe(sy);
+  });
+  it("accepts an en-dash separator", () => {
+    expect(splitSchoolYear("2026 – 2027")).toEqual({ start: 2026, end: 2027 });
+  });
+  it("accepts a multi-year span", () => {
+    expect(splitSchoolYear("2026 - 2028")).toEqual({ start: 2026, end: 2028 });
+  });
+  it("returns null for junk input", () => {
+    expect(splitSchoolYear("not-a-year")).toBeNull();
+    expect(splitSchoolYear("")).toBeNull();
+    expect(splitSchoolYear("2026")).toBeNull();
+  });
+});
+
+describe("joinSchoolYear", () => {
+  it("produces the canonical '<start> - <end>' format", () => {
+    expect(joinSchoolYear(2026, 2027)).toBe("2026 - 2027");
+  });
+  it("handles multi-year spans", () => {
+    expect(joinSchoolYear(2026, 2028)).toBe("2026 - 2028");
+  });
+});
+
+describe("startYearOptions", () => {
+  it("returns 6 consecutive start years matching the schoolYearOptions window", () => {
+    const today = new Date(2026, 5, 11);
+    const starts = startYearOptions(today);
+    expect(starts).toHaveLength(6);
+    // Should be consecutive integers
+    for (let i = 1; i < starts.length; i++) {
+      expect(starts[i]).toBe(starts[i - 1] + 1);
+    }
+  });
+  it("each start year in the result matches the start of the corresponding schoolYearOptions entry", () => {
+    const today = new Date(2026, 5, 11);
+    const starts = startYearOptions(today);
+    const syOpts = schoolYearOptions(today);
+    expect(starts).toEqual(syOpts.map((sy) => splitSchoolYear(sy)!.start));
+  });
+  it("works for a different date (year-proof)", () => {
+    const today = new Date(2028, 2, 15); // March 2028
+    const starts = startYearOptions(today);
+    expect(starts).toHaveLength(6);
+    // All should be integers
+    for (const s of starts) {
+      expect(Number.isInteger(s)).toBe(true);
+    }
   });
 });

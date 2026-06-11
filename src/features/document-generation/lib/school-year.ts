@@ -26,3 +26,19 @@ export function schoolYearOptions(today: Date = new Date()): string[] {
   const currentEnd = getCurrentFY(today);
   return Array.from({ length: 6 }, (_, i) => syForEndYear(currentEnd - 1 + i));
 }
+
+/** Parse a canonical-ish SY string into its year pair; null when it lacks two 4-digit years. */
+export function splitSchoolYear(sy: string): { start: number; end: number } | null {
+  const m = /(\d{4})\s*[-–]\s*(\d{4})/.exec(sy);
+  return m ? { start: Number(m[1]), end: Number(m[2]) } : null;
+}
+
+/** Canonical SY string for an explicit year pair. */
+export function joinSchoolYear(start: number, end: number): string {
+  return `${start} - ${end}`;
+}
+
+/** Start years of the selector window (same 6-year window as schoolYearOptions). */
+export function startYearOptions(today: Date = new Date()): number[] {
+  return schoolYearOptions(today).map((sy) => splitSchoolYear(sy)!.start);
+}

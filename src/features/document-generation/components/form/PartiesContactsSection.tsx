@@ -5,7 +5,9 @@ import type { DocFormState, ContactRef } from "@/features/document-generation/li
 import {
   schoolYearFromDate,
   defaultSchoolYear,
-  schoolYearOptions,
+  splitSchoolYear,
+  joinSchoolYear,
+  startYearOptions,
 } from "@/features/document-generation/lib/school-year";
 
 interface Props {
@@ -16,13 +18,27 @@ interface Props {
 export default function PartiesContactsSection({ state, onChange }: Props) {
   const isBoces = state.docType === "boces_quote";
 
-  const syOptions = useMemo(() => {
-    const opts = schoolYearOptions();
-    // A draft/legacy value outside the window must stay visible and selected.
-    return state.schoolYear && !opts.includes(state.schoolYear)
-      ? [state.schoolYear, ...opts]
-      : opts;
+  // Derive the current start/end from the canonical string; fall back to the
+  // default SY for display ONLY (no write) when the value is unparseable in
+  // selector mode (only possible via odd manual-mode leftovers).
+  const syParsed = useMemo(() => {
+    const parsed = splitSchoolYear(state.schoolYear);
+    if (parsed) return parsed;
+    // Fall back to default for display without writing state
+    return splitSchoolYear(defaultSchoolYear())!;
   }, [state.schoolYear]);
+
+  const syStartOptions = useMemo(() => {
+    const window = startYearOptions();
+    // Inject out-of-window start year so saved drafts stay visible.
+    return window.includes(syParsed.start) ? window : [syParsed.start, ...window];
+  }, [syParsed.start]);
+
+  const syEndOptions = useMemo(() => {
+    const base = [syParsed.start + 1, syParsed.start + 2, syParsed.start + 3];
+    // Inject out-of-window end year so saved drafts stay visible.
+    return base.includes(syParsed.end) ? base : [syParsed.end, ...base];
+  }, [syParsed.start, syParsed.end]);
 
   // Start-date sync: derive until the rep takes over. A loaded draft whose SY
   // already disagrees with its derived value counts as taken-over.
@@ -98,11 +114,34 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
               onChange={(e) => onChange({ schoolYear: e.target.value })}
               className={`w-full rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
           ) : (
-            <select aria-label="School year" value={state.schoolYear}
-              onChange={(e) => { syTouched.current = true; onChange({ schoolYear: e.target.value }); }}
-              className={`w-full rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`}>
-              {syOptions.map((sy) => (<option key={sy} value={sy}>{sy}</option>))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                aria-label="School year start"
+                value={syParsed.start}
+                onChange={(e) => {
+                  syTouched.current = true;
+                  const newStart = Number(e.target.value);
+                  onChange({ schoolYear: joinSchoolYear(newStart, newStart + 1) });
+                }}
+                className={`flex-1 rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`}>
+                {syStartOptions.map((yr) => (
+                  <option key={yr} value={yr}>{yr}</option>
+                ))}
+              </select>
+              <select
+                aria-label="School year end"
+                value={syParsed.end}
+                onChange={(e) => {
+                  syTouched.current = true;
+                  const newEnd = Number(e.target.value);
+                  onChange({ schoolYear: joinSchoolYear(syParsed.start, newEnd) });
+                }}
+                className={`flex-1 rounded border px-2 py-1 text-sm ${state.schoolYear.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`}>
+                {syEndOptions.map((yr) => (
+                  <option key={yr} value={yr}>{yr}</option>
+                ))}
+              </select>
+            </div>
           )}
         </label>
       )}
