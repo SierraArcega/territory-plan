@@ -262,3 +262,25 @@ function stripSignatureTextTags(body) {
   body.replaceText('\\[(sig|signature|initials?|date|text(-merge)?|checkbox)\\|[^\\]]*\\]', '');
 }
 
+/**
+ * Short school-year tag for file names: '2026 - 2027' → 'SY26-27'.
+ * Returns '' when the input lacks two 4-digit years (caller omits the segment).
+ * Cross-language twin of formatSchoolYearShort in
+ * src/features/document-generation/lib/naming.ts — keep in sync (SP6 spec).
+ * @param {string} schoolYear
+ * @returns {string}
+ */
+function shortSchoolYear(schoolYear) {
+  var m = /(\d{4})\s*[-–]\s*(\d{4})/.exec(String(schoolYear || ''));
+  return m ? 'SY' + m[1].slice(2) + '-' + m[2].slice(2) : '';
+}
+
+/**
+ * Render-time date for file names, ISO yyyy-MM-dd — Drive-name safe (no
+ * slashes, unlike deal.today's MM/DD/YYYY which stays the <<today>> format).
+ * @returns {string}
+ */
+function isoToday() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+

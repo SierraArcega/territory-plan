@@ -1,5 +1,6 @@
 // src/features/document-generation/lib/payload-types.ts
 import type { FiscalYearSelection } from "./fiscal-year";
+import { defaultSchoolYear } from "./school-year";
 
 export type DocType = "contract" | "boces_quote";
 export type PaymentType = "A" | "B" | "C"; // A=Standard, B=Customized, C=BOCES Standardized
@@ -64,6 +65,7 @@ export interface DocFormState {
   senderEmail: string;
   ccEmails: string;
   schoolYear: string;
+  schoolYearManual: boolean;
   startDate: string;
   endDate: string;
   lineItems: LineItemRow[];
@@ -122,6 +124,7 @@ export interface ContractPayload {
   };
   payment: Record<string, string | boolean>;
   sections: Record<string, boolean | string | null>;
+  meta: { school_year_manual: boolean };
 }
 
 export interface BocesQuotePayload {
@@ -175,7 +178,8 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     senderTitle: "",
     senderEmail: "",
     ccEmails: "",
-    schoolYear: "",
+    schoolYear: docType === "contract" ? defaultSchoolYear() : "",
+    schoolYearManual: false,
     startDate: "",
     endDate: "",
     lineItems: [],

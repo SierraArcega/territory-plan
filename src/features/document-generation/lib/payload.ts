@@ -124,6 +124,7 @@ export function assemblePayload(state: DocFormState, today: string = formatToday
       pricing_hourly: state.sections.hourly,
       pricing_boces: state.sections.boces,
     },
+    meta: { school_year_manual: state.schoolYearManual },
   };
   return contract;
 }

@@ -42,7 +42,8 @@ function generateFullContract(payload) {
   var props  = PropertiesService.getScriptProperties().getProperties();
   var folder = DriveApp.getFolderById(props[PROP.OUTPUT_FOLDER_ID]);
 
-  var docName = payload.deal.client_company + ' — Contract ' + payload.deal.today;
+  var sy = shortSchoolYear(payload.deal.school_year);
+  var docName = (sy ? sy + ' — ' : '') + payload.deal.client_company + ' — Contract — ' + isoToday();
   var copy    = DriveApp.getFileById(props[PROP.TEMPLATE_BASE_ID]).makeCopy(docName, folder);
   var doc     = DocumentApp.openById(copy.getId());
   var body    = doc.getBody();

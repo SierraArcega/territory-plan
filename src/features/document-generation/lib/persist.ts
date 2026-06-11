@@ -12,6 +12,7 @@ export interface PromotedFields {
   endDate: Date | null;
   schoolYear: string | null;
   quoteNumber: string | null;
+  schoolYearManual: boolean;
 }
 
 // Form dates are "YYYY-MM-DD"; store as UTC midnight so @db.Date keeps the day.
@@ -32,6 +33,7 @@ export function promotedFields(payload: DocPayload): PromotedFields {
     endDate: toDate(deal.end_date),
     schoolYear: deal.school_year?.trim() ? deal.school_year : null,
     quoteNumber: deal.quote_number?.trim() ? deal.quote_number : null,
+    schoolYearManual: (payload as { meta?: { school_year_manual?: boolean } }).meta?.school_year_manual === true,
   };
 }
 

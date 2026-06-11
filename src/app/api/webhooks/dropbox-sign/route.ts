@@ -9,6 +9,8 @@ import { verifyEventHash } from "@/features/document-generation/lib/dropbox-sign
 import { mapEventToStatus } from "@/features/document-generation/lib/signature-status";
 import { fetchExecutedPdf } from "@/features/document-generation/lib/dropbox-files";
 import { uploadExecutedPdf } from "@/features/document-generation/lib/drive-archive";
+import { buildExecutedPdfName, formatSchoolYearShort, isoDate } from "@/features/document-generation/lib/naming";
+import { postExecutedAgreement } from "@/features/document-generation/lib/slack-notify";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
     }
     let parsed: {
       event?: { event_time?: string; event_type?: string; event_hash?: string };
-      signature_request?: { signature_request_id?: string };
+      signature_request?: { signature_request_id?: string; test_mode?: boolean };
     };
     try {
       parsed = JSON.parse(jsonStr);
@@ -57,34 +59,70 @@ export async function POST(request: Request) {
       console.log(`Dropbox Sign event: ${ev.event_type} → ${status} for ${sigId}`);
       // updateMany with count 0 (unknown id) is fine — idempotent ack.
 
-      // Archive the executed PDF on signed events. Strictly best-effort: any failure
-      // logs and leaves the columns null — Dropbox Sign must always get the ack.
-      // signed + all_signed both map here and can arrive concurrently: both can pass the
-      // findUnique guard and double-upload; the second row update overwrites — DB stays
-      // correct, the spare Drive file is harmless at current volume. Likewise the archive
-      // is awaited before the ack (adds seconds; Dropbox Sign retries slow acks and the
-      // guard absorbs the retry) — switch to next/server after() if volume ever makes
-      // retries noisy.
+      // Post-signing pipeline, strictly best-effort: archive the executed PDF to
+      // Drive, then announce it in Slack. Each leg has its own catch — a Drive
+      // failure must not kill the Slack post and vice versa, and Dropbox Sign must
+      // always get the ack. Idempotency rides the executedPdfFileId guard; the
+      // known rare signed/all_signed/downloadable double-fire can double-run this
+      // block (spare Drive file + duplicate Slack post) — accepted at current
+      // volume. signature_request_downloadable also maps to signed.
+      // All of this is awaited before the ack (Dropbox Sign retries slow acks; the stamp guard absorbs them) — move to next/server after() if retries ever get noisy.
       if (status === "signed") {
         try {
           const row = await prisma.generatedDocument.findUnique({
             where: { signatureRequestId: sigId },
-            select: { id: true, companyName: true, executedPdfFileId: true },
+            select: {
+              id: true, companyName: true, schoolYear: true,
+              orderTotal: true, payload: true, executedPdfFileId: true,
+            },
           });
           if (row && !row.executedPdfFileId) {
             const pdf = await fetchExecutedPdf(sigId);
             if (pdf) {
-              const today = new Date().toISOString().slice(0, 10);
-              const name = `${row.companyName || "Contract"} — signed ${today} (${sigId.slice(0, 8)}).pdf`;
-              const uploaded = await uploadExecutedPdf(pdf, name);
-              await prisma.generatedDocument.update({
-                where: { id: row.id },
-                data: { executedPdfUrl: uploaded.url, executedPdfFileId: uploaded.fileId },
+              const now = new Date();
+              const name = buildExecutedPdfName({
+                companyName: row.companyName,
+                schoolYear: row.schoolYear,
+                signatureRequestId: sigId,
+                date: now,
               });
+
+              let uploaded: { fileId: string; url: string } | null = null;
+              try {
+                uploaded = await uploadExecutedPdf(pdf, name);
+                await prisma.generatedDocument.update({
+                  where: { id: row.id },
+                  data: { executedPdfUrl: uploaded.url, executedPdfFileId: uploaded.fileId },
+                });
+              } catch (archiveError) {
+                console.error("Executed-PDF archive error:", archiveError);
+              }
+
+              // Test-mode signings never reach the channel; the Drive archive above
+              // still runs so test e2e flows stay observable.
+              if (parsed.signature_request?.test_mode !== true) {
+                try {
+                  const deal = (row.payload as { deal?: Record<string, string> } | null)?.deal;
+                  const repName =
+                    [deal?.sender_first, deal?.sender_last].filter(Boolean).join(" ") || null;
+                  await postExecutedAgreement({
+                    pdf,
+                    filename: name,
+                    companyName: row.companyName,
+                    orderTotal: row.orderTotal == null ? null : Number(row.orderTotal),
+                    schoolYearShort: formatSchoolYearShort(row.schoolYear),
+                    repName,
+                    signedDate: isoDate(now),
+                    driveUrl: uploaded?.url ?? null,
+                  });
+                } catch (slackError) {
+                  console.error("Slack notify error:", slackError);
+                }
+              }
             }
           }
-        } catch (archiveError) {
-          console.error("Executed-PDF archive error:", archiveError);
+        } catch (postSignError) {
+          console.error("Signed-event post-processing error:", postSignError);
         }
       }
     }
