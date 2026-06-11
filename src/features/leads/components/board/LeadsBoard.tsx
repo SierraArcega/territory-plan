@@ -392,7 +392,7 @@ export default function LeadsBoard({
 
   // Layout 2: swimlanes by BDR (manager grid) ---------------------------------
   if (layout === "swimlanes") {
-    const cols = PIPELINE.filter((k) => k !== "new");
+    const cols = PIPELINE;
     const rows: Array<{
       key: string;
       label: string;

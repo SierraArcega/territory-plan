@@ -114,7 +114,7 @@ describe("LeadsBoard (columns)", () => {
 });
 
 describe("LeadsBoard (swimlanes)", () => {
-  it("excludes the New column and labels the current user's row You", () => {
+  it("includes the New column first and labels the current user's row You", () => {
     const leads = [
       makeLead({ id: "l3", status: "working" }),
       makeLead({
@@ -122,6 +122,7 @@ describe("LeadsBoard (swimlanes)", () => {
         status: "working",
         assignedBdr: { id: "u2", fullName: "Priya Shah", avatarUrl: null },
       }),
+      makeLead({ id: "l5", status: "new" }),
     ];
     render(
       <LeadsBoard
@@ -136,9 +137,17 @@ describe("LeadsBoard (swimlanes)", () => {
     );
     expect(screen.getByText("You")).toBeInTheDocument();
     expect(screen.getByText("Priya")).toBeInTheDocument();
-    // Stage header "New" must not render in swimlanes
-    expect(screen.queryByText("New")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Working").length).toBeGreaterThan(0);
+    // All pipeline stages render, New first — new leads must be visible here too
+    const stageHeaders = ["New", "Working", "Meeting Scheduled"];
+    for (const label of stageHeaders) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+    const headerRow = screen.getAllByText(/New|Working/).map((el) => el.textContent);
+    expect(headerRow.indexOf("New")).toBeLessThan(headerRow.indexOf("Working"));
+    // The new-status lead renders in the grid
+    expect(
+      screen.getAllByRole("button", { name: "Open lead: Karen Whitfield" }).length,
+    ).toBeGreaterThan(0);
   });
 });
 
