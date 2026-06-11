@@ -1,10 +1,12 @@
 "use client";
 
 // Record panel shell — durable record views (Contact / School / District)
-// stacking ABOVE the lead detail panel: 480px (full-width sheet < 640px),
-// breadcrumb trail (`Lead › District › School › Contact` — only the
-// actually-visited path; current level not clickable), Back + Close buttons,
-// Esc pops ONE level. Pixels per RecordPanels.jsx → RecordShell/Breadcrumbs.
+// REPLACING the lead detail panel in the same 640px surface (drill-in pages,
+// not visual stacking; full-width sheet < 640px), breadcrumb trail
+// (`Lead › District › School › Contact` — only the actually-visited path;
+// current level not clickable), Back + Close buttons, Esc/Back pops ONE
+// level, Close dismisses the whole panel. Chrome per RecordPanels.jsx →
+// RecordShell/Breadcrumbs.
 
 import type { ReactNode } from "react";
 import {
@@ -89,7 +91,7 @@ export interface RecordPanelShellProps {
   trail: BreadcrumbItem[];
   /** Pop one level (previous record, or back to the lead panel). */
   onBack: () => void;
-  /** Close the whole record stack (the lead panel stays open). */
+  /** Dismiss the whole panel (record stack and lead panel together). */
   onClose: () => void;
   children: ReactNode;
 }
@@ -111,12 +113,13 @@ export default function RecordPanelShell({
   return (
     <>
       <PanelKeyframes />
-      <PanelBackdrop onClick={onBack} zIndex={44} />
+      {/* Backdrop dismisses the whole panel — same as the lead panel's. */}
+      <PanelBackdrop onClick={onClose} zIndex={44} />
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={`${kicker}: ${title}`}
-        className="absolute inset-y-0 right-0 z-[45] flex w-full flex-col border-l border-[#D4CFE2] bg-white shadow-[-10px_0_28px_-8px_rgba(64,55,112,0.22)] sm:w-[min(480px,calc(100vw-24px))]"
+        className="absolute inset-y-0 right-0 z-[45] flex w-full flex-col border-l border-[#D4CFE2] bg-white shadow-[-10px_0_28px_-8px_rgba(64,55,112,0.22)] sm:w-[min(640px,calc(100vw-24px))]"
         style={{ animation: PANEL_SLIDE_ANIMATION }}
       >
         <div className="border-b border-[#EFEDF5] px-[22px] py-4">

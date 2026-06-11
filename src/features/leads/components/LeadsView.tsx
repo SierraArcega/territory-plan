@@ -7,8 +7,9 @@
 // client-side over the scope-fetched leads (see lib/queries.ts for the
 // rationale); board and table share one sorts[] source of truth.
 //
-// Panels (L5–L7) mount at the bottom: LeadDetailPanel against `selectedLead`,
-// and the record-panel stack (`recordStack`) above it with a breadcrumb trail.
+// Panels (L5–L7) mount at the bottom: LeadDetailPanel against `selectedLead`;
+// opening a record (`recordStack`) replaces it in the same surface with a
+// breadcrumb trail back to the lead (drill-in pages, not visual stacking).
 //
 // Integration points for the follow-up tracks (L8/L9):
 //   • `modal` — header buttons set "add" / "bulk"; the detail panel sets
@@ -504,16 +505,16 @@ export default function LeadsView() {
         )}
       </div>
 
-      {/* Lead detail panel (L5) — Esc is owned by the record stack while one
-          is open, and by the active modal while one is open (each layer pops
-          one level per press). */}
-      {selectedLead && (
+      {/* Lead detail panel (L5) — gives way to the record panel while the
+          record stack is non-empty (in-place drill-in, not visual stacking);
+          Esc is owned by the active modal while one is open. */}
+      {selectedLead && !recordTop && (
         <LeadDetailPanel
           key={selectedLead.id}
           lead={selectedLead}
           currentUserId={profile?.id ?? null}
           onClose={closePanel}
-          escDisabled={recordStack.length > 0 || modal !== null}
+          escDisabled={modal !== null}
           onOpenRecord={pushRecord}
           onLogOutcome={() => setModal("outcome")}
           onDisqualify={() => setModal("disqualify")}
@@ -522,14 +523,15 @@ export default function LeadsView() {
         />
       )}
 
-      {/* Record panels (L7) — only the top of the stack is mounted; Back/Esc
-          pops one level, Close clears the stack (the lead panel stays). */}
+      {/* Record panels (L7) — replace the lead panel in the same surface
+          (drill-in pages): Back/Esc pops one level (breadcrumbs jump straight
+          to a level), Close dismisses the whole panel, lead included. */}
       {recordTop?.type === "contact" && (
         <ContactRecordPanel
           contactId={recordTop.id}
           trail={trail}
           onBack={popRecord}
-          onClose={closeRecords}
+          onClose={closePanel}
           onOpenRecord={pushRecord}
           onOpenLead={openLeadFromRecord}
         />
@@ -539,7 +541,7 @@ export default function LeadsView() {
           ncessch={recordTop.id}
           trail={trail}
           onBack={popRecord}
-          onClose={closeRecords}
+          onClose={closePanel}
           onOpenRecord={pushRecord}
         />
       )}
@@ -548,7 +550,7 @@ export default function LeadsView() {
           leaid={recordTop.id}
           trail={trail}
           onBack={popRecord}
-          onClose={closeRecords}
+          onClose={closePanel}
           onOpenRecord={pushRecord}
           onOpenLead={openLeadFromRecord}
         />

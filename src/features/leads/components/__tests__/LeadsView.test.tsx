@@ -122,6 +122,24 @@ describe("LeadsView deep link", () => {
   });
 });
 
+describe("LeadsView record drill-in", () => {
+  it("replaces the lead panel with the record view instead of stacking, and the lead crumb returns", () => {
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: "Open lead: Karen Whitfield" }));
+    expect(screen.getByRole("dialog", { name: "Lead: Karen Whitfield" })).toBeInTheDocument();
+    // Drill into the district record — the lead panel gives way to the record page
+    fireEvent.click(screen.getByRole("button", { name: /Mesa Valley USD 51/ }));
+    expect(screen.getByRole("dialog", { name: /District record/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Lead: Karen Whitfield" }),
+    ).not.toBeInTheDocument();
+    // The breadcrumb's lead crumb navigates back to the lead panel
+    fireEvent.click(screen.getByRole("button", { name: "Karen Whitfield" }));
+    expect(screen.getByRole("dialog", { name: "Lead: Karen Whitfield" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /District record/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("LeadsView drag-to-restage", () => {
   it("sends an optimistic status PATCH when a card is dropped on another column", () => {
     renderView();

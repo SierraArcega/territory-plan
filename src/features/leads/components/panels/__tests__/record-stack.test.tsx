@@ -158,11 +158,12 @@ describe("record stack push/pop", () => {
     expect(districtPanel()).toBeInTheDocument();
     expect(contactPanel()).not.toBeInTheDocument(); // only the top is mounted
 
-    // Esc pops ONE level: district → contact.
+    // Esc pops ONE level: district → contact. The lead panel stays hidden
+    // while a record is open (drill-in replaces it, no visual stacking).
     fireEvent.keyDown(window, { key: "Escape" });
     expect(districtPanel()).not.toBeInTheDocument();
     expect(contactPanel()).toBeInTheDocument();
-    expect(leadPanel()).toBeInTheDocument();
+    expect(leadPanel()).not.toBeInTheDocument();
 
     // Esc again: contact → lead panel only.
     fireEvent.keyDown(window, { key: "Escape" });
