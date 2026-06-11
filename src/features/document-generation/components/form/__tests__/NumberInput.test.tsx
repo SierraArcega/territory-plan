@@ -74,4 +74,11 @@ describe("NumberInput", () => {
     expect(input.min).toBe("0");
     expect(input.max).toBe("100");
   });
+
+  it("defaults to decimal inputMode and accepts numeric override", () => {
+    const { rerender } = render(<NumberInput value={1} onValue={vi.fn()} aria-label="n" />);
+    expect(screen.getByLabelText("n")).toHaveAttribute("inputmode", "decimal");
+    rerender(<NumberInput value={1} onValue={vi.fn()} aria-label="n" inputMode="numeric" />);
+    expect(screen.getByLabelText("n")).toHaveAttribute("inputmode", "numeric");
+  });
 });

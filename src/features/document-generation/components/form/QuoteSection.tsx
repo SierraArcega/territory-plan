@@ -103,13 +103,13 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
             <div className="mt-2 flex flex-wrap items-end gap-3">
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 Count
-                <NumberInput aria-label="Count" min={1} value={l.count ?? 1}
+                <NumberInput aria-label="Count" min={1} value={l.count ?? 1} inputMode="numeric"
                   onValue={(n) => updateRow(l.id, { count: n })}
                   className="mt-0.5 w-16 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
               </label>
               <label className="flex flex-col text-xs uppercase tracking-wide text-[#6E6390]">
                 Qty
-                <NumberInput aria-label="Quantity" min={0} value={l.qty}
+                <NumberInput aria-label="Quantity" min={0} value={l.qty} inputMode="numeric"
                   onValue={(n) => updateRow(l.id, { qty: n })}
                   className="mt-0.5 w-20 rounded border border-[#C2BBD4] h-8 px-2 py-1 text-sm text-[#403770]" />
               </label>
