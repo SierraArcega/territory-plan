@@ -17,11 +17,11 @@ describe("PaymentSection", () => {
   });
   it("reveals type-B fields only when type is B", () => {
     render_({ paymentType: "A" });
-    expect(screen.queryByPlaceholderText(/Additional terms/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Additional terms/i)).not.toBeInTheDocument();
   });
   it("reveals type-C fields when type is C", () => {
     render_({ paymentType: "C" });
-    expect(screen.getByPlaceholderText(/PO number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/BOCES name/i)).toBeInTheDocument();
   });
   it("defaults invoice to 'at time of signing' (checked, no date input)", () => {
     render_();
@@ -75,7 +75,7 @@ describe("PaymentSection", () => {
 
   it("shows the PO number input for type A and forwards changes", () => {
     const { onChange } = render_({ paymentType: "A" });
-    const input = screen.getByPlaceholderText("PO number (if known)");
+    const input = screen.getByLabelText("PO number (if known)");
     expect(input).toBeInTheDocument();
     fireEvent.change(input, { target: { value: "PO-123" } });
     expect(onChange).toHaveBeenCalledWith({ poNumber: "PO-123" });
@@ -83,7 +83,7 @@ describe("PaymentSection", () => {
 
   it("does not render a duplicate PO input for type C", () => {
     render_({ paymentType: "C" });
-    const inputs = screen.getAllByPlaceholderText(/PO number/i);
+    const inputs = screen.getAllByLabelText(/PO number/i);
     expect(inputs).toHaveLength(1);
   });
 

@@ -27,7 +27,7 @@ export default function PaymentSection({ state, onChange }: Props) {
 
       <label className="flex flex-col gap-1">
         <span className="text-xs uppercase tracking-wide text-[#6E6390]">Payment terms</span>
-        <input placeholder="e.g. Net 30" aria-label="Payment terms" value={state.payTerms}
+        <input placeholder="e.g. Net 30" value={state.payTerms}
           onChange={(e) => onChange({ payTerms: e.target.value })}
           className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
       </label>
@@ -68,7 +68,7 @@ export default function PaymentSection({ state, onChange }: Props) {
 
       <label className="flex flex-col gap-1">
         <span className="text-xs uppercase tracking-wide text-[#6E6390]">PO number (if known)</span>
-        <input aria-label="PO number" placeholder="PO number (if known)" value={state.poNumber}
+        <input value={state.poNumber}
           onChange={(e) => onChange({ poNumber: e.target.value })}
           className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
       </label>
@@ -77,13 +77,13 @@ export default function PaymentSection({ state, onChange }: Props) {
         <>
           <label className="flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-[#6E6390]">Additional terms</span>
-            <input placeholder="Additional terms" aria-label="Additional terms" value={state.addTerms}
+            <input value={state.addTerms}
               onChange={(e) => onChange({ addTerms: e.target.value })}
               className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-[#6E6390]">Implementation detail</span>
-            <input placeholder="Implementation detail" aria-label="Implementation detail" value={state.impDetail}
+            <input value={state.impDetail}
               onChange={(e) => onChange({ impDetail: e.target.value })}
               className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
           </label>
@@ -93,7 +93,7 @@ export default function PaymentSection({ state, onChange }: Props) {
         <>
           <label className="flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-[#6E6390]">BOCES name</span>
-            <input placeholder="BOCES name" aria-label="BOCES name" value={state.bocesName}
+            <input value={state.bocesName}
               onChange={(e) => onChange({ bocesName: e.target.value })}
               className="w-full rounded border border-[#C2BBD4] px-2 py-1" />
           </label>

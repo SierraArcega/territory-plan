@@ -32,12 +32,12 @@ describe("DocumentPayloadForm", () => {
     expect(screen.getAllByText(/Billing address/i).length).toBeGreaterThan(0);
   });
 
-  it("renders missing fields as individual chips inside a role=alert block", () => {
+  it("renders missing fields as individual chips inside a role=status block", () => {
     setup();
-    const alert = screen.getByRole("alert");
-    expect(alert).toBeInTheDocument();
+    const statusRegion = screen.getByRole("status");
+    expect(statusRegion).toBeInTheDocument();
     // At minimum the billing address chip is present on a fresh empty form
-    const chips = alert.querySelectorAll("span.rounded-full");
+    const chips = statusRegion.querySelectorAll("span.rounded-full");
     expect(chips.length).toBeGreaterThan(0);
     const chipTexts = Array.from(chips).map((c) => c.textContent);
     expect(chipTexts.some((t) => /billing address/i.test(t ?? ""))).toBe(true);

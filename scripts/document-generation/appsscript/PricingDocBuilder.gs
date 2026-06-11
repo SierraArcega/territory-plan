@@ -15,7 +15,7 @@ var LIVESTAFF_DOC_ID = '1E0MEsTqgPrtGMKv4VwKmGrFRwrUIcCncROR3wc5L6vI';
 // Table colours — aligned with Fullmind brand neutrals
 var TBL_HEADER_BG  = '#2C1A4A';  // deep plum
 var TBL_ALT_ROW_BG = '#F7F5FA';  // light plum (design system token)
-var TBL_FONT       = 'Plus Jakarta Sans'; // Google Docs font name for "Jakarta Sans Plus" — matches the template body font
+var TBL_FONT       = 'Plus Jakarta Sans'; // Google Docs catalog name ("Plus Jakarta Sans") — matches the template body font
 var TBL_FONT_SIZE  = 10;
 
 // Page body width ≈ 468pt (letter, 1" margins). Column widths sum to this.

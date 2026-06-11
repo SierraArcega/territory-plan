@@ -45,7 +45,7 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
         <div className="flex flex-wrap gap-2">
           <label className="flex flex-1 flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-[#6E6390]">Quote number</span>
-            <input aria-label="Quote number" placeholder="Quote number" value={state.quoteNumber}
+            <input value={state.quoteNumber}
               onChange={(e) => onChange({ quoteNumber: e.target.value })}
               className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
           </label>

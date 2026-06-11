@@ -46,7 +46,7 @@ export default function DocumentPayloadForm({ value, onChange, onRender, booking
           {isComplete ? (
             <span className="text-xs text-[#6E6390]">All required fields complete ✓</span>
           ) : (
-            <div role="alert" className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm">
+            <div role="status" className="rounded-lg bg-[#fef1f0] px-3 py-2 text-sm">
               <span className="font-medium text-[#F37167]">Missing before render:</span>
               <span className="ml-2 inline-flex flex-wrap gap-1">
                 {missing.map((m) => (

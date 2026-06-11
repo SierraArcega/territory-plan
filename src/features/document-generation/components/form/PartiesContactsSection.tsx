@@ -37,8 +37,8 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       )}
 
       <label className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-wide text-[#6E6390]">Billing address</span>
-        <input placeholder="Billing address (required) *" value={state.billingAddress}
+        <span className="text-xs uppercase tracking-wide text-[#6E6390]">Billing address *</span>
+        <input placeholder="Street, City, State ZIP" value={state.billingAddress}
           onChange={(e) => onChange({ billingAddress: e.target.value })}
           className={`w-full rounded border px-2 py-1 text-sm ${state.billingAddress.trim() ? "border-[#C2BBD4]" : "border-[#F37167]"}`} />
       </label>
@@ -46,7 +46,7 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       {!isBoces && (
         <label className="flex flex-col gap-1">
           <span className="text-xs uppercase tracking-wide text-[#6E6390]">School year</span>
-          <input placeholder="School year (e.g. 2026 - 2027)" aria-label="School year" value={state.schoolYear}
+          <input placeholder="e.g. 2026 - 2027" value={state.schoolYear}
             onChange={(e) => onChange({ schoolYear: e.target.value })}
             className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
         </label>
@@ -55,8 +55,7 @@ export default function PartiesContactsSection({ state, onChange }: Props) {
       {!isBoces && (
         <label className="flex flex-col gap-1">
           <span className="text-xs uppercase tracking-wide text-[#6E6390]">CC executed copy to</span>
-          <input aria-label="CC executed copy to"
-            placeholder="CC executed copy to (comma-separated emails)"
+          <input placeholder="ap@district.org, billing@district.org"
             value={state.ccEmails}
             onChange={(e) => onChange({ ccEmails: e.target.value })}
             className="w-full rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
