@@ -246,3 +246,17 @@ filename segment. Approved changes (contract form only; BOCES untouched):
 6. **No format validation in manual mode** — that's the escape hatch's job;
    unparseable values already degrade gracefully (SY filename segment and
    Slack fact are omitted).
+
+## Addendum 3 (2026-06-11) — Split year-pair selects
+
+The single combined SY select becomes two side-by-side selects: **left = start
+year** (same 6-year window as before, expressed as start years), **right = end
+year**, offering start+1 through start+3 (multi-year deals), defaulting to
+start+1. Changing the left year resets the right to start+1. The serialized
+value stays the canonical `"<start> - <end>"` string — payload, persist,
+naming (`formatSchoolYearShort("2026 - 2028")` → `SY26-28`), and tracking are
+all unchanged. Derivation/sync/touched semantics carry over (derived value
+populates the pair; picking either side counts as touched). The manual
+free-text toggle and `school_year_manual` tracking stay. Out-of-window saved
+values are injected as extra options per side; unparseable values only occur
+in manual mode, where the text input shows them as-is.

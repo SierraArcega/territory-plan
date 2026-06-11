@@ -1066,3 +1066,15 @@ npx vitest run src/features/document-generation/components 2>&1 | tail -3
 ```bash
 git commit -m "feat(doc-gen): mandatory school-year selector with manual-entry toggle"
 ```
+
+### Task 7C: Split year-pair selects (spec Addendum 3)
+
+New helpers in `school-year.ts`: `splitSchoolYear(sy): { start: number; end: number } | null`
+(two 4-digit years, tolerant separator), `joinSchoolYear(start, end)` → canonical
+`"<start> - <end>"`, `startYearOptions(today)` → the 6 window start-years.
+`PartiesContactsSection.tsx`: replace the single select with two (aria-labels
+"School year start" / "School year end"); right options = left+1..left+3 (+
+injected current end when outside); left change resets right to left+1; either
+select sets touched; red-border applies to both when value empty/unparseable.
+TDD: helper tests + reworked section tests (pair render, multi-year pick,
+left-change-resets-right, sync/touched carryover, manual toggle unchanged).
