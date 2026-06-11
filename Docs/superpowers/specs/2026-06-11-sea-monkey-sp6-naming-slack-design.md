@@ -204,3 +204,45 @@ These join the SP4/5 production cutover checklist (one pass, user-gated):
   debt.
 - BOCES invoice-date business call; pricebook unit cleanup; schema-coverage
   test fix (separate quick PR).
+
+## Addendum 1 (2026-06-11, smoke test) — BOCES name order
+
+Rendered BOCES quote names lead with the quote number so `_output` groups and
+sorts by quote: `BOCES Quote 123445 — <company> — <ISO date>`. Deployed @11,
+live-verified.
+
+## Addendum 2 (2026-06-11) — Mandatory school-year selector + manual-entry tracking
+
+The contract form's free-text school-year input caused typo risk in the SY
+filename segment. Approved changes (contract form only; BOCES untouched):
+
+1. **Selector**: the input becomes a `<select>` of 6 generated school years in
+   the canonical `"2026 - 2027"` format — previous, current (July-1 FY rule),
+   and next 4. A loaded value outside that window is prepended as an extra
+   option so saved state is never misrepresented.
+2. **Derivation + default**: new pure module
+   `src/features/document-generation/lib/school-year.ts` (deliberately separate
+   from `fiscal-year.ts` to avoid the pricebook import chain):
+   `schoolYearFromDate(iso)` (SY containing the date, July-1 boundary, via
+   `getCurrentFY`), `defaultSchoolYear(today)` (SY starting in the current
+   calendar year), `schoolYearOptions(today)` (the 6-option window).
+   `emptyFormState` seeds contracts with `defaultSchoolYear()`.
+3. **Sync**: changing the start date re-derives the SY until the rep manually
+   picks one (touched ref; a draft whose SY differs from its derived value
+   counts as touched). Toggling back from manual mode re-derives.
+4. **Mandatory**: `getCompleteness` requires a non-empty school year for
+   contracts; the select gets the red-border-when-empty treatment.
+5. **Manual-entry escape hatch + tracking**: a `Type manually` ⇄ `Use selector`
+   text-button swaps the select for the old free-text input. New
+   `DocFormState.schoolYearManual: boolean` records the mode; it is emitted as
+   top-level `meta: { school_year_manual }` on the contract payload (NOT inside
+   `deal` — keeps the merge-field map string-typed; the renderer ignores
+   unknown top-level keys), persisted BOTH in the payload JSONB and as a
+   promoted `school_year_manual boolean NOT NULL DEFAULT false` column
+   (payload is registry-excluded, so the promoted column is what makes
+   "how often does manual entry get used?" answerable in the reports tool),
+   and registered as a queryable column. The flag means "manual mode was on at
+   generate time", not "value differs from an option".
+6. **No format validation in manual mode** — that's the escape hatch's job;
+   unparseable values already degrade gracefully (SY filename segment and
+   Slack fact are omitted).
