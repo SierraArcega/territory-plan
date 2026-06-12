@@ -29,7 +29,7 @@ import { uploadExecutedPdf } from "../drive-archive";
 describe("uploadExecutedPdf", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.GOOGLE_DOC_EXECUTED_FOLDER_ID = "FOLDER123";
+    process.env.GOOGLE_DOC_CONTRACT_EXECUTED_FOLDER_ID = "FOLDER123";
     process.env.GOOGLE_DOC_RENDER_SUBJECT = "service@fullmindlearning.com";
     process.env.GOOGLE_DOC_RENDER_SA_EMAIL = "sa@x.iam.gserviceaccount.com";
     process.env.GOOGLE_DOC_RENDER_SA_KEY = "k";
@@ -47,7 +47,7 @@ describe("uploadExecutedPdf", () => {
   });
 
   it("throws when the folder env var is missing", async () => {
-    delete process.env.GOOGLE_DOC_EXECUTED_FOLDER_ID;
-    await expect(uploadExecutedPdf(Buffer.from("x"), "n.pdf")).rejects.toThrow(/GOOGLE_DOC_EXECUTED_FOLDER_ID/);
+    delete process.env.GOOGLE_DOC_CONTRACT_EXECUTED_FOLDER_ID;
+    await expect(uploadExecutedPdf(Buffer.from("x"), "n.pdf")).rejects.toThrow(/GOOGLE_DOC_CONTRACT_EXECUTED_FOLDER_ID/);
   });
 });
