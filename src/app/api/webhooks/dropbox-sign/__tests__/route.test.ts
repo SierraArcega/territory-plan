@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "node:crypto";
 
-const { mockUpdateMany, mockFindUnique, mockRowUpdate, mockFetchPdf, mockUpload, mockSlackPost } = vi.hoisted(() => ({
+const { mockUpdateMany, mockFindUnique, mockRowUpdate, mockFetchPdf, mockUpload, mockDeletePdf, mockSlackPost } = vi.hoisted(() => ({
   mockUpdateMany: vi.fn(),
   mockFindUnique: vi.fn(),
   mockRowUpdate: vi.fn(),
   mockFetchPdf: vi.fn(),
   mockUpload: vi.fn(),
+  mockDeletePdf: vi.fn(),
   mockSlackPost: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({ default: { generatedDocument: { updateMany: mockUpdateMany, findUnique: mockFindUnique, update: mockRowUpdate } } }));
 vi.mock("@/features/document-generation/lib/dropbox-files", () => ({ fetchExecutedPdf: mockFetchPdf }));
-vi.mock("@/features/document-generation/lib/drive-archive", () => ({ uploadExecutedPdf: mockUpload }));
+vi.mock("@/features/document-generation/lib/drive-archive", () => ({ uploadExecutedPdf: mockUpload, deleteExecutedPdf: mockDeletePdf }));
 vi.mock("@/features/document-generation/lib/slack-notify", () => ({ postExecutedAgreement: mockSlackPost }));
 
 import { POST } from "../route";
@@ -46,8 +47,17 @@ describe("POST /api/webhooks/dropbox-sign", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.DROPBOX_SIGN_API_KEY = API_KEY;
-    mockUpdateMany.mockResolvedValue({ count: 1 });
+    // status-transition call: where has signatureRequestId; claim call: where has executedPdfFileId: null
+    mockUpdateMany.mockImplementation((args: { where?: Record<string, unknown> }) => {
+      if ("executedPdfFileId" in (args.where ?? {})) {
+        // claim call — default to winning
+        return Promise.resolve({ count: 1 });
+      }
+      // status-transition call
+      return Promise.resolve({ count: 1 });
+    });
     mockFindUnique.mockResolvedValue(null);
+    mockDeletePdf.mockResolvedValue(undefined);
     mockSlackPost.mockResolvedValue(undefined);
   });
 
@@ -114,17 +124,24 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     expect(mockUpdateMany.mock.calls[0][0].data).not.toHaveProperty("errorMessage");
   });
 
-  it("archives the executed PDF on all_signed", async () => {
+  it("archives the executed PDF on all_signed (claim won — updateMany with id + executedPdfFileId: null)", async () => {
     mockFindUnique.mockResolvedValue({ id: 5, companyName: "Acme ISD", schoolYear: null, orderTotal: null, payload: null, executedPdfFileId: null });
     mockFetchPdf.mockResolvedValue(Buffer.from("%PDF"));
     mockUpload.mockResolvedValue({ fileId: "F1", url: "https://drive/f1" });
     const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(res.status).toBe(200);
     expect(mockUpload).toHaveBeenCalled();
-    expect(mockRowUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 5 },
+    // NEW: stamp via updateMany (atomic claim), not update
+    const claimCall = mockUpdateMany.mock.calls.find(
+      (c) => c[0]?.where?.executedPdfFileId === null,
+    );
+    expect(claimCall).toBeDefined();
+    expect(claimCall![0]).toMatchObject({
+      where: { id: 5, executedPdfFileId: null },
       data: { executedPdfUrl: "https://drive/f1", executedPdfFileId: "F1" },
-    }));
+    });
+    // OLD update() must NOT be called
+    expect(mockRowUpdate).not.toHaveBeenCalled();
   });
 
   it("skips archiving when the row already has an executed file (idempotent across signed events)", async () => {
@@ -196,13 +213,17 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     expect(mockSlackPost).not.toHaveBeenCalled();
   });
 
-  it("still acks and keeps the archive stamp when Slack throws", async () => {
+  it("still acks and the claim stamp happened when Slack throws", async () => {
     signedRow();
     mockSlackPost.mockRejectedValue(new Error("slack down"));
     const res = await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("Hello API Event Received");
-    expect(mockRowUpdate).toHaveBeenCalled(); // archive stamp happened before Slack
+    // archive stamp (claim) happened before Slack
+    const claimCall = mockUpdateMany.mock.calls.find(
+      (c) => c[0]?.where?.executedPdfFileId === null,
+    );
+    expect(claimCall).toBeDefined();
   });
 
   it("posts to Slack with a null Drive link when the Drive upload fails", async () => {
@@ -224,6 +245,58 @@ describe("POST /api/webhooks/dropbox-sign", () => {
     mockFetchPdf.mockResolvedValue(null);
     await POST(eventForm("signature_request_all_signed", "sig_1"));
     expect(mockSlackPost).not.toHaveBeenCalled();
+  });
+
+  // ── Atomic-claim tests ────────────────────────────────────────────────────
+
+  it("claim won (count 1) → Slack posted once with drive url", async () => {
+    signedRow();
+    // override: claim updateMany returns count:1 (default), status-transition also returns count:1
+    const res = await POST(eventForm("signature_request_all_signed", "sig_12345678"));
+    expect(res.status).toBe(200);
+    // Verify the claim was attempted with correct where shape
+    const claimCall = mockUpdateMany.mock.calls.find(
+      (c) => c[0]?.where?.executedPdfFileId === null,
+    );
+    expect(claimCall).toBeDefined();
+    expect(claimCall![0].where).toMatchObject({ id: 5, executedPdfFileId: null });
+    // Slack was posted exactly once with the drive url
+    expect(mockSlackPost).toHaveBeenCalledTimes(1);
+    expect(mockSlackPost.mock.calls[0][0].driveUrl).toBe("https://drive/f1");
+    // No duplicate Drive file to clean up
+    expect(mockDeletePdf).not.toHaveBeenCalled();
+  });
+
+  it("claim lost (count 0) → no Slack, duplicate Drive file deleted", async () => {
+    signedRow();
+    // Override updateMany: claim call returns count:0 (lost), status-transition returns count:1
+    mockUpdateMany.mockImplementation((args: { where?: Record<string, unknown> }) => {
+      if ("executedPdfFileId" in (args.where ?? {})) {
+        return Promise.resolve({ count: 0 }); // lost the race
+      }
+      return Promise.resolve({ count: 1 });
+    });
+    const res = await POST(eventForm("signature_request_all_signed", "sig_12345678"));
+    expect(res.status).toBe(200);
+    // Slack must NOT be called
+    expect(mockSlackPost).not.toHaveBeenCalled();
+    // Duplicate Drive file must be deleted
+    expect(mockDeletePdf).toHaveBeenCalledWith("F1");
+  });
+
+  it("archive failed → Slack still posts with null driveUrl (no claim attempted)", async () => {
+    signedRow();
+    mockUpload.mockRejectedValue(new Error("drive down"));
+    const res = await POST(eventForm("signature_request_all_signed", "sig_12345678"));
+    expect(res.status).toBe(200);
+    // No claim attempted when upload failed
+    const claimCall = mockUpdateMany.mock.calls.find(
+      (c) => c[0]?.where?.executedPdfFileId === null,
+    );
+    expect(claimCall).toBeUndefined();
+    // Slack still posts with null driveUrl
+    expect(mockSlackPost).toHaveBeenCalledTimes(1);
+    expect(mockSlackPost.mock.calls[0][0].driveUrl).toBeNull();
   });
 
   it("posts with null total/SY/rep for pre-SP5 rows (null payload, no school year)", async () => {

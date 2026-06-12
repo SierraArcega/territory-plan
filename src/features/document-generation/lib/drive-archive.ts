@@ -18,3 +18,15 @@ export async function uploadExecutedPdf(pdf: Buffer, filename: string): Promise<
   if (!res.data.id) throw new Error("Drive upload returned no file id");
   return { fileId: res.data.id, url: res.data.webViewLink ?? `https://drive.google.com/file/d/${res.data.id}/view` };
 }
+
+/** Deletes a Drive file by id — used to clean up a duplicate upload when a
+ *  concurrent signed event loses the atomic claim race. Best-effort: errors are
+ *  logged but not re-thrown so the caller's catch block is never triggered. */
+export async function deleteExecutedPdf(fileId: string): Promise<void> {
+  try {
+    const drive = google.drive({ version: "v3", auth: buildJwt() });
+    await drive.files.delete({ fileId, supportsAllDrives: true });
+  } catch (err) {
+    console.error("deleteExecutedPdf: could not delete duplicate Drive file", fileId, err);
+  }
+}

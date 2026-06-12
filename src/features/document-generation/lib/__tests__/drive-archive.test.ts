@@ -6,15 +6,16 @@ vi.mock("server-only", () => ({}));
 // vi.mock factories are hoisted to the top of the file, so module-scope `const`
 // declarations are not yet initialised when the factory runs. Use vi.hoisted()
 // to create the mocks before hoisting so they're available inside the factory.
-const { mockFilesCreate, mockJwt } = vi.hoisted(() => ({
+const { mockFilesCreate, mockFilesDelete, mockJwt } = vi.hoisted(() => ({
   mockFilesCreate: vi.fn(),
+  mockFilesDelete: vi.fn(),
   mockJwt: vi.fn(),
 }));
 
 vi.mock("googleapis", () => ({
   google: {
     auth: { JWT: mockJwt },
-    drive: () => ({ files: { create: mockFilesCreate } }),
+    drive: () => ({ files: { create: mockFilesCreate, delete: mockFilesDelete } }),
   },
 }));
 
@@ -24,7 +25,7 @@ vi.mock("../render-apps-script", () => ({
   buildJwt: mockJwt,
 }));
 
-import { uploadExecutedPdf } from "../drive-archive";
+import { uploadExecutedPdf, deleteExecutedPdf } from "../drive-archive";
 
 describe("uploadExecutedPdf", () => {
   beforeEach(() => {
@@ -49,5 +50,28 @@ describe("uploadExecutedPdf", () => {
   it("throws when the folder env var is missing", async () => {
     delete process.env.GOOGLE_DOC_CONTRACT_EXECUTED_FOLDER_ID;
     await expect(uploadExecutedPdf(Buffer.from("x"), "n.pdf")).rejects.toThrow(/GOOGLE_DOC_CONTRACT_EXECUTED_FOLDER_ID/);
+  });
+});
+
+describe("deleteExecutedPdf", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.GOOGLE_DOC_RENDER_SUBJECT = "service@fullmindlearning.com";
+    process.env.GOOGLE_DOC_RENDER_SA_EMAIL = "sa@x.iam.gserviceaccount.com";
+    process.env.GOOGLE_DOC_RENDER_SA_KEY = "k";
+    mockFilesDelete.mockResolvedValue({});
+  });
+
+  it("calls drive.files.delete with the fileId and supportsAllDrives: true", async () => {
+    await deleteExecutedPdf("FILE_XYZ");
+    expect(mockFilesDelete).toHaveBeenCalledWith({
+      fileId: "FILE_XYZ",
+      supportsAllDrives: true,
+    });
+  });
+
+  it("resolves without throwing even if drive.files.delete rejects", async () => {
+    mockFilesDelete.mockRejectedValue(new Error("not found"));
+    await expect(deleteExecutedPdf("FILE_XYZ")).resolves.toBeUndefined();
   });
 });
