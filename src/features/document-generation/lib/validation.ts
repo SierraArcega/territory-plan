@@ -45,6 +45,10 @@ export function getCompleteness(state: DocFormState): Completeness {
     for (const email of parseCcEmails(state.ccEmails)) {
       if (!EMAIL_RE.test(email)) missing.push(`Invalid CC email: ${email}`);
     }
+    if (state.includeMinMax) {
+      if (state.minAmt == null) missing.push("Minimum purchase amount");
+      if (state.maxAmt == null) missing.push("Maximum district budget");
+    }
   }
   return { isComplete: missing.length === 0, missing };
 }

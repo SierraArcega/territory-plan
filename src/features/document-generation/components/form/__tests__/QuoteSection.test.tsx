@@ -132,6 +132,52 @@ describe("QuoteSection", () => {
     expect(onChange).toHaveBeenCalledWith({ maxAmt: null });
   });
 
+  describe("include min/max checkbox (contract only)", () => {
+    it("shows the include checkbox checked by default with both inputs", () => {
+      setup({}, null);
+      expect(
+        screen.getByRole("checkbox", { name: /Include Minimum & Maximum Purchase Amounts table/ }),
+      ).toBeChecked();
+      expect(screen.getByLabelText("Minimum purchase")).toBeInTheDocument();
+      expect(screen.getByLabelText("Maximum budget")).toBeInTheDocument();
+    });
+
+    it("hides the inputs and shows the warning when unchecked", () => {
+      setup({ includeMinMax: false }, null);
+      expect(screen.queryByLabelText("Minimum purchase")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Maximum budget")).not.toBeInTheDocument();
+      expect(screen.getByText(/will be removed from this contract/)).toBeInTheDocument();
+    });
+
+    it("toggling emits includeMinMax without clearing the stored amounts", () => {
+      const { onChange } = setup({ minAmt: 1000, maxAmt: 5000 }, null);
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: /Include Minimum & Maximum Purchase Amounts table/ }),
+      );
+      expect(onChange).toHaveBeenCalledWith({ includeMinMax: false });
+    });
+
+    it("marks empty required amounts with the alert border when included", () => {
+      setup({ minAmt: null, maxAmt: null }, null);
+      expect(screen.getByLabelText("Minimum purchase").className).toContain("border-[#F37167]");
+      expect(screen.getByLabelText("Maximum budget").className).toContain("border-[#F37167]");
+    });
+
+    it("uses the normal border when the amounts are filled", () => {
+      setup({ minAmt: 1000, maxAmt: 5000 }, null);
+      expect(screen.getByLabelText("Minimum purchase").className).toContain("border-[#C2BBD4]");
+      expect(screen.getByLabelText("Maximum budget").className).toContain("border-[#C2BBD4]");
+    });
+
+    it("renders no min/max controls for BOCES", () => {
+      const onChange = vi.fn();
+      render(<QuoteSection state={{ ...makeState(), docType: "boces_quote" }} bookingReference={null} onChange={onChange} />);
+      expect(
+        screen.queryByRole("checkbox", { name: /Include Minimum & Maximum Purchase Amounts table/ }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe("show-pricing toggle (contract only)", () => {
     it("renders the show-pricing checkbox for contract doc type", () => {
       setup({}, null);

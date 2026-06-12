@@ -76,6 +76,7 @@ export interface DocFormState {
   quoteNumber: string;
   minAmt: number | null;
   maxAmt: number | null;
+  includeMinMax: boolean; // contract Min/Max Purchase Amounts table (default include)
   paymentType: PaymentType;
   payTerms: string;
   invoiceDate: string;
@@ -113,6 +114,7 @@ export interface ContractPayload {
     include: boolean;
     show_pricing: boolean;
     line_items: Array<Record<string, string | number>>;
+    include_min_max: boolean;
     min_amt: number | null;
     max_amt: number | null;
     order_total: number;
@@ -190,6 +192,7 @@ export function emptyFormState(docType: DocType, districtLeaId: string): DocForm
     quoteNumber: "",
     minAmt: null,
     maxAmt: null,
+    includeMinMax: true,
     paymentType: docType === "boces_quote" ? "C" : "A",
     payTerms: "",
     invoiceDate: "",

@@ -148,19 +148,37 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
       </div>
 
       {!isBoces && (
-        <div className="flex flex-wrap gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Minimum purchase ($)</span>
-            <input type="number" aria-label="Minimum purchase" value={state.minAmt ?? ""}
-              onChange={(e) => onChange({ minAmt: e.target.value === "" ? null : Number(e.target.value) })}
-              className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
+        <div className="space-y-2">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={state.includeMinMax}
+              onChange={(e) => onChange({ includeMinMax: e.target.checked })}
+            />
+            Include Minimum &amp; Maximum Purchase Amounts table
           </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-[#6E6390]">Maximum budget ($)</span>
-            <input type="number" aria-label="Maximum budget" value={state.maxAmt ?? ""}
-              onChange={(e) => onChange({ maxAmt: e.target.value === "" ? null : Number(e.target.value) })}
-              className="rounded border border-[#C2BBD4] px-2 py-1 text-sm" />
-          </label>
+          {state.includeMinMax ? (
+            <div className="flex flex-wrap gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs uppercase tracking-wide text-[#6E6390]">Minimum purchase amount ($)</span>
+                <input type="number" aria-label="Minimum purchase" value={state.minAmt ?? ""}
+                  onChange={(e) => onChange({ minAmt: e.target.value === "" ? null : Number(e.target.value) })}
+                  className={`rounded border px-2 py-1 text-sm ${state.minAmt == null ? "border-[#F37167]" : "border-[#C2BBD4]"}`} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs uppercase tracking-wide text-[#6E6390]">Maximum district budget ($)</span>
+                <input type="number" aria-label="Maximum budget" value={state.maxAmt ?? ""}
+                  onChange={(e) => onChange({ maxAmt: e.target.value === "" ? null : Number(e.target.value) })}
+                  className={`rounded border px-2 py-1 text-sm ${state.maxAmt == null ? "border-[#F37167]" : "border-[#C2BBD4]"}`} />
+              </label>
+            </div>
+          ) : (
+            <div role="status" className="rounded-lg border border-[#ffd98d] bg-[#fffaf1] px-3 py-2 text-sm text-[#997c43]">
+              The Minimum &amp; Maximum Purchase Amounts table will be removed from this contract — it won&apos;t
+              document a minimum commitment or a &quot;Pay As You Need&quot; budget ceiling. Re-check to restore it.
+            </div>
+          )}
         </div>
       )}
 

@@ -51,6 +51,11 @@ function generateFullContract(payload) {
   try {
     replaceMergeFields(body, payload);
     handleQuoteSection(body, payload.quote);
+    // Optional Min/Max table: delete only on explicit false so old payloads
+    // and editor tests (no flag) keep rendering it.
+    if (payload.quote && payload.quote.include_min_max === false) {
+      removeTableByHeaderText(body, 'Minimum and Maximum Purchase Amounts');
+    }
     handlePaymentTerms(body, payload.payment);
     handleAppendedSections(doc, payload.sections, props);
 

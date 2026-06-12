@@ -12,6 +12,7 @@ const complete = () => {
   const s = emptyFormState("contract", "x");
   const c: ContactRef = { contactId: 1, salutation: null, firstName: "A", lastName: "B", title: "T", email: "e", phone: "p" };
   return { ...s, clientContact: c, billingAddress: "1 Main", startDate: "a", endDate: "b",
+    minAmt: 10000, maxAmt: 50000,
     lineItems: [{ id: "1", sku: null, service: "S", description: "", qty: 1, unit: "hrs", listRate: 10, discountPct: 0 }] };
 };
 

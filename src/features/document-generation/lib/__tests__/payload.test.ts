@@ -213,6 +213,27 @@ describe("assemblePayload — payment.po_number", () => {
   });
 });
 
+describe("assemblePayload — include_min_max flag", () => {
+  it("emits include_min_max true with the amounts by default", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.minAmt = 1000;
+    s.maxAmt = 5000;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.quote).toMatchObject({ include_min_max: true, min_amt: 1000, max_amt: 5000 });
+  });
+
+  it("nulls the amounts and emits include_min_max false when excluded", () => {
+    const s = emptyFormState("contract", "x");
+    s.clientContact = jane;
+    s.includeMinMax = false;
+    s.minAmt = 1000;
+    s.maxAmt = 5000;
+    const p = assemblePayload(s) as Extract<ReturnType<typeof assemblePayload>, { doc_type: "contract" }>;
+    expect(p.quote).toMatchObject({ include_min_max: false, min_amt: null, max_amt: null });
+  });
+});
+
 describe("assemblePayload — meta field", () => {
   it("contract payload includes meta.school_year_manual: false by default", () => {
     const s = emptyFormState("contract", "x");

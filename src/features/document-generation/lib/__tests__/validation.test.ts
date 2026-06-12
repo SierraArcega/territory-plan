@@ -5,6 +5,19 @@ import type { ContactRef } from "../payload-types";
 
 const c: ContactRef = { contactId: 1, salutation: null, firstName: "A", lastName: "B", title: "T", email: "a@b.c", phone: "1" };
 
+/** Build a fully-populated contract state, optionally overriding fields. */
+function completeContractState(overrides: Partial<typeof emptyFormState extends (...a: never[]) => infer R ? R : never> = {}) {
+  const s = emptyFormState("contract", "x");
+  s.clientContact = c;
+  s.billingAddress = "1 Main";
+  s.startDate = "07/01/26";
+  s.endDate = "06/30/27";
+  s.minAmt = 10000;
+  s.maxAmt = 50000;
+  s.lineItems = [{ id: "1", sku: null, service: "S", description: "", qty: 1, unit: "hrs", listRate: 10, discountPct: 0 }];
+  return { ...s, ...overrides };
+}
+
 describe("getCompleteness", () => {
   it("flags missing contact, billing address, line items, dates", () => {
     const r = getCompleteness(emptyFormState("contract", "x"));
@@ -12,12 +25,22 @@ describe("getCompleteness", () => {
     expect(r.missing).toEqual(expect.arrayContaining(["Client contact", "Billing address", "At least one line item", "Start date", "End date"]));
   });
   it("is complete when required fields present", () => {
-    const s = emptyFormState("contract", "x");
-    s.clientContact = c; s.billingAddress = "1 Main"; s.startDate = "07/01/26"; s.endDate = "06/30/27";
-    s.lineItems = [{ id: "1", sku: null, service: "S", description: "", qty: 1, unit: "hrs", listRate: 10, discountPct: 0 }];
-    const r = getCompleteness(s);
+    const r = getCompleteness(completeContractState());
     expect(r.isComplete).toBe(true);
     expect(r.missing).toEqual([]);
+  });
+  it("requires min and max amounts when the table is included", () => {
+    const r = getCompleteness(completeContractState({ minAmt: null, maxAmt: null }));
+    expect(r.missing).toContain("Minimum purchase amount");
+    expect(r.missing).toContain("Maximum district budget");
+    expect(r.isComplete).toBe(false);
+  });
+  it("does not require the amounts when the table is excluded", () => {
+    const r = getCompleteness(
+      completeContractState({ includeMinMax: false, minAmt: null, maxAmt: null }),
+    );
+    expect(r.missing).not.toContain("Minimum purchase amount");
+    expect(r.missing).not.toContain("Maximum district budget");
   });
   it("is incomplete when line items total $0 (zero qty/rate)", () => {
     const s = emptyFormState("contract", "x");
