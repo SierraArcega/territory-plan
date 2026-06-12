@@ -48,6 +48,7 @@ export const leadKeys = {
   record: (type: "contact" | "school" | "district", id: string) =>
     ["leads", "record", type, id] as const,
   districtOpenOpps: (leaid: string) => ["leads", "district-open-opps", leaid] as const,
+  oppSearch: (q: string) => ["leads", "opp-search", q] as const,
   districtSchools: (leaid: string) => ["leads", "district-schools", leaid] as const,
 };
 
@@ -133,6 +134,28 @@ export function useDistrictOpenOppsQuery(leaid: string) {
         (o) => !o.stage || !CLOSED_OPP_STAGES.includes(o.stage),
       );
     },
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Search open opportunities across the whole opportunities table by name/id
+ * (Link-existing flow). Same listing endpoint and closed-stage drop as the
+ * district list above; idle until the query is at least 2 characters.
+ */
+export function useOppSearchQuery(search: string) {
+  const q = search.trim();
+  return useQuery({
+    queryKey: leadKeys.oppSearch(q),
+    queryFn: async () => {
+      const res = await fetchJson<{ opportunities: DistrictOpenOpp[] }>(
+        `${API_BASE}/opportunities?search=${encodeURIComponent(q)}&limit=50`,
+      );
+      return res.opportunities.filter(
+        (o) => !o.stage || !CLOSED_OPP_STAGES.includes(o.stage),
+      );
+    },
+    enabled: q.length >= 2,
     staleTime: 30 * 1000,
   });
 }

@@ -10,6 +10,7 @@ import { useToast } from "@/features/shared/components/Toast";
 import {
   useDistrictOpenOppsQuery,
   useLinkOpportunityMutation,
+  type DistrictOpenOpp,
 } from "@/features/leads/lib/queries";
 import { fmtMoney } from "@/features/leads/lib/status-config";
 import {
@@ -30,6 +31,9 @@ export interface LinkOpportunityModalProps {
 
 export default function LinkOpportunityModal({ lead, onClose, now }: LinkOpportunityModalProps) {
   const [draft, setDraft] = useState(() => suggestOppDraft(lead, now));
+  // The picked row may come from the cross-district search, not the district
+  // list — keep it for the success toast's amount.
+  const [picked, setPicked] = useState<DistrictOpenOpp | null>(null);
   const linkOpp = useLinkOpportunityMutation();
   const { showToast } = useToast();
   const { data: openOpps, isLoading: oppsLoading } = useDistrictOpenOppsQuery(
@@ -42,7 +46,10 @@ export default function LinkOpportunityModal({ lead, onClose, now }: LinkOpportu
 
   const save = () => {
     if (!canSave) return;
-    const linked = isLink ? openOpps?.find((o) => o.id === draft.existingId) : null;
+    const linked = isLink
+      ? (openOpps?.find((o) => o.id === draft.existingId) ??
+        (picked?.id === draft.existingId ? picked : null))
+      : null;
     linkOpp.mutate(oppDraftPayload(lead.id, draft), {
       onSuccess: () => {
         showToast(
@@ -83,6 +90,9 @@ export default function LinkOpportunityModal({ lead, onClose, now }: LinkOpportu
         onChange={setDraft}
         openOpps={openOpps}
         openOppsLoading={oppsLoading}
+        districtLeaId={lead.district?.leaid}
+        districtName={lead.district?.name}
+        onPickOpp={setPicked}
       />
     </LeadModalShell>
   );

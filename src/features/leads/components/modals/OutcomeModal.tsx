@@ -260,6 +260,8 @@ export default function OutcomeModal({ lead, onClose, now }: OutcomeModalProps) 
             onChange={setOppDraft}
             openOpps={openOpps}
             openOppsLoading={oppsLoading}
+            districtLeaId={lead.district?.leaid}
+            districtName={lead.district?.name}
           />
         </div>
       )}

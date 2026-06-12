@@ -3,9 +3,12 @@
 // OppFields — reusable create-or-link opportunity form (LeadOpportunity.jsx).
 // Used by LinkOpportunityModal and the Outcome modal's required-opp section.
 // "Create new" shows the Stage 0 context banner + name/product/amount/close
-// fields; "Link existing" lists the lead's district's open opportunities.
+// fields; "Link existing" lists the lead's district's open opportunities
+// first and searches the whole opportunities table (lead-district matches
+// pinned on top of search results).
 
-import { Briefcase } from "lucide-react";
+import { useState } from "react";
+import { Briefcase, Search } from "lucide-react";
 import { fmtDate } from "@/features/shared/lib/date-utils";
 import {
   OPP_PRODUCTS,
@@ -17,11 +20,101 @@ import {
   suggestOppName,
   type OppDraft,
 } from "@/features/leads/lib/opp-draft";
-import type { DistrictOpenOpp } from "@/features/leads/lib/queries";
+import { useOppSearchQuery, type DistrictOpenOpp } from "@/features/leads/lib/queries";
 import MicroLabel from "../bits/MicroLabel";
 import { ChoiceButton, FIELD_CLASS, SELECT_CLASS } from "./modal-chrome";
 
 const STAGE0 = OPP_STAGES[0];
+
+/** Search spans every district — float the lead's own district to the top. */
+function pinDistrictFirst(opps: DistrictOpenOpp[], leaid: string | null) {
+  if (!leaid) return opps;
+  return [...opps].sort(
+    (a, b) => Number(b.districtLeaId === leaid) - Number(a.districtLeaId === leaid),
+  );
+}
+
+function OppRows({
+  opps,
+  emptyText,
+  showDistrict,
+  selectedId,
+  onPick,
+}: {
+  opps: DistrictOpenOpp[];
+  emptyText: string;
+  /** Results span districts — show each row's district under the stage. */
+  showDistrict: boolean;
+  selectedId: string;
+  onPick: (opp: DistrictOpenOpp) => void;
+}) {
+  if (opps.length === 0) {
+    return (
+      <div className="rounded-[10px] border border-dashed border-[#D4CFE2] px-3 py-[18px] text-center text-[12.5px] text-[#A69DC0]">
+        {emptyText}
+      </div>
+    );
+  }
+  return (
+    <div className="flex max-h-[300px] flex-col gap-2 overflow-y-auto">
+      {opps.map((o) => {
+        const sel = selectedId === o.id;
+        const stage = oppStageFromString(o.stage);
+        return (
+          <button
+            key={o.id}
+            type="button"
+            data-testid={`opp-row-${o.id}`}
+            onClick={() => onPick(o)}
+            className={`w-full shrink-0 rounded-[10px] border px-3 py-2.5 text-left transition-[border-color,box-shadow] duration-[120ms] ${
+              sel
+                ? "border-[#7A6FD0] bg-[#F7F5FD] shadow-[0_0_0_2px_rgba(122,111,208,0.15)]"
+                : "border-[#E2DEEC] bg-white hover:border-[#C2BBD4]"
+            }`}
+          >
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="truncate text-[13px] font-semibold text-[#403770]">
+                {o.name ?? "Opportunity"}
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-[13px] font-bold tabular-nums text-[#403770]">
+                {fmtMoney(o.netBookingAmount)}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {stage ? (
+                <span
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+                  style={{ background: stage.bg, color: stage.fg }}
+                >
+                  <span className="tabular-nums opacity-85">Stage {stage.n}</span>
+                  <span
+                    className="h-[3px] w-[3px] rounded-full opacity-50"
+                    style={{ background: stage.fg }}
+                  />
+                  {stage.label}
+                </span>
+              ) : (
+                <span className="whitespace-nowrap rounded-full bg-[#F4F2F8] px-2 py-0.5 text-[10.5px] font-bold text-[#6E6390]">
+                  {o.stage ?? "—"}
+                </span>
+              )}
+              {showDistrict && o.districtName && (
+                <span className="truncate whitespace-nowrap text-[11px] text-[#8A80A8]">
+                  {o.districtName}
+                </span>
+              )}
+              {o.closeDate && (
+                <span className="whitespace-nowrap text-[11px] text-[#9E97B8]">
+                  Close {fmtDate(o.closeDate)}
+                </span>
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export interface OppFieldsProps {
   draft: OppDraft;
@@ -29,6 +122,11 @@ export interface OppFieldsProps {
   /** Open opportunities in the lead's district (Link-existing list). */
   openOpps: DistrictOpenOpp[] | undefined;
   openOppsLoading: boolean;
+  /** Lead's district — labels the district list and pins its search matches. */
+  districtLeaId?: string | null;
+  districtName?: string | null;
+  /** Fired with the full opp row when one is picked (toast context). */
+  onPickOpp?: (opp: DistrictOpenOpp) => void;
 }
 
 export default function OppFields({
@@ -36,8 +134,15 @@ export default function OppFields({
   onChange,
   openOpps,
   openOppsLoading,
+  districtLeaId,
+  districtName,
+  onPickOpp,
 }: OppFieldsProps) {
   const set = (patch: Partial<OppDraft>) => onChange({ ...draft, ...patch });
+
+  const [oppQuery, setOppQuery] = useState("");
+  const searching = oppQuery.trim().length >= 2;
+  const oppSearch = useOppSearchQuery(oppQuery);
 
   // Changing the product keeps the suggested name in sync unless the user
   // already customized it (the product is baked into the opp name — the
@@ -69,8 +174,29 @@ export default function OppFields({
 
       {draft.mode === "existing" ? (
         <div>
-          <MicroLabel className="mb-[7px]">Select an open opportunity</MicroLabel>
-          {openOppsLoading ? (
+          {/* Search the whole opportunities table */}
+          <div className="relative mb-3">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A69DC0]"
+              aria-hidden
+            />
+            <input
+              value={oppQuery}
+              onChange={(e) => setOppQuery(e.target.value)}
+              placeholder="Search all opportunities…"
+              aria-label="Search all opportunities"
+              className={`${FIELD_CLASS} pl-8`}
+            />
+          </div>
+          <MicroLabel className="mb-[7px]">
+            {searching
+              ? "Search results"
+              : districtName
+                ? `Open at ${districtName}`
+                : "Select an open opportunity"}
+          </MicroLabel>
+          {(searching ? oppSearch.isLoading : openOppsLoading) ? (
             <div className="flex flex-col gap-2">
               {Array.from({ length: 2 }).map((_, i) => (
                 <div
@@ -79,62 +205,25 @@ export default function OppFields({
                 />
               ))}
             </div>
-          ) : !openOpps || openOpps.length === 0 ? (
-            <div className="rounded-[10px] border border-dashed border-[#D4CFE2] px-3 py-[18px] text-center text-[12.5px] text-[#A69DC0]">
-              No open opportunities to link.
-            </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {openOpps.map((o) => {
-                const sel = draft.existingId === o.id;
-                const stage = oppStageFromString(o.stage);
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    onClick={() => set({ existingId: o.id })}
-                    className={`w-full rounded-[10px] border px-3 py-2.5 text-left transition-[border-color,box-shadow] duration-[120ms] ${
-                      sel
-                        ? "border-[#7A6FD0] bg-[#F7F5FD] shadow-[0_0_0_2px_rgba(122,111,208,0.15)]"
-                        : "border-[#E2DEEC] bg-white hover:border-[#C2BBD4]"
-                    }`}
-                  >
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="truncate text-[13px] font-semibold text-[#403770]">
-                        {o.name ?? "Opportunity"}
-                      </span>
-                      <span className="shrink-0 whitespace-nowrap text-[13px] font-bold tabular-nums text-[#403770]">
-                        {fmtMoney(o.netBookingAmount)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {stage ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-bold"
-                          style={{ background: stage.bg, color: stage.fg }}
-                        >
-                          <span className="tabular-nums opacity-85">Stage {stage.n}</span>
-                          <span
-                            className="h-[3px] w-[3px] rounded-full opacity-50"
-                            style={{ background: stage.fg }}
-                          />
-                          {stage.label}
-                        </span>
-                      ) : (
-                        <span className="whitespace-nowrap rounded-full bg-[#F4F2F8] px-2 py-0.5 text-[10.5px] font-bold text-[#6E6390]">
-                          {o.stage ?? "—"}
-                        </span>
-                      )}
-                      {o.closeDate && (
-                        <span className="whitespace-nowrap text-[11px] text-[#9E97B8]">
-                          Close {fmtDate(o.closeDate)}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <OppRows
+              opps={
+                searching
+                  ? pinDistrictFirst(oppSearch.data ?? [], districtLeaId ?? null)
+                  : (openOpps ?? [])
+              }
+              emptyText={
+                searching
+                  ? "No open opportunities match."
+                  : "No open opportunities at this district — search all of them above."
+              }
+              showDistrict={searching}
+              selectedId={draft.existingId}
+              onPick={(o) => {
+                set({ existingId: o.id });
+                onPickOpp?.(o);
+              }}
+            />
           )}
         </div>
       ) : (

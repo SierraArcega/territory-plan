@@ -13,6 +13,7 @@ vi.mock("@/features/leads/lib/queries", async (importOriginal) => {
     useLogEngagementMutation: () => ({ mutateAsync: logEngagementMock, isPending: false }),
     useLinkOpportunityMutation: () => ({ mutateAsync: linkOppMock, isPending: false }),
     useDistrictOpenOppsQuery: () => ({ data: [], isLoading: false }),
+    useOppSearchQuery: () => ({ data: undefined, isLoading: false }),
   };
 });
 

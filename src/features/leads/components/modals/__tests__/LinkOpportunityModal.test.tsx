@@ -5,6 +5,7 @@ import { makeLead, NOW } from "./fixtures";
 
 const linkOppMock = vi.fn();
 const openOppsMock = vi.fn();
+const oppSearchMock = vi.fn();
 
 vi.mock("@/features/leads/lib/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/features/leads/lib/queries")>();
@@ -12,6 +13,7 @@ vi.mock("@/features/leads/lib/queries", async (importOriginal) => {
     ...actual,
     useLinkOpportunityMutation: () => ({ mutate: linkOppMock, isPending: false }),
     useDistrictOpenOppsQuery: () => openOppsMock(),
+    useOppSearchQuery: (q: string) => oppSearchMock(q),
   };
 });
 
@@ -42,6 +44,7 @@ describe("LinkOpportunityModal", () => {
     cleanup();
     vi.clearAllMocks();
     openOppsMock.mockReturnValue({ data: [OPEN_OPP], isLoading: false });
+    oppSearchMock.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it("defaults to creating a Stage 0 opp with the suggested draft", () => {
@@ -87,10 +90,61 @@ describe("LinkOpportunityModal", () => {
     );
   });
 
-  it("shows the empty state when the district has no open opps", () => {
+  it("shows the empty state when the district has no open opps, pointing at search", () => {
     openOppsMock.mockReturnValue({ data: [], isLoading: false });
     renderModal();
     fireEvent.click(screen.getByRole("button", { name: "Link existing" }));
-    expect(screen.getByText("No open opportunities to link.")).toBeTruthy();
+    expect(
+      screen.getByText(/No open opportunities at this district/),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Search all opportunities")).toBeTruthy();
+  });
+
+  it("labels the district list with the district name", () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Link existing" }));
+    expect(screen.getByText("Open at Mesa Valley USD 51")).toBeTruthy();
+  });
+
+  it("searches the whole opportunities table, lead-district matches first", () => {
+    const ELSEWHERE_OPP = {
+      id: "opp-77",
+      name: "Pueblo County 70 — Tutoring & Intervention",
+      stage: "2 - Proposal",
+      netBookingAmount: 50000,
+      districtName: "Pueblo County 70",
+      districtLeaId: "0806990",
+      closeDate: null,
+    };
+    const HOME_OPP = {
+      id: "opp-88",
+      name: "Mesa Valley USD 51 — Credit Recovery",
+      stage: "1 - Discovery",
+      netBookingAmount: 80000,
+      districtName: "Mesa Valley USD 51",
+      districtLeaId: "0802940",
+      closeDate: null,
+    };
+    // Server order has the other district first — the UI must pin home first.
+    oppSearchMock.mockReturnValue({ data: [ELSEWHERE_OPP, HOME_OPP], isLoading: false });
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Link existing" }));
+    fireEvent.change(screen.getByLabelText("Search all opportunities"), {
+      target: { value: "recovery" },
+    });
+    expect(oppSearchMock).toHaveBeenLastCalledWith("recovery");
+    const rows = screen.getAllByTestId(/^opp-row-/);
+    expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual([
+      "opp-row-opp-88",
+      "opp-row-opp-77",
+    ]);
+    // Cross-district results show their district and are linkable
+    expect(screen.getByText("Pueblo County 70")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("opp-row-opp-77"));
+    fireEvent.click(screen.getByRole("button", { name: "Link opportunity" }));
+    expect(linkOppMock).toHaveBeenCalledWith(
+      { leadId: "lead-1", opportunityId: "opp-77" },
+      expect.anything(),
+    );
   });
 });
