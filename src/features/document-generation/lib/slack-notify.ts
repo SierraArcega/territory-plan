@@ -47,10 +47,10 @@ interface SlackUploadUrlResponse {
  *  isolates them. Strictly best-effort from the caller's perspective.
  *  Deliberately separate from the per-user Slack integration (src/features/integrations/) — this is a workspace bot token for automated system posts; the webhook has no user session. */
 export async function postExecutedAgreement(n: ExecutedAgreementNotice): Promise<void> {
-  const token = process.env.SLACK_BOT_TOKEN;
-  const channel = process.env.SLACK_EXECUTED_CHANNEL_ID;
+  const token = process.env.SLACK_CONTRACTBOT_TOKEN;
+  const channel = process.env.SLACK_CONTRACT_EXECUTED_CHANNEL_ID;
   if (!token || !channel) {
-    console.warn("Slack notify skipped: SLACK_BOT_TOKEN / SLACK_EXECUTED_CHANNEL_ID not set");
+    console.warn("Slack notify skipped: SLACK_CONTRACTBOT_TOKEN / SLACK_CONTRACT_EXECUTED_CHANNEL_ID not set");
     return;
   }
 

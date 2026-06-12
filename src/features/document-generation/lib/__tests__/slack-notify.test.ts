@@ -48,13 +48,13 @@ describe("postExecutedAgreement", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", mockFetch);
     mockFetch.mockReset();
-    process.env.SLACK_BOT_TOKEN = "xoxb-test";
-    process.env.SLACK_EXECUTED_CHANNEL_ID = "C123";
+    process.env.SLACK_CONTRACTBOT_TOKEN = "xoxb-test";
+    process.env.SLACK_CONTRACT_EXECUTED_CHANNEL_ID = "C123";
   });
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete process.env.SLACK_BOT_TOKEN;
-    delete process.env.SLACK_EXECUTED_CHANNEL_ID;
+    delete process.env.SLACK_CONTRACTBOT_TOKEN;
+    delete process.env.SLACK_CONTRACT_EXECUTED_CHANNEL_ID;
   });
 
   function queueHappyPath() {
@@ -84,7 +84,7 @@ describe("postExecutedAgreement", () => {
   });
 
   it("skips silently when env vars are missing", async () => {
-    delete process.env.SLACK_BOT_TOKEN;
+    delete process.env.SLACK_CONTRACTBOT_TOKEN;
     await expect(postExecutedAgreement(NOTICE)).resolves.toBeUndefined();
     expect(mockFetch).not.toHaveBeenCalled();
   });
