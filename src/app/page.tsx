@@ -7,6 +7,7 @@ import AppShell from "@/features/shared/components/layout/AppShell";
 import { useProfile } from "@/features/shared/lib/queries";
 import dynamic from "next/dynamic";
 import PlansView from "@/features/shared/components/views/PlansView";
+import LeadsView from "@/features/leads/components/LeadsView";
 import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
 import TasksView from "@/features/shared/components/views/TasksView";
 import HomeView from "@/features/home/components/HomeView";
@@ -31,7 +32,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "reports", "leaderboard", "low-hanging-fruit", "resources", "profile", "admin"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "leads", "activities", "tasks", "reports", "leaderboard", "low-hanging-fruit", "resources", "profile", "admin"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -234,6 +235,8 @@ function HomeContent() {
             onPlanChange={handlePlanChange}
           />
         );
+      case "leads":
+        return <LeadsView />;
       case "activities":
         return <ActivitiesView />;
       case "tasks":

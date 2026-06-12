@@ -275,6 +275,7 @@ model District {
   rfps               Rfp[]
   agencyMaps         AgencyDistrictMap[]
   districtNotes      DistrictNote[]
+  leads              Lead[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -364,16 +365,23 @@ model Contact {
   linkedinUrl    String?              @map("linkedin_url") @db.VarChar(500)
   persona        String?              @db.VarChar(100)
   seniorityLevel String?              @map("seniority_level") @db.VarChar(100)
+  // Workplace school (leads domain): the one school this contact works at.
+  // Null = district office. Coexists with the many-to-many school_contacts
+  // junction used by vacancies/news matching — do not converge them here.
+  schoolNcessch  String?              @map("school_ncessch") @db.VarChar(12)
   createdAt      DateTime             @default(now()) @map("created_at")
   lastEnrichedAt DateTime?            @map("last_enriched_at")
   district       District             @relation(fields: [leaid], references: [leaid])
+  school         School?              @relation("ContactWorkplaceSchool", fields: [schoolNcessch], references: [ncessch])
   activityLinks  ActivityContact[]
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
   vacancies      Vacancy[]
   newsArticles   NewsArticleContact[]
+  leads          Lead[]
 
   @@index([leaid])
+  @@index([schoolNcessch])
   @@map("contacts")
 }
 
@@ -752,6 +760,7 @@ model Activity {
   plans         ActivityPlan[]
   districts     ActivityDistrict[]
   contacts      ActivityContact[]
+  schools       ActivitySchool[]
   states        ActivityState[]
   taskLinks     TaskActivity[]
   expenses      ActivityExpense[]
@@ -806,6 +815,17 @@ model ActivityContact {
 
   @@id([activityId, contactId])
   @@map("activity_contacts")
+}
+
+model ActivitySchool {
+  activityId String   @map("activity_id")
+  ncessch    String   @db.VarChar(12)
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  school     School   @relation(fields: [ncessch], references: [ncessch], onDelete: Cascade)
+
+  @@id([activityId, ncessch])
+  @@index([ncessch]) // Speed up lookups by school
+  @@map("activity_schools")
 }
 
 model ActivityOpportunity {
@@ -1068,6 +1088,8 @@ model UserProfile {
   // AI Copilot conversation turns + write audit log
   copilotTurns          CopilotTurn[]             @relation("UserCopilotTurns")
   copilotActionLogs     CopilotActionLog[]        @relation("UserCopilotActionLogs")
+  // BDR leads assigned to this user
+  assignedLeads         Lead[]                    @relation("LeadAssignedBdr")
 
   @@map("user_profiles")
 }
@@ -1411,6 +1433,9 @@ model School {
   schoolContacts    SchoolContact[]
   vacancies         Vacancy[]
   newsArticles      NewsArticleSchool[]
+  workplaceContacts Contact[]                 @relation("ContactWorkplaceSchool")
+  activityLinks     ActivitySchool[]
+  leads             Lead[]
 
   @@index([leaid])
   @@index([charter])
@@ -1567,6 +1592,7 @@ model Opportunity {
   activityLinks ActivityOpportunity[]
   sessions      Session[]
   subscriptions Subscription[]
+  leads         Lead[]
 
   @@index([schoolYr])
   @@index([districtNcesId])
@@ -2139,6 +2165,61 @@ model RfpIngestRun {
   @@index([source, status, startedAt])
   @@index([source, finishedAt])
   @@map("rfp_ingest_runs")
+}
+
+// ===== Leads (BDR pipeline) =====
+// A lead is the BDR pipeline object pointing at durable records (contact,
+// school, district). Engagement activity is NEVER owned by a lead — it lives
+// on activities + junctions (activity_contacts / activity_schools /
+// activity_districts) so history survives disqualification or deletion.
+// Only lifecycle events (lead_events) belong to the lead.
+model Lead {
+  id                String    @id @default(uuid())
+  contactId         Int       @map("contact_id")
+  schoolNcessch     String?   @map("school_ncessch") @db.VarChar(12) // null = district office
+  leaid             String    @db.VarChar(7)
+  status            String    @default("new") @db.VarChar(20) // new | working | meeting_scheduled | sales_qualified | unqualified
+  score             Int       @default(0)
+  leadType          String?   @map("lead_type") @db.VarChar(30) // mql | inbound | conference | other
+  sequence          String?   @db.VarChar(100)
+  marketingOwner    String?   @map("marketing_owner") @db.VarChar(255)
+  assignedBdrId     String?   @map("assigned_bdr_id") @db.Uuid
+  unqualifiedReason String?   @map("unqualified_reason") @db.VarChar(255)
+  opportunityId     String?   @map("opportunity_id") // Stage 0 opp created at meeting_scheduled (or linked)
+  meetingAt         DateTime? @map("meeting_at") @db.Timestamptz // meeting date set at meeting_scheduled; kept on later stages (history)
+  assignedAt        DateTime  @default(now()) @map("assigned_at") // SLA clock start (2 business days)
+  acceptedAt        DateTime? @map("accepted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  contact     Contact      @relation(fields: [contactId], references: [id])
+  school      School?      @relation(fields: [schoolNcessch], references: [ncessch])
+  district    District     @relation(fields: [leaid], references: [leaid])
+  assignedBdr UserProfile? @relation("LeadAssignedBdr", fields: [assignedBdrId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  events      LeadEvent[]
+
+  @@index([assignedBdrId, status]) // board scoped to "my leads" by stage
+  @@index([leaid])
+  @@index([contactId])
+  @@map("leads")
+}
+
+// Lead lifecycle events ONLY (created / accepted / restaged / opp_created /
+// opp_advanced / disqualified / note) — engagement never lands here.
+// Cascade-deleted with the lead; engagement activities are untouched.
+model LeadEvent {
+  id        String   @id @default(uuid())
+  leadId    String   @map("lead_id")
+  kind      String   @db.VarChar(20)
+  payload   Json?
+  actorId   String?  @map("actor_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("lead_events")
 }
 
 model AgencyDistrictMap {

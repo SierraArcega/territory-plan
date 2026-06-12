@@ -7,19 +7,9 @@ import { pushActivityToCalendar } from "@/features/calendar/lib/push";
 import { createActivity } from "@/features/activities/lib/service";
 import { isServiceError } from "@/features/shared/lib/service-error";
 import { findPlanIdsForDistricts } from "@/features/activities/lib/plan-linking";
+import { readMulti } from "@/features/shared/lib/query-params";
 
 export const dynamic = "force-dynamic";
-
-// Parse a `?key=a,b,c` query param into a non-empty string[]. Repeated params
-// (`?key=a&key=b`) are also accepted and merged. Empty values are dropped so
-// a stray `?status=` doesn't widen the filter to "everything".
-function readMulti(searchParams: URLSearchParams, key: string): string[] {
-  const raw = searchParams.getAll(key);
-  return raw
-    .flatMap((v) => v.split(","))
-    .map((v) => v.trim())
-    .filter((v) => v.length > 0);
-}
 
 // GET /api/activities - List activities with filtering
 export async function GET(request: NextRequest) {

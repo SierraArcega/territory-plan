@@ -3864,6 +3864,12 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "SavedList",
     "saved_list_hidden",
     "territory_plan_hidden",
+    // BDR leads pipeline — new feature; not yet wired into the query tool.
+    // Register in TABLE_REGISTRY (with column metadata authored alongside
+    // Sierra) before exposing to copilot queries.
+    "leads",
+    "lead_events",
+    "activity_schools",
   ],
 };
 
