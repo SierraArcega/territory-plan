@@ -151,12 +151,7 @@ describe("LeadsBoard (swimlanes)", () => {
   });
 });
 
-describe("LeadsBoard pagination at 50", () => {
-  const manyWorking = (n: number) =>
-    Array.from({ length: n }, (_, i) =>
-      makeLead({ id: `lw${i}`, status: "working" }),
-    );
-
+describe("LeadsBoard swimlane cell pager", () => {
   it("swimlane cells show one card at a time with a count and prev/next pager", () => {
     const leads = Array.from({ length: 55 }, (_, i) =>
       makeLead({
@@ -208,48 +203,5 @@ describe("LeadsBoard pagination at 50", () => {
     expect(screen.getAllByRole("button", { name: /Open lead/ })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Next lead" })).not.toBeInTheDocument();
     expect(screen.queryByText(/of 1/)).not.toBeInTheDocument();
-  });
-
-  it("grouped lists cap at 50 with a Show more row", () => {
-    render(
-      <LeadsBoard
-        leads={manyWorking(55)}
-        layout="grouped"
-        selectedId={null}
-        onSelectLead={() => {}}
-        onMove={() => {}}
-        now={NOW}
-      />,
-    );
-    expect(screen.getAllByText("Karen Whitfield")).toHaveLength(50);
-    fireEvent.click(screen.getByRole("button", { name: "Show 5 more" }));
-    expect(screen.getAllByText("Karen Whitfield")).toHaveLength(55);
-  });
-});
-
-describe("LeadsBoard (grouped)", () => {
-  it("renders every stage group with counts and footer signals", () => {
-    const leads = [
-      makeLead(),
-      makeLead({
-        id: "l5",
-        status: "unqualified",
-        unqualifiedReason: "No Response",
-      }),
-    ];
-    render(
-      <LeadsBoard
-        leads={leads}
-        layout="grouped"
-        selectedId={null}
-        onSelectLead={() => {}}
-        onMove={() => {}}
-        now={NOW}
-      />,
-    );
-    expect(screen.getByText("New")).toBeInTheDocument();
-    expect(screen.getByText("Unqualified")).toBeInTheDocument();
-    // Empty stage groups show "None"
-    expect(screen.getAllByText("None").length).toBe(3);
   });
 });

@@ -1,11 +1,11 @@
 "use client";
 
-// Pipeline board — three switchable layouts per the design handoff §3:
+// Pipeline board — two switchable layouts (per the design handoff §3; the
+// grouped list was retired in favor of the sortable table):
 //   columns   — one drop-zone column per stage; HTML5 drag-to-restage
 //   swimlanes — manager grid: BDR rows × stage columns (all stages, New first),
 //               sticky header row + sticky first column; each cell pages one
 //               card at a time with a "N of M" pager to keep rows short
-//   grouped   — compact stacked list by stage, each group a white card
 // Drag-to-restage calls onMove(leadId, status); the caller owns the optimistic
 // mutation (server validates transitions — 422 rolls back with a toast).
 
@@ -18,10 +18,8 @@ import { RENDER_PAGE_SIZE } from "@/features/leads/lib/queries";
 import { slaState } from "@/features/leads/lib/sla";
 import type { Lead, LeadStatus } from "@/features/leads/lib/types";
 import LeadCard from "./LeadCard";
-import SlaBadge from "../bits/SlaBadge";
-import ScorePill from "../bits/ScorePill";
 
-export type BoardLayout = "columns" | "swimlanes" | "grouped";
+export type BoardLayout = "columns" | "swimlanes";
 
 interface LeadsBoardProps {
   leads: Lead[];
@@ -224,131 +222,6 @@ function SwimlaneCell({
   );
 }
 
-// ---- Layout 3: compact grouped rows -----------------------------------------
-
-function CompactRow({
-  lead,
-  selectedId,
-  onSelectLead,
-  first,
-  now,
-}: {
-  lead: Lead;
-  selectedId: string | null;
-  onSelectLead: (lead: Lead) => void;
-  first: boolean;
-  now?: Date;
-}) {
-  const sel = lead.id === selectedId;
-  const location = [lead.district?.city, lead.district?.stateAbbrev]
-    .filter(Boolean)
-    .join(", ");
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onSelectLead(lead)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelectLead(lead);
-        }
-      }}
-      className={`flex cursor-pointer items-center gap-3 px-3.5 py-2.5 transition-colors duration-[110ms] ${
-        first ? "" : "border-t border-[#EFEDF5]"
-      } ${sel ? "bg-[#FBF1F0]" : "bg-transparent hover:bg-[#F7F5FA]"}`}
-    >
-      <div className="w-[200px] min-w-0">
-        <div className="truncate whitespace-nowrap text-[13px] font-semibold text-[#403770]">
-          {lead.contact?.name}
-        </div>
-        <div className="truncate whitespace-nowrap text-[11px] text-[#8A80A8]">
-          {lead.contact?.title}
-        </div>
-      </div>
-      <div className="min-w-0 flex-1 truncate whitespace-nowrap text-[12.5px] text-[#5C5277]">
-        {lead.district?.name}
-        {location ? ` · ${location}` : ""}
-      </div>
-      {lead.status === "new" && (
-        <SlaBadge assignedAt={lead.assignedAt} compact now={now} />
-      )}
-      <ScorePill score={lead.score} />
-      {lead.assignedBdr ? (
-        <UserAvatar
-          name={lead.assignedBdr.fullName}
-          avatarUrl={lead.assignedBdr.avatarUrl}
-          size={22}
-        />
-      ) : (
-        <span
-          className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-[#C2BBD4] text-[9px] text-[#A69DC0]"
-          title="Unassigned"
-        >
-          —
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ---- Layout 3 group: one stage's white card (paginated at 50) ------------------
-
-function GroupedSection({
-  statusKey,
-  items,
-  selectedId,
-  onSelectLead,
-  now,
-}: {
-  statusKey: LeadStatus;
-  items: Lead[];
-  selectedId: string | null;
-  onSelectLead: (lead: Lead) => void;
-  now?: Date;
-}) {
-  const c = STATUS_CONFIG[statusKey];
-  const [visible, setVisible] = useState(RENDER_PAGE_SIZE);
-  const overdueCount = statusKey === "new" ? countOverdue(items, now) : 0;
-  return (
-    <div>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.dot }} />
-        <span className="whitespace-nowrap text-[13px] font-bold text-[#403770]">
-          {c.label}
-        </span>
-        <InfoTip label={c.label} text={c.definition} align="left" />
-        <CountPill count={items.length} />
-        {overdueCount > 0 && <OverduePill count={overdueCount} />}
-      </div>
-      <div className="overflow-hidden rounded-lg border border-[#E2DEEC] bg-white">
-        {items.slice(0, visible).map((l, i) => (
-          <CompactRow
-            key={l.id}
-            lead={l}
-            selectedId={selectedId}
-            onSelectLead={onSelectLead}
-            first={i === 0}
-            now={now}
-          />
-        ))}
-        {items.length > visible && (
-          <button
-            type="button"
-            onClick={() => setVisible((v) => v + RENDER_PAGE_SIZE)}
-            className="w-full whitespace-nowrap border-t border-[#EFEDF5] px-3.5 py-2.5 text-left text-xs font-semibold text-[#403770] hover:bg-[#F7F5FA]"
-          >
-            Show {Math.min(RENDER_PAGE_SIZE, items.length - visible)} more
-          </button>
-        )}
-        {items.length === 0 && (
-          <div className="px-4 py-3.5 text-xs text-[#B8B0D0]">None</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ---- Board ------------------------------------------------------------------
 
 export default function LeadsBoard({
@@ -412,111 +285,91 @@ export default function LeadsBoard({
   }
 
   // Layout 2: swimlanes by BDR (manager grid) ---------------------------------
-  if (layout === "swimlanes") {
-    const cols = PIPELINE;
-    const rows: Array<{
-      key: string;
-      label: string;
-      bdr: { fullName: string | null; avatarUrl: string | null } | null;
-    }> = reps.sorted.map((r) => ({
-      key: r.id,
-      label: r.id === currentUserId ? "You" : (r.fullName ?? "").split(" ")[0] || "—",
-      bdr: r,
-    }));
-    if (reps.hasUnassigned) {
-      rows.push({ key: "__unassigned", label: "Unassigned", bdr: null });
-    }
-    return (
-      <div
-        className="h-full overflow-auto rounded-[10px] border border-[#E2DEEC] bg-white"
-        style={{ touchAction: "pan-x pan-y" }}
-      >
-        <div
-          className="grid min-w-max"
-          style={{
-            gridTemplateColumns: `150px repeat(${cols.length}, minmax(190px, 1fr))`,
-          }}
-        >
-          <div className="sticky top-0 z-[2] whitespace-nowrap border-b border-[#E2DEEC] bg-[#F7F5FA] px-3.5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.07em] text-[#6E6390]">
-            BDR
-          </div>
-          {cols.map((k) => {
-            const c = STATUS_CONFIG[k];
-            return (
-              <div
-                key={k}
-                className="sticky top-0 z-[2] flex items-center gap-1.5 border-b border-[#E2DEEC] border-l border-l-[#EFEDF5] bg-[#F7F5FA] px-3 py-[11px]"
-              >
-                <span
-                  className="h-[7px] w-[7px] shrink-0 rounded-full"
-                  style={{ background: c.dot }}
-                />
-                <span className="whitespace-nowrap text-[11.5px] font-bold text-[#403770]">
-                  {c.label}
-                </span>
-                <InfoTip label={c.label} text={c.definition} size={12} align="center" />
-              </div>
-            );
-          })}
-          {rows.map((row, ri) => (
-            <div key={row.key} className="contents">
-              <div
-                className={`sticky left-0 z-[1] flex items-center gap-2 bg-[#FFFCFA] px-3.5 py-3 ${
-                  ri === 0 ? "" : "border-t border-[#EFEDF5]"
-                }`}
-              >
-                {row.bdr ? (
-                  <UserAvatar
-                    name={row.bdr.fullName}
-                    avatarUrl={row.bdr.avatarUrl}
-                    size={26}
-                  />
-                ) : (
-                  <span className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border border-dashed border-[#C2BBD4] text-[10px] text-[#A69DC0]">
-                    —
-                  </span>
-                )}
-                <span className="truncate whitespace-nowrap text-[12.5px] font-semibold text-[#403770]">
-                  {row.label}
-                </span>
-              </div>
-              {cols.map((k) => (
-                <SwimlaneCell
-                  key={k}
-                  cell={leads.filter(
-                    (l) =>
-                      l.status === k &&
-                      (row.bdr ? l.assignedBdr?.id === row.key : !l.assignedBdr),
-                  )}
-                  selectedId={selectedId}
-                  onSelectLead={onSelectLead}
-                  firstRow={ri === 0}
-                  now={now}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const cols = PIPELINE;
+  const rows: Array<{
+    key: string;
+    label: string;
+    bdr: { fullName: string | null; avatarUrl: string | null } | null;
+  }> = reps.sorted.map((r) => ({
+    key: r.id,
+    label: r.id === currentUserId ? "You" : (r.fullName ?? "").split(" ")[0] || "—",
+    bdr: r,
+  }));
+  if (reps.hasUnassigned) {
+    rows.push({ key: "__unassigned", label: "Unassigned", bdr: null });
   }
-
-  // Layout 3: compact grouped list ---------------------------------------------
   return (
     <div
-      className="flex h-full max-w-[820px] flex-col gap-[18px] overflow-auto"
-      style={{ touchAction: "pan-y" }}
+      className="h-full overflow-auto rounded-[10px] border border-[#E2DEEC] bg-white"
+      style={{ touchAction: "pan-x pan-y" }}
     >
-      {PIPELINE.map((k) => (
-        <GroupedSection
-          key={k}
-          statusKey={k}
-          items={byStatus(k)}
-          selectedId={selectedId}
-          onSelectLead={onSelectLead}
-          now={now}
-        />
-      ))}
+      <div
+        className="grid min-w-max"
+        style={{
+          gridTemplateColumns: `150px repeat(${cols.length}, minmax(190px, 1fr))`,
+        }}
+      >
+        <div className="sticky top-0 z-[2] whitespace-nowrap border-b border-[#E2DEEC] bg-[#F7F5FA] px-3.5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.07em] text-[#6E6390]">
+          BDR
+        </div>
+        {cols.map((k) => {
+          const c = STATUS_CONFIG[k];
+          return (
+            <div
+              key={k}
+              className="sticky top-0 z-[2] flex items-center gap-1.5 border-b border-[#E2DEEC] border-l border-l-[#EFEDF5] bg-[#F7F5FA] px-3 py-[11px]"
+            >
+              <span
+                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                style={{ background: c.dot }}
+              />
+              <span className="whitespace-nowrap text-[11.5px] font-bold text-[#403770]">
+                {c.label}
+              </span>
+              <InfoTip label={c.label} text={c.definition} size={12} align="center" />
+            </div>
+          );
+        })}
+        {rows.map((row, ri) => (
+          <div key={row.key} className="contents">
+            <div
+              className={`sticky left-0 z-[1] flex items-center gap-2 bg-[#FFFCFA] px-3.5 py-3 ${
+                ri === 0 ? "" : "border-t border-[#EFEDF5]"
+              }`}
+            >
+              {row.bdr ? (
+                <UserAvatar
+                  name={row.bdr.fullName}
+                  avatarUrl={row.bdr.avatarUrl}
+                  size={26}
+                />
+              ) : (
+                <span className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border border-dashed border-[#C2BBD4] text-[10px] text-[#A69DC0]">
+                  —
+                </span>
+              )}
+              <span className="truncate whitespace-nowrap text-[12.5px] font-semibold text-[#403770]">
+                {row.label}
+              </span>
+            </div>
+            {cols.map((k) => (
+              <SwimlaneCell
+                key={k}
+                cell={leads.filter(
+                  (l) =>
+                    l.status === k &&
+                    (row.bdr ? l.assignedBdr?.id === row.key : !l.assignedBdr),
+                )}
+                selectedId={selectedId}
+                onSelectLead={onSelectLead}
+                firstRow={ri === 0}
+                now={now}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
+
 }

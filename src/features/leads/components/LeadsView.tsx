@@ -24,7 +24,6 @@ import {
   Clock,
   Columns3,
   Filter,
-  List,
   Plus,
   Rows3,
   Search,
@@ -390,7 +389,6 @@ export default function LeadsView() {
                 options={[
                   { value: "columns", label: "Columns", icon: <Columns3 size={14} /> },
                   { value: "swimlanes", label: "Swimlanes", icon: <Rows3 size={14} /> },
-                  { value: "grouped", label: "Grouped", icon: <List size={14} /> },
                 ]}
               />
             )}
