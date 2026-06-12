@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAdminUser } from "@/lib/supabase/server";
+import { dropboxSignTestModeFromValue, DROPBOX_SIGN_TEST_MODE_KEY } from "@/features/shared/lib/app-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -12,22 +13,32 @@ export async function GET() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const totalUsers = await prisma.userProfile.count();
+    // All independent DB reads in one round-trip
+    const [
+      totalUsers,
+      calendarConnected,
+      calendarError,
+      calendarLastSync,
+      testModeRow,
+      lastSendAgg,
+    ] = await Promise.all([
+      prisma.userProfile.count(),
+      // Google Calendar integration status (stored in user_integrations where service='google_calendar')
+      prisma.userIntegration.count({ where: { service: "google_calendar", status: "connected" } }),
+      prisma.userIntegration.count({ where: { service: "google_calendar", status: "error" } }),
+      prisma.userIntegration.findFirst({
+        where: { service: "google_calendar", status: "connected" },
+        orderBy: { lastSyncAt: "desc" },
+        select: { lastSyncAt: true },
+      }),
+      // Dropbox Sign doc-gen mode (app_settings) + last send across generated_documents
+      prisma.appSetting.findUnique({
+        where: { key: DROPBOX_SIGN_TEST_MODE_KEY },
+        include: { updatedBy: { select: { fullName: true } } },
+      }),
+      prisma.generatedDocument.aggregate({ _max: { sentAt: true } }),
+    ]);
 
-    // Google Calendar integration status (stored in user_integrations where service='google_calendar')
-    const [calendarConnected, calendarError, calendarDisconnected, calendarLastSync] =
-      await Promise.all([
-        prisma.userIntegration.count({ where: { service: "google_calendar", status: "connected" } }),
-        prisma.userIntegration.count({ where: { service: "google_calendar", status: "error" } }),
-        prisma.userIntegration.count({ where: { service: "google_calendar", status: "disconnected" } }),
-        prisma.userIntegration.findFirst({
-          where: { service: "google_calendar", status: "connected" },
-          orderBy: { lastSyncAt: "desc" },
-          select: { lastSyncAt: true },
-        }),
-      ]);
-
-    const calendarTotal = calendarConnected + calendarError + calendarDisconnected;
     const calendarStatus =
       calendarError > 0 ? "error" : calendarConnected > 0 ? "connected" : "disconnected";
 
@@ -48,6 +59,8 @@ export async function GET() {
       ? latestAnySync.status === "success" ? "healthy" : "error"
       : "unknown";
 
+    const dropboxTestMode = dropboxSignTestModeFromValue(testModeRow?.value);
+
     const integrations = [
       {
         name: "Google Calendar",
@@ -66,6 +79,17 @@ export async function GET() {
         totalUsers: null,
         lastSyncAt: latestAnySync?.completedAt ?? null,
         description: "Hourly sync of opportunities from CRM via OpenSearch",
+      },
+      {
+        name: "Dropbox Sign",
+        slug: "dropbox-sign",
+        status: dropboxTestMode ? "test" : "live",
+        connectedUsers: null,
+        totalUsers: null,
+        lastSyncAt: lastSendAgg._max.sentAt ?? null,
+        description: "Sends contracts for e-signature via Dropbox Sign",
+        modeChangedAt: testModeRow?.updatedAt ?? null,
+        modeChangedByName: testModeRow?.updatedBy?.fullName ?? null,
       },
     ];
 

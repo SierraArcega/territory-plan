@@ -22,6 +22,7 @@ const mockUseGeneratedDocumentStatus = vi.fn(() => ({
 vi.mock("@/features/document-generation/lib/queries", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   useGeneratedDocumentStatus: (_id: number | null) => mockUseGeneratedDocumentStatus(),
+  useDocGenSettings: () => ({ data: undefined }),
 }));
 
 // Mock send-client so we can control what the send POST returns

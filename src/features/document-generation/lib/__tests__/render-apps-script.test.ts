@@ -111,6 +111,20 @@ describe("renderViaAppsScript", () => {
     });
     expect(opts).not.toHaveProperty("keyFile");
   });
+
+  it("strips client-smuggled send directives (auto_send/test_mode)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ success: true, url: "https://docs.google.com/document/d/D/edit" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderViaAppsScript({ doc_type: "contract", auto_send: true, test_mode: "0" } as never, false);
+
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.auto_send).toBe(false);
+    expect(sent).not.toHaveProperty("test_mode");
+  });
 });
 
 import { sendForSignature } from "../render-apps-script";
@@ -133,10 +147,22 @@ describe("sendForSignature", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await sendForSignature({ doc_type: "contract" } as never);
+    const result = await sendForSignature({ doc_type: "contract" } as never, { testMode: true });
 
     expect(result).toEqual({ docUrl: "https://docs.google.com/document/d/D/edit", docId: "D", sent: true, signatureRequestId: "sig_123", sendError: undefined });
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ doc_type: "contract", tags: true, auto_send: true });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ doc_type: "contract", tags: true, auto_send: true, test_mode: "1" });
+  });
+
+  it("POSTs test_mode '0' when live", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ success: true, url: "u", docId: "D", sent: true, signatureRequestId: "s" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendForSignature({ doc_type: "contract" } as never, { testMode: false });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ test_mode: "0" });
   });
 
   it("returns sent:false + sendError when the script could not send", async () => {
@@ -144,7 +170,7 @@ describe("sendForSignature", () => {
       ok: true, status: 200,
       json: async () => ({ success: true, url: "u", docId: "D", sent: false, sendError: "domain not allowed" }),
     }));
-    const r = await sendForSignature({ doc_type: "contract" } as never);
+    const r = await sendForSignature({ doc_type: "contract" } as never, { testMode: true });
     expect(r).toMatchObject({ docUrl: "u", sent: false, sendError: "domain not allowed" });
   });
 
@@ -152,6 +178,6 @@ describe("sendForSignature", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ success: false, error: "render boom" }),
     }));
-    await expect(sendForSignature({ doc_type: "contract" } as never)).rejects.toThrow(/render boom/);
+    await expect(sendForSignature({ doc_type: "contract" } as never, { testMode: true })).rejects.toThrow(/render boom/);
   });
 });

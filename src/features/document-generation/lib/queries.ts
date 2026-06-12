@@ -45,6 +45,24 @@ export function sendPollInterval(
   return SEND_POLL_MS;
 }
 
+// ---------------------------------------------------------------------------
+// Doc-gen client settings (test mode annotation)
+// ---------------------------------------------------------------------------
+
+export interface DocGenSettings {
+  testMode: boolean;
+}
+
+export function useDocGenSettings() {
+  return useQuery({
+    queryKey: ["document-generation", "settings"],
+    queryFn: () => fetchJson<DocGenSettings>(`${API_BASE}/document-generation/settings`),
+    // No staleTime: the admin can flip test mode at any moment, and the
+    // ReviewStage annotation must track it. Default staleTime (0) refetches on
+    // every modal mount, and window-focus refetch picks up cross-tab flips.
+  });
+}
+
 export function useGeneratedDocumentStatus(id: number | null) {
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -53,6 +71,14 @@ export function useGeneratedDocumentStatus(id: number | null) {
     enabled: id != null,
     refetchInterval: (q) =>
       sendPollInterval(q.state.data?.status, q.state.dataUpdateCount, q.state.errorUpdateCount),
+    // Structural sharing keeps `data` referentially stable across identical
+    // polls (e.g. status stuck at "processing"), and without a forced
+    // notification the component stops re-rendering — freezing the render-time
+    // pollTimedOut computation below, so the banner never flips from
+    // "Sending…" to "awaiting confirmation". Notify on every poll instead.
+    // This is bounded: polling stops after ~60s, so the extra re-renders are
+    // 1 per 2s while the banner is up.
+    notifyOnChangeProps: "all",
   });
   // dataUpdateCount lives on the internal QueryState, not the observer result —
   // read it from the cache so the banner's timeout matches the poll's stop condition.

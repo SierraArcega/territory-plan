@@ -12,6 +12,13 @@ const props = (over = {}) => ({
   ...over,
 });
 
+// Alias used in rerender calls so the type is explicit
+const makeStage = (over: Record<string, unknown> = {}) => <ReviewStage {...props(over)} />;
+
+function renderStage(over: Record<string, unknown> = {}) {
+  return render(makeStage(over));
+}
+
 describe("ReviewStage", () => {
   it("shows Send for signature for contracts", () => {
     render(<ReviewStage {...props()} />);
@@ -78,5 +85,25 @@ describe("ReviewStage", () => {
   it("keeps the send button enabled for error phase (retry allowed)", () => {
     render(<ReviewStage {...props({ sendState: { phase: "error", sendError: "oops" } })} />);
     expect(screen.getByRole("button", { name: /Send for signature/i })).toBeEnabled();
+  });
+
+  // Task 8: test-mode annotation
+  it("shows the test-mode callout and button tag for contracts in test mode", () => {
+    renderStage({ docType: "contract", testMode: true });
+    expect(screen.getByText(/Sending is in test mode/)).toBeInTheDocument();
+    expect(screen.getByText(/contact your Admin to disable Test Mode/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send for signature/ })).toHaveTextContent("Test mode");
+  });
+
+  it("hides the callout when live or unknown", () => {
+    const { rerender } = renderStage({ docType: "contract", testMode: false });
+    expect(screen.queryByText(/Sending is in test mode/)).not.toBeInTheDocument();
+    rerender(makeStage({ docType: "contract", testMode: undefined }));
+    expect(screen.queryByText(/Sending is in test mode/)).not.toBeInTheDocument();
+  });
+
+  it("hides the callout for BOCES quotes even in test mode", () => {
+    renderStage({ docType: "boces_quote", testMode: true });
+    expect(screen.queryByText(/Sending is in test mode/)).not.toBeInTheDocument();
   });
 });

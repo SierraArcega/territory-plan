@@ -1,19 +1,8 @@
 "use client";
 
 import { useAdminIntegrations, AdminIntegration } from "../hooks/useAdminIntegrations";
-
-function relativeTime(date: string | null): string {
-  if (!date) return "Never";
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(date).toLocaleDateString();
-}
+import { relativeTime } from "../lib/relative-time";
+import DropboxSignCard from "./DropboxSignCard";
 
 type BadgeVariant = "connected" | "error" | "disconnected";
 
@@ -111,9 +100,13 @@ export default function IntegrationsTab() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {integrations.map((integration) => (
-        <IntegrationCard key={integration.slug} integration={integration} />
-      ))}
+      {integrations.map((integration) =>
+        integration.slug === "dropbox-sign" ? (
+          <DropboxSignCard key={integration.slug} integration={integration} />
+        ) : (
+          <IntegrationCard key={integration.slug} integration={integration} />
+        )
+      )}
     </div>
   );
 }

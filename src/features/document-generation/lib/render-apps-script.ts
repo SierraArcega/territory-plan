@@ -60,7 +60,9 @@ async function callRenderer(body: object): Promise<Record<string, unknown>> {
 /** Mints a service-account OAuth token (domain-wide delegation) and POSTs the
  *  payload to the deployed Apps Script web app, returning the doc URL. */
 export async function renderViaAppsScript(payload: DocPayload, tags: boolean): Promise<RenderResult> {
-  const data = (await callRenderer({ ...payload, tags })) as { success: boolean; url?: string; agreementUrl?: string; error?: string };
+  // Render is preview-only: strip any client-smuggled send directives. Only
+  // sendForSignature may set auto_send/test_mode (server-injected).
+  const data = (await callRenderer({ ...payload, tags, auto_send: false, test_mode: undefined })) as { success: boolean; url?: string; agreementUrl?: string; error?: string };
   if (!data.success || !data.url) throw new Error(`Renderer failed: ${data.error ?? "unknown error"}`);
 
   return data.agreementUrl ? { docUrl: data.url, agreementUrl: data.agreementUrl } : { docUrl: data.url };
@@ -75,9 +77,15 @@ export interface SendResult {
 }
 
 /** Re-renders the payload with eSign tags ON and auto_send ON (mechanism A) and
- *  returns the Dropbox Sign send result. Reuses buildJwt()/SCOPES from this file. */
-export async function sendForSignature(payload: DocPayload): Promise<SendResult> {
-  const data = (await callRenderer({ ...payload, tags: true, auto_send: true })) as {
+ *  returns the Dropbox Sign send result. test_mode is server-injected from
+ *  app_settings — never read from the client payload. Reuses buildJwt()/SCOPES. */
+export async function sendForSignature(payload: DocPayload, opts: { testMode: boolean }): Promise<SendResult> {
+  const data = (await callRenderer({
+    ...payload,
+    tags: true,
+    auto_send: true,
+    test_mode: opts.testMode ? "1" : "0",
+  })) as {
     success: boolean; url?: string; docId?: string;
     sent?: boolean; signatureRequestId?: string; sendError?: string; error?: string;
   };

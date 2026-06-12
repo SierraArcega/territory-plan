@@ -13,9 +13,10 @@ interface Props {
   onBack: () => void;
   busy?: boolean;
   sendState?: SendBanner | null;
+  testMode?: boolean;
 }
 
-export default function ReviewStage({ result, orderTotal, docType, onSend, onBack, busy, sendState }: Props) {
+export default function ReviewStage({ result, orderTotal, docType, onSend, onBack, busy, sendState, testMode }: Props) {
   const docId = docIdFromUrl(result.docUrl);
   return (
     <div className="space-y-3">
@@ -67,12 +68,22 @@ export default function ReviewStage({ result, orderTotal, docType, onSend, onBac
         </p>
       )}
 
+      {docType === "contract" && testMode === true && (
+        <div role="status" className="rounded-lg border border-[#ffd98d] bg-[#fffaf1] px-3 py-2 text-sm text-[#997c43]">
+          Sending is in test mode — this won&apos;t produce a real signature request. Use Google Docs to send an
+          executable, or contact your Admin to disable Test Mode.
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {docType === "contract" && (
           <button type="button" onClick={onSend}
             disabled={busy || (sendState != null && sendState.phase !== "error")}
-            className="rounded-lg bg-[#403770] px-3 py-1 text-sm text-white whitespace-nowrap disabled:opacity-50">
+            className={`rounded-lg bg-[#403770] px-3 py-1 text-sm text-white whitespace-nowrap disabled:opacity-50${testMode === true ? " ring-2 ring-[#FFCF70]" : ""}`}>
             {busy ? "Sending…" : "Send for signature"}
+            {testMode === true && (
+              <span className="ml-2 rounded-full bg-[#fffaf1] px-1.5 py-0.5 text-[10px] font-semibold text-[#997c43] whitespace-nowrap">Test mode</span>
+            )}
           </button>
         )}
         <button type="button" onClick={onBack}

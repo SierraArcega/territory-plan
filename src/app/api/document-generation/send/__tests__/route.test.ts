@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { DROPBOX_SIGN_TEST_MODE_KEY } from "@/features/shared/lib/app-setting-keys";
 
-const { mockGetUser, mockSend, mockCreate } = vi.hoisted(() => ({
+vi.mock("server-only", () => ({}));
+
+const { mockGetUser, mockSend, mockCreate, mockFindUnique } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockSend: vi.fn(),
   mockCreate: vi.fn(),
+  mockFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({ getUser: mockGetUser }));
 vi.mock("@/features/document-generation/lib/render-apps-script", () => ({ sendForSignature: mockSend }));
-vi.mock("@/lib/prisma", () => ({ default: { generatedDocument: { create: mockCreate } } }));
+vi.mock("@/lib/prisma", () => ({ default: { generatedDocument: { create: mockCreate }, appSetting: { findUnique: mockFindUnique } } }));
 
 import { POST } from "../route";
 
@@ -31,6 +35,7 @@ describe("POST /api/document-generation/send", () => {
     mockGetUser.mockResolvedValue({ id: "user-uuid" });
     mockSend.mockResolvedValue({ docUrl: "https://docs.google.com/d/D/edit", docId: "D", sent: true, signatureRequestId: "sig_1" });
     mockCreate.mockResolvedValue({ id: 1 });
+    mockFindUnique.mockResolvedValue(null);
   });
 
   it("401s when unauthenticated", async () => {
@@ -49,7 +54,7 @@ describe("POST /api/document-generation/send", () => {
   it("writes the row as processing on synchronous accept", async () => {
     const res = await POST(req({ payload: CONTRACT, districtLeaId: "0601234" }));
     expect(res.status).toBe(200);
-    expect(mockSend).toHaveBeenCalledWith(CONTRACT);
+    expect(mockSend).toHaveBeenCalledWith(CONTRACT, { testMode: true });
     expect(mockCreate.mock.calls[0][0].data.status).toBe("processing");
     expect(mockCreate).toHaveBeenCalledWith({ data: expect.objectContaining({
       status: "processing", signatureRequestId: "sig_1", recipientEmail: "s@acme.org",
@@ -91,5 +96,18 @@ describe("POST /api/document-generation/send", () => {
     expect(data.payload).toEqual(CONTRACT);
     expect(data.orderTotal).toBe(CONTRACT.quote.order_total);
     expect(data.paymentType).toBe(CONTRACT.payment.type);
+  });
+
+  it("passes testMode false when the setting is live", async () => {
+    mockFindUnique.mockResolvedValue({ key: DROPBOX_SIGN_TEST_MODE_KEY, value: false });
+    const res = await POST(req({ payload: CONTRACT, districtLeaId: "0601234" }));
+    expect(res.status).toBe(200);
+    expect(mockSend).toHaveBeenCalledWith(CONTRACT, { testMode: false });
+  });
+
+  it("passes testMode true when no setting row exists", async () => {
+    mockFindUnique.mockResolvedValue(null);
+    await POST(req({ payload: CONTRACT, districtLeaId: "0601234" }));
+    expect(mockSend).toHaveBeenCalledWith(CONTRACT, { testMode: true });
   });
 });

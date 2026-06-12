@@ -10,7 +10,7 @@ import { stubRenderClient } from "@/features/document-generation/lib/render-clie
 import type { PrefillResult } from "@/features/document-generation/lib/prefill";
 import { sendForSignatureRequest } from "@/features/document-generation/lib/send-client";
 import { schoolYearFromDate } from "@/features/document-generation/lib/school-year";
-import { useGeneratedDocumentStatus } from "@/features/document-generation/lib/queries";
+import { useGeneratedDocumentStatus, useDocGenSettings } from "@/features/document-generation/lib/queries";
 import { deriveSendBanner } from "@/features/document-generation/lib/send-banner";
 
 interface Props {
@@ -46,6 +46,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
   const [syncSend, setSyncSend] = useState<{ recipientEmail?: string; sendError?: string } | null>(null);
 
   const statusQuery = useGeneratedDocumentStatus(sendId);
+  const settingsQuery = useDocGenSettings();
 
   // Derive the send banner BEFORE handleSend so the retry guard can use it
   const sendState = deriveSendBanner(syncSend, sendId, statusQuery.data, statusQuery.pollTimedOut);
@@ -98,6 +99,7 @@ export default function GenerateDocumentModal({ prefill, onClose, renderClient =
             docType={state.docType}
             busy={busy}
             sendState={sendState}
+            testMode={settingsQuery.data?.testMode}
             onSend={handleSend}
             onBack={() => { setResult(null); setSendId(null); setSyncSend(null); }}
           />
