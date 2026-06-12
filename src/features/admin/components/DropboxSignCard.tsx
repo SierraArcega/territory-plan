@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AdminIntegration } from "../hooks/useAdminIntegrations";
 import { useUpdateAppSetting } from "../hooks/useAdminIntegrations";
 import { DROPBOX_SIGN_TEST_MODE_KEY } from "@/features/shared/lib/app-setting-keys";
@@ -12,7 +12,13 @@ export default function DropboxSignCard({ integration }: { integration: AdminInt
   const [error, setError] = useState<string | null>(null);
   const mutation = useUpdateAppSetting();
 
-  useEffect(() => { setConfirmingLive(false); }, [integration.status]);
+  // Close a stale confirm panel when the mode actually changes (adjust-state-
+  // during-render — see react.dev "You Might Not Need an Effect").
+  const [prevStatus, setPrevStatus] = useState(integration.status);
+  if (prevStatus !== integration.status) {
+    setPrevStatus(integration.status);
+    setConfirmingLive(false);
+  }
 
   function setMode(value: boolean) {
     setError(null);

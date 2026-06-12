@@ -18,7 +18,6 @@ export async function GET() {
       totalUsers,
       calendarConnected,
       calendarError,
-      calendarDisconnected,
       calendarLastSync,
       testModeRow,
       lastSendAgg,
@@ -27,7 +26,6 @@ export async function GET() {
       // Google Calendar integration status (stored in user_integrations where service='google_calendar')
       prisma.userIntegration.count({ where: { service: "google_calendar", status: "connected" } }),
       prisma.userIntegration.count({ where: { service: "google_calendar", status: "error" } }),
-      prisma.userIntegration.count({ where: { service: "google_calendar", status: "disconnected" } }),
       prisma.userIntegration.findFirst({
         where: { service: "google_calendar", status: "connected" },
         orderBy: { lastSyncAt: "desc" },
@@ -41,7 +39,6 @@ export async function GET() {
       prisma.generatedDocument.aggregate({ _max: { sentAt: true } }),
     ]);
 
-    const calendarTotal = calendarConnected + calendarError + calendarDisconnected;
     const calendarStatus =
       calendarError > 0 ? "error" : calendarConnected > 0 ? "connected" : "disconnected";
 
