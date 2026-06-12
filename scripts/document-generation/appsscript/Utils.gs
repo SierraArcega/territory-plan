@@ -81,6 +81,38 @@ function deleteMarkerParagraph(body, markerText) {
 }
 
 /**
+ * Removes the first body TABLE whose top-left cell text equals headerText
+ * (trimmed). Also removes one immediately-following empty paragraph so no
+ * stray gap is left. Logs and no-ops when the table isn't found — a missing
+ * table must never fail the render.
+ * @param {GoogleAppsScript.Document.Body} body
+ * @param {string} headerText
+ * @return {boolean} whether a table was removed
+ */
+function removeTableByHeaderText(body, headerText) {
+  for (var i = 0; i < body.getNumChildren(); i++) {
+    var child = body.getChild(i);
+    if (child.getType() !== DocumentApp.ElementType.TABLE) continue;
+    var table = child.asTable();
+    if (table.getNumRows() === 0 || table.getRow(0).getNumCells() === 0) continue;
+    if (table.getRow(0).getCell(0).getText().trim() !== headerText) continue;
+
+    // Remove a trailing empty spacer paragraph first (index shifts on removal).
+    if (i + 1 < body.getNumChildren()) {
+      var next = body.getChild(i + 1);
+      if (next.getType() === DocumentApp.ElementType.PARAGRAPH &&
+          next.asParagraph().getText().trim() === '') {
+        body.removeChild(next);
+      }
+    }
+    body.removeChild(table);
+    return true;
+  }
+  Logger.log('removeTableByHeaderText: no table found with header "' + headerText + '"');
+  return false;
+}
+
+/**
  * Deletes all body children from startMarker paragraph through endMarker
  * paragraph (inclusive). Deletes from end backwards to preserve indices.
  * Logs a warning if either marker is not found.
