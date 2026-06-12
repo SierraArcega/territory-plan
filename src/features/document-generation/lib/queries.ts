@@ -45,6 +45,22 @@ export function sendPollInterval(
   return SEND_POLL_MS;
 }
 
+// ---------------------------------------------------------------------------
+// Doc-gen client settings (test mode annotation)
+// ---------------------------------------------------------------------------
+
+export interface DocGenSettings {
+  testMode: boolean;
+}
+
+export function useDocGenSettings() {
+  return useQuery({
+    queryKey: ["document-generation", "settings"],
+    queryFn: () => fetchJson<DocGenSettings>(`${API_BASE}/document-generation/settings`),
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useGeneratedDocumentStatus(id: number | null) {
   const queryClient = useQueryClient();
   const query = useQuery({
