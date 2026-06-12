@@ -1090,6 +1090,7 @@ model UserProfile {
   copilotActionLogs     CopilotActionLog[]        @relation("UserCopilotActionLogs")
   // BDR leads assigned to this user
   assignedLeads         Lead[]                    @relation("LeadAssignedBdr")
+  appSettingUpdates     AppSetting[]              @relation("AppSettingUpdatedBy")
 
   @@map("user_profiles")
 }
@@ -2283,4 +2284,17 @@ model GeneratedDocument {
 
   @@index([ownerProfileId])
   @@map("generated_documents")
+}
+
+// ===== App Settings =====
+// Generic admin-editable key-value settings (SP7). One key so far:
+// 'dropbox_sign_test_mode' (JSON boolean; missing row = test mode ON).
+model AppSetting {
+  key         String       @id @db.VarChar(100)
+  value       Json         @db.JsonB
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  updatedById String?      @map("updated_by_id") @db.Uuid
+  updatedBy   UserProfile? @relation("AppSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("app_settings")
 }

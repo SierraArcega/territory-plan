@@ -3838,6 +3838,7 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "CalendarEvent",
     "activity_attachments",
     "activity_notes",
+    "app_settings",
     "district_notes",
     "audit_log",
     "data_refresh_logs",
