@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { getUser } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { sendForSignature } from "@/features/document-generation/lib/render-apps-script";
+import { getDropboxSignTestMode } from "@/features/shared/lib/app-settings";
 import type { DocPayload } from "@/features/document-generation/lib/payload-types";
 import { promotedFields } from "@/features/document-generation/lib/persist";
 
@@ -30,7 +31,8 @@ export async function POST(request: Request) {
     const recipientEmail = deal.signer_email || deal.client_email || "";
     const companyName = deal.client_company || "";
 
-    const result = await sendForSignature(payload);
+    const testMode = await getDropboxSignTestMode();
+    const result = await sendForSignature(payload, { testMode });
     const promoted = promotedFields(payload);
 
     // NOTE: if this write fails after a successful send, the signature request is already
