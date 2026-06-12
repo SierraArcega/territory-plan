@@ -8,7 +8,7 @@ import prisma from "@/lib/prisma";
 import { verifyEventHash } from "@/features/document-generation/lib/dropbox-sign-verify";
 import { mapEventToStatus } from "@/features/document-generation/lib/signature-status";
 import { fetchExecutedPdf } from "@/features/document-generation/lib/dropbox-files";
-import { uploadExecutedPdf } from "@/features/document-generation/lib/drive-archive";
+import { uploadExecutedPdf, deleteExecutedPdf } from "@/features/document-generation/lib/drive-archive";
 import { buildExecutedPdfName, formatSchoolYearShort, isoDate } from "@/features/document-generation/lib/naming";
 import { postExecutedAgreement } from "@/features/document-generation/lib/slack-notify";
 
@@ -62,11 +62,13 @@ export async function POST(request: Request) {
       // Post-signing pipeline, strictly best-effort: archive the executed PDF to
       // Drive, then announce it in Slack. Each leg has its own catch — a Drive
       // failure must not kill the Slack post and vice versa, and Dropbox Sign must
-      // always get the ack. Idempotency rides the executedPdfFileId guard; the
-      // known rare signed/all_signed/downloadable double-fire can double-run this
-      // block (spare Drive file + duplicate Slack post) — accepted at current
-      // volume. signature_request_downloadable also maps to signed.
-      // All of this is awaited before the ack (Dropbox Sign retries slow acks; the stamp guard absorbs them) — move to next/server after() if retries ever get noisy.
+      // always get the ack. Idempotency rides an atomic claim: the executedPdfFileId
+      // column is stamped via updateMany({ where: { id, executedPdfFileId: null } })
+      // so only the first concurrent event wins; the loser cleans up its duplicate
+      // Drive file and skips Slack. A failed archive leaves executedPdfFileId null
+      // so a later downloadable event retries the whole block. signature_request_downloadable
+      // also maps to signed.
+      // All of this is awaited before the ack (Dropbox Sign retries slow acks; the claim guard absorbs them) — move to next/server after() if retries ever get noisy.
       if (status === "signed") {
         try {
           const row = await prisma.generatedDocument.findUnique({
@@ -88,19 +90,34 @@ export async function POST(request: Request) {
               });
 
               let uploaded: { fileId: string; url: string } | null = null;
+              let wonClaim = false;
               try {
                 uploaded = await uploadExecutedPdf(pdf, name);
-                await prisma.generatedDocument.update({
-                  where: { id: row.id },
+                const claim = await prisma.generatedDocument.updateMany({
+                  where: { id: row.id, executedPdfFileId: null },
                   data: { executedPdfUrl: uploaded.url, executedPdfFileId: uploaded.fileId },
                 });
+                wonClaim = claim.count === 1;
+                if (!wonClaim) {
+                  console.log(`Duplicate signed event lost the claim for ${sigId}; cleaning up spare Drive file ${uploaded.fileId}`);
+                  try {
+                    await deleteExecutedPdf(uploaded.fileId);
+                  } catch (deleteError) {
+                    console.error("deleteExecutedPdf error:", deleteError);
+                  }
+                }
               } catch (archiveError) {
                 console.error("Executed-PDF archive error:", archiveError);
               }
 
+              // Post to Slack when this event won the claim, or when the archive
+              // failed entirely (driveUrl null — preserves best-effort notify).
+              // A loser that successfully uploaded skips Slack to avoid duplicates.
+              const shouldNotify = wonClaim || uploaded === null;
+
               // Test-mode signings never reach the channel; the Drive archive above
               // still runs so test e2e flows stay observable.
-              if (parsed.signature_request?.test_mode !== true) {
+              if (shouldNotify && parsed.signature_request?.test_mode !== true) {
                 try {
                   const deal = (row.payload as { deal?: Record<string, string> } | null)?.deal;
                   const repName =
