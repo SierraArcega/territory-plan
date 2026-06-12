@@ -77,7 +77,12 @@ function generateFullContract(payload) {
                            .setName(docName + '.pdf');
         var signerName = payload.deal.signer_salut + ' ' + payload.deal.signer_first + ' ' + payload.deal.signer_last;
         var dsPayload = {
-          'test_mode':                 props[PROP.DROPBOX_SIGN_TEST_MODE] || '1',
+          // Server-injected by the app's send route (SP7 Admin toggle). Strict
+          // string match; anything else falls back to the script property so
+          // editor-run tests stay sandboxed.
+          'test_mode':                 (payload.test_mode === '0' || payload.test_mode === '1')
+                                         ? payload.test_mode
+                                         : (props[PROP.DROPBOX_SIGN_TEST_MODE] || '1'),
           'title':                     docName,
           'subject':                   'Please sign your Fullmind contract',
           'message':                   'Please review and sign your Fullmind agreement for the ' + payload.deal.school_year + ' school year.',
