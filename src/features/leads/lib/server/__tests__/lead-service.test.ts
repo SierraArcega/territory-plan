@@ -181,6 +181,22 @@ describe("transitionLead — side effects", () => {
     );
   });
 
+  it("un-accept (working -> new) clears accepted_at and writes a 'restaged' event", async () => {
+    db.lead.findUnique.mockResolvedValue(
+      baseLead("working", { acceptedAt: new Date("2026-06-01T12:00:00Z") }),
+    );
+    await transitionLead("lead-1", { status: "new" }, USER_ID, asDb(db));
+
+    const updateData = db.lead.update.mock.calls[0][0].data;
+    expect(updateData.status).toBe("new");
+    expect(updateData.acceptedAt).toBeNull();
+    expect(db.leadEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "restaged", actorId: USER_ID }),
+      }),
+    );
+  });
+
   it("meeting_scheduled creates a native Stage 0 opp and stores its id", async () => {
     db.lead.findUnique.mockResolvedValue(baseLead("working"));
     db.opportunity.create.mockImplementation(async (args: { data: { id: string } }) => args.data);

@@ -385,6 +385,11 @@ async function applyTransition(
     // Accept: the SLA clock stops here.
     data.acceptedAt = new Date();
     events.push({ kind: "accepted", payload: { from, to: target } });
+  } else if (target === "new") {
+    // Un-accept: back to awaiting acceptance. assigned_at is untouched —
+    // the SLA still measures from the original assignment.
+    data.acceptedAt = null;
+    events.push({ kind: "restaged", payload: { from, to: target } });
   } else if (target === "unqualified") {
     const reason = opts.reason?.trim();
     if (!reason) {

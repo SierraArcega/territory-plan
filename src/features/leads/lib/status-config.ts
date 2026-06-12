@@ -72,7 +72,10 @@ export const STATUS_CONFIG: Record<LeadStatus, StatusConfig> = {
  */
 export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
   new: ["working", "unqualified"],
-  working: ["meeting_scheduled", "unqualified"],
+  // Active stages move both ways (back to new = un-accept, clears accepted_at);
+  // the end states stay terminal — SQL has handed its opp to a rep, and
+  // unqualified is a documented dead end.
+  working: ["new", "meeting_scheduled", "unqualified"],
   meeting_scheduled: ["working", "sales_qualified", "unqualified"],
   sales_qualified: [],
   unqualified: [],
