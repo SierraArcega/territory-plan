@@ -60,7 +60,9 @@ async function callRenderer(body: object): Promise<Record<string, unknown>> {
 /** Mints a service-account OAuth token (domain-wide delegation) and POSTs the
  *  payload to the deployed Apps Script web app, returning the doc URL. */
 export async function renderViaAppsScript(payload: DocPayload, tags: boolean): Promise<RenderResult> {
-  const data = (await callRenderer({ ...payload, tags })) as { success: boolean; url?: string; agreementUrl?: string; error?: string };
+  // Render is preview-only: strip any client-smuggled send directives. Only
+  // sendForSignature may set auto_send/test_mode (server-injected).
+  const data = (await callRenderer({ ...payload, tags, auto_send: false, test_mode: undefined })) as { success: boolean; url?: string; agreementUrl?: string; error?: string };
   if (!data.success || !data.url) throw new Error(`Renderer failed: ${data.error ?? "unknown error"}`);
 
   return data.agreementUrl ? { docUrl: data.url, agreementUrl: data.agreementUrl } : { docUrl: data.url };

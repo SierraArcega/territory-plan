@@ -111,6 +111,20 @@ describe("renderViaAppsScript", () => {
     });
     expect(opts).not.toHaveProperty("keyFile");
   });
+
+  it("strips client-smuggled send directives (auto_send/test_mode)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ success: true, url: "https://docs.google.com/document/d/D/edit" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderViaAppsScript({ doc_type: "contract", auto_send: true, test_mode: "0" } as never, false);
+
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.auto_send).toBe(false);
+    expect(sent).not.toHaveProperty("test_mode");
+  });
 });
 
 import { sendForSignature } from "../render-apps-script";
