@@ -161,13 +161,13 @@ export default function QuoteSection({ state, bookingReference, onChange }: Prop
           {state.includeMinMax ? (
             <div className="flex flex-wrap gap-3">
               <label className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-wide text-[#6E6390]">Minimum purchase ($)</span>
+                <span className="text-xs uppercase tracking-wide text-[#6E6390]">Minimum purchase amount ($)</span>
                 <input type="number" aria-label="Minimum purchase" value={state.minAmt ?? ""}
                   onChange={(e) => onChange({ minAmt: e.target.value === "" ? null : Number(e.target.value) })}
                   className={`rounded border px-2 py-1 text-sm ${state.minAmt == null ? "border-[#F37167]" : "border-[#C2BBD4]"}`} />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-wide text-[#6E6390]">Maximum budget ($)</span>
+                <span className="text-xs uppercase tracking-wide text-[#6E6390]">Maximum district budget ($)</span>
                 <input type="number" aria-label="Maximum budget" value={state.maxAmt ?? ""}
                   onChange={(e) => onChange({ maxAmt: e.target.value === "" ? null : Number(e.target.value) })}
                   className={`rounded border px-2 py-1 text-sm ${state.maxAmt == null ? "border-[#F37167]" : "border-[#C2BBD4]"}`} />

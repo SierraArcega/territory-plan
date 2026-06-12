@@ -58,8 +58,9 @@ blank ships a contract with an empty min/max table — the long-standing
   (`payload-types.ts` + `payload.ts`).
 - When `false`, `min_amt` and `max_amt` are emitted as `null` (regardless of
   preserved form state).
-- BOCES payloads emit the flag as `true` (inert — the BOCES path never touches
-  the contract template).
+- BOCES payloads omit the flag entirely (amended post-implementation: the BOCES
+  quote object is a separate type with no min/max fields at all; Apps Script only
+  acts on explicit `false`, so absence is equivalently inert).
 - No DB changes: the flag lives in the payload JSONB (registry-excluded), and
   min/max were never promoted columns. No API route changes — the payload
   passes through render/send untouched.
